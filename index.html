@@ -84,7 +84,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f0f17">
 <!-- HOW TO RECOMPUTE CSP HASHES: run node transform script after any script/style edits -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-jcd1EfFjVMKfxjglWhfbrWI4FVjr44kms/v4d9EkHig=' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://mozilla.github.io; connect-src *; media-src *; img-src * data: blob:; style-src 'self' 'sha256-rrgy4hOUemzBNzMsE3ZgMrDzOkZtC8L9iNo359Yd2B0='; worker-src blob:; frame-ancestors 'none'; form-action 'none'; base-uri 'self'; upgrade-insecure-requests;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://mozilla.github.io; connect-src *; media-src *; img-src * data: blob:; style-src 'self' 'unsafe-inline'; worker-src blob:; frame-ancestors 'none'; form-action 'none'; base-uri 'self';">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="description" content="DevHub — Secure P2P Communication Hub">
@@ -1500,6 +1500,8 @@ const CFG={
   RECONNECT_DELAY:[1500,3000,6000,12000,20000,30000,45000,60000],
   RATE_LIMIT_MS:200,MSG_SIZE_LIMIT:20000,MAX_MSG_NODES:200,
   AUDIT_LOG_MAX:300,
+  MSG_RATE_LIMIT_WINDOW:10000,
+  MSG_RATE_LIMIT_COUNT:10,
   VAULT_PBKDF2_ITER:250000,
   HEALTH_INTERVAL:60000,
   ICE_RESTART_RTT_THRESHOLD:800,
@@ -4918,7 +4920,7 @@ class UIManager{
       this.appendMsg(msgObj);
       this._msgBuffer.push(msgObj);
       this._saveMsgs(this.activePeer);
-      if(mi)mi.value='';mi.style.height='auto';
+      if(mi){mi.value='';mi.style.height='auto';}
       this._clearReply();this._scrollToBottom();
     }
   }
@@ -5062,7 +5064,7 @@ self.addEventListener('fetch',e=>{
 `;
       const swBlob=new Blob([swCode],{type:'application/javascript'});
       const swURL=URL.createObjectURL(swBlob);
-      navigator.serviceWorker.register(swURL,{scope:'/'}).then(reg=>{
+      navigator.serviceWorker.register(swURL).then(reg=>{
         this._status='registered';
         URL.revokeObjectURL(swURL);
         try{App.log?.info('ServiceWorker registered (scope: '+reg.scope+')');}catch(e){}
@@ -5076,7 +5078,7 @@ self.addEventListener('fetch',e=>{
     // online/offline banner
     const showOfflineBanner=()=>{
       let b=document.getElementById('sw-offline-banner');
-      if(!b){b=document.createElement('div');b.id='sw-offline-banner';b.style.cssText='position:fixed;top:0;left:0;right:0;padding:8px 16px;background:#b45309;color:#fff;font-size:12px;text-align:center;z-index:99999;display:none;';b.textContent='📴 You're offline — cached assets still available';document.body.appendChild(b);}
+      if(!b){b=document.createElement('div');b.id='sw-offline-banner';b.style.cssText='position:fixed;top:0;left:0;right:0;padding:8px 16px;background:#b45309;color:#fff;font-size:12px;text-align:center;z-index:99999;display:none;';b.textContent='📴 You\u2019re offline \u2014 cached assets still available';document.body.appendChild(b);}
       b.style.display='block';
     };
     const hideOfflineBanner=()=>{const b=document.getElementById('sw-offline-banner');if(b)b.style.display='none';};
