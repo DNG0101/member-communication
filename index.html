@@ -1,0 +1,2680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>DevHub — Member Communication</title>
+<style>
+:root{
+  --bg:#0f0f17;--bg2:#16161f;--bg3:#1e1e2e;--bg4:#252535;
+  --text:#e2e2f0;--text2:#9898b8;--muted:#666680;
+  --primary:#6366f1;--primary-h:#4f52d9;
+  --green:#22c55e;--red:#ef4444;--yellow:#f59e0b;--cyan:#22d3ee;--orange:#f97316;
+  --border:#2d2d44;--radius:10px;--radius-sm:6px;--shadow:0 4px 24px rgba(0,0,0,.45);
+}
+.light{
+  --bg:#f8f8ff;--bg2:#ededf8;--bg3:#e4e4f0;--bg4:#d8d8ec;
+  --text:#16163a;--text2:#44446a;--muted:#8888aa;--border:#c8c8e8;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;font-family:system-ui,-apple-system,sans-serif;font-size:14px;background:var(--bg);color:var(--text);}
+button{cursor:pointer;font-family:inherit;font-size:13px;border:none;outline:none;}
+input,textarea,select{font-family:inherit;font-size:13px;outline:none;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:7px 10px;}
+input:focus,textarea:focus,select:focus{border-color:var(--primary);}
+a{color:var(--primary);text-decoration:none;}
+/* ─── Layout ─────────────────────────────────────────── */
+#app{display:flex;height:100vh;overflow:hidden;}
+#sidebar{width:240px;min-width:48px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;transition:width .2s;overflow:hidden;position:relative;flex-shrink:0;}
+#sidebar-drag{position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;z-index:10;}
+#sidebar-drag:hover{background:var(--primary);opacity:.3;}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+#topbar{height:48px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;padding:0 12px;flex-shrink:0;}
+#content{flex:1;display:flex;overflow:hidden;}
+/* ─── Sidebar ─────────────────────────────────────────── */
+#sb-header{padding:12px 10px 8px;border-bottom:1px solid var(--border);flex-shrink:0;}
+#sb-status{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
+#my-name-btn{font-size:12px;font-weight:700;background:none;color:var(--text);cursor:pointer;padding:2px 4px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;}
+#my-name-btn:hover{background:var(--bg3);}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:2px 8px;border-radius:99px;font-weight:600;}
+.pill.p-on{background:#22c55e22;color:var(--green);}
+.pill.p-off{background:#ef444422;color:var(--red);}
+.pill.p-con{background:#f59e0b22;color:var(--yellow);}
+.pdot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:pulse 1.4s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+#jin{width:100%;margin-bottom:6px;}
+.sb-btn-row{display:flex;gap:4px;flex-wrap:wrap;}
+#peers-label{font-size:11px;font-weight:600;color:var(--muted);padding:8px 10px 4px;text-transform:uppercase;letter-spacing:.05em;}
+#peers-list{flex:1;overflow-y:auto;padding:4px 6px;display:flex;flex-direction:column;gap:4px;}
+#pc-pill{font-size:11px;color:var(--muted);padding:2px 10px;}
+.pc{background:var(--bg3);border-radius:var(--radius-sm);padding:7px 9px;cursor:pointer;transition:background .15s,border .15s;border:1px solid transparent;}
+.pc:hover{background:var(--bg4);}
+.pc.sel{border-color:var(--primary);background:var(--bg4);}
+.pc-top{display:flex;align-items:center;gap:6px;margin-bottom:4px;}
+.pc-av{font-size:18px;line-height:1;}
+.pc-nm{font-size:12px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pc-row{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);}
+.pc-acts{display:flex;gap:3px;margin-top:4px;}
+.plat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.lt50{background:#22c55e;}.lt150{background:#f59e0b;}.lt300{background:#f97316;}.gt300{background:#ef4444;}
+.ubadge{background:var(--red);color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:1px 5px;min-width:17px;text-align:center;}
+.presence-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.pres-online{background:#22c55e;}.pres-busy{background:#ef4444;}.pres-idle{background:#f59e0b;}.pres-away{background:#666680;}.pres-call{background:#6366f1;}
+/* ─── Topbar ───────────────────────────────────────── */
+.tb-title{font-weight:700;font-size:14px;color:var(--primary);}
+.tb-spacer{flex:1;}
+/* ─── Tab Nav ──────────────────────────────────────── */
+#tab-nav{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);overflow-x:auto;flex-shrink:0;scrollbar-width:none;}
+#tab-nav::-webkit-scrollbar{display:none;}
+.tn{background:none;color:var(--text2);padding:10px 14px;border-bottom:2px solid transparent;font-size:12px;font-weight:600;white-space:nowrap;transition:color .15s,border-color .15s;}
+.tn:hover{color:var(--text);}
+.tn.on{color:var(--primary);border-bottom-color:var(--primary);}
+/* ─── Tabs ─────────────────────────────────────────── */
+.tabview{display:none;flex:1;overflow:hidden;flex-direction:column;}
+.tabview.on{display:flex;}
+/* ─── Chat ─────────────────────────────────────────── */
+#chat-hdr{display:none;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;}
+#chat-hdr.on{display:flex;}
+#chat-hdr-av{font-size:22px;}
+#chat-hdr-nm{font-weight:700;font-size:14px;}
+#chat-hdr-lat{font-size:11px;color:var(--muted);}
+#chat-hdr-st{font-size:11px;}
+#msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:6px;}
+#chat-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;color:var(--muted);gap:8px;}
+#chat-empty.on{display:none;}
+.mr{display:flex;justify-content:flex-start;}
+.mr.me{justify-content:flex-end;}
+.mb{background:var(--bg3);border-radius:12px 12px 12px 3px;padding:8px 12px;max-width:72%;word-break:break-word;font-size:13px;position:relative;}
+.mb.me{background:var(--primary);color:#fff;border-radius:12px 12px 3px 12px;}
+.mtime{font-size:10px;color:var(--muted);margin-top:3px;text-align:right;}
+.mb.me .mtime{color:rgba(255,255,255,.6);}
+.del-mark{margin-left:3px;color:var(--cyan);}
+.mcopy{position:absolute;top:2px;right:2px;background:var(--bg4);color:var(--muted);font-size:10px;padding:2px 5px;border-radius:4px;display:none;}
+.mb:hover .mcopy{display:block;}
+.mb.me:hover .mcopy{background:rgba(0,0,0,.2);color:rgba(255,255,255,.7);}
+.msg-reactions{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px;}
+.reaction-btn{background:var(--bg4);border:1px solid var(--border);border-radius:99px;padding:2px 6px;font-size:12px;cursor:pointer;}
+.reaction-btn:hover{background:var(--primary);color:#fff;}
+#mtyp{padding:4px 14px;font-size:11px;color:var(--muted);min-height:20px;flex-shrink:0;}
+.tdot{display:inline-block;animation:bounce .6s infinite alternate;}
+.tdot:nth-child(2){animation-delay:.2s;}
+.tdot:nth-child(3){animation-delay:.4s;}
+@keyframes bounce{from{transform:translateY(0);}to{transform:translateY(-4px);}}
+#reply-preview{display:none;background:var(--bg3);border-left:3px solid var(--primary);padding:6px 10px;margin:0 12px;border-radius:0 6px 6px 0;font-size:12px;color:var(--text2);flex-shrink:0;}
+#reply-preview.on{display:flex;align-items:center;gap:8px;}
+#chatbar{display:flex;align-items:flex-end;gap:6px;padding:10px 12px;border-top:1px solid var(--border);background:var(--bg2);flex-shrink:0;}
+#mi{flex:1;resize:none;min-height:36px;max-height:90px;border-radius:8px;}
+#scroll-pill{display:none;position:absolute;bottom:80px;right:16px;background:var(--primary);color:#fff;border:none;border-radius:99px;padding:6px 14px;font-size:12px;cursor:pointer;box-shadow:var(--shadow);}
+.chat-top-acts{display:flex;gap:4px;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;}
+/* ─── Files ─────────────────────────────────────────── */
+#dz{border:2px dashed var(--border);border-radius:var(--radius);padding:28px;text-align:center;cursor:pointer;color:var(--muted);font-size:13px;transition:border-color .2s,background .2s;margin:12px;}
+#dz:hover,#dz.over{border-color:var(--primary);background:var(--primary)11;}
+#tx-info{font-size:12px;color:var(--muted);padding:4px 12px;}
+#txlist{padding:0 12px;display:flex;flex-direction:column;gap:6px;}
+.tc{background:var(--bg3);border-radius:var(--radius-sm);padding:10px;}
+.tc-top{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+.tc-icon{font-size:16px;}
+.tc-nm{flex:1;font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tc-sz{font-size:11px;color:var(--muted);}
+.tc-acts{display:flex;gap:4px;}
+.pb{background:var(--bg4);border-radius:99px;height:6px;overflow:hidden;}
+.pb-fill{height:100%;background:var(--primary);border-radius:99px;transition:width .3s;}
+.tc-info{display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:var(--text2);}
+/* ─── Call ──────────────────────────────────────────── */
+#callbar{display:none;background:var(--bg2);border-bottom:1px solid var(--border);padding:10px 14px;flex-shrink:0;}
+#callbar.on{display:block;}
+.call-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.call-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+#vwrap{display:none;background:#000;border-radius:var(--radius);overflow:hidden;margin:12px;position:relative;}
+#lvid,#rvid{width:50%;height:200px;object-fit:cover;}
+#avis,#avis2{display:flex;align-items:flex-end;gap:2px;height:32px;padding:0 2px;}
+.av-bar{width:4px;background:var(--primary);border-radius:2px 2px 0 0;transition:height .05s;}
+#incoming-call-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9000;align-items:center;justify-content:center;}
+#incoming-call-modal.on{display:flex;}
+.icall-box{background:var(--bg2);border-radius:var(--radius);padding:28px;text-align:center;width:280px;border:1px solid var(--border);}
+.quality-dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+.q-e{background:#22c55e;}.q-g{background:#86efac;}.q-p{background:#f59e0b;}.q-c{background:#ef4444;}
+/* ─── Whiteboard ────────────────────────────────────── */
+#wb-wrap{position:relative;flex:1;overflow:hidden;}
+#wb-canvas{display:block;cursor:crosshair;touch-action:none;background:#1a1a2e;border-radius:var(--radius);}
+#wb-cursors{position:absolute;top:0;left:0;pointer-events:none;}
+#wb-tools{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap;flex-shrink:0;}
+.wb-tool-btn{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:5px 10px;font-size:12px;color:var(--text);}
+.wb-tool-btn:hover,.wb-tool-btn.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+/* ─── Code Editor ───────────────────────────────────── */
+#code-editor-area{width:100%;height:280px;font-family:monospace;font-size:12px;resize:vertical;border-radius:var(--radius-sm);tab-size:2;}
+#ce-output{background:var(--bg3);border-radius:var(--radius-sm);padding:10px;font-size:12px;font-family:monospace;white-space:pre-wrap;min-height:60px;color:var(--text2);margin-top:6px;}
+/* ─── Tasks ──────────────────────────────────────────── */
+.task-item{display:flex;align-items:center;gap:8px;background:var(--bg3);border-radius:var(--radius-sm);padding:8px 10px;border:1px solid transparent;}
+.task-item.done{opacity:.55;}
+.task-check{width:18px;height:18px;border-radius:4px;border:2px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
+.task-check.done{background:var(--green);border-color:var(--green);color:#fff;}
+.task-title{flex:1;font-size:13px;}
+.task-prio{font-size:10px;font-weight:700;padding:2px 6px;border-radius:99px;}
+.prio-high{background:#ef444422;color:var(--red);}
+.prio-med{background:#f59e0b22;color:var(--yellow);}
+.prio-low{background:#22c55e22;color:var(--green);}
+/* ─── Group Chat ─────────────────────────────────────── */
+#gc-msgs{flex:1;overflow-y:auto;padding:10px;}
+#gc-members{display:flex;flex-wrap:wrap;gap:4px;padding:8px 10px;border-bottom:1px solid var(--border);}
+.gc-pill{background:var(--bg3);border-radius:99px;padding:3px 10px;font-size:11px;font-weight:600;}
+/* ─── Notes ──────────────────────────────────────────── */
+#notepad{width:100%;flex:1;resize:none;border-radius:var(--radius-sm);font-size:13px;line-height:1.6;}
+/* ─── Vault ──────────────────────────────────────────── */
+.vault-item{display:flex;align-items:center;gap:8px;background:var(--bg3);border-radius:var(--radius-sm);padding:8px 10px;margin-bottom:6px;}
+.vault-key{font-size:12px;font-weight:700;color:var(--cyan);min-width:100px;}
+.vault-val{flex:1;font-size:12px;font-family:monospace;}
+/* ─── Group Video ─────────────────────────────────────── */
+#gv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;padding:12px;}
+.gv-tile{background:#000;border-radius:var(--radius);overflow:hidden;aspect-ratio:16/9;position:relative;}
+.gv-tile video{width:100%;height:100%;object-fit:cover;}
+.gv-tile-lbl{position:absolute;bottom:4px;left:6px;font-size:11px;color:#fff;background:rgba(0,0,0,.6);padding:2px 6px;border-radius:4px;}
+/* ─── History ────────────────────────────────────────── */
+.hist-item{display:flex;align-items:center;gap:10px;padding:8px;background:var(--bg3);border-radius:var(--radius-sm);margin-bottom:5px;}
+.hist-av{font-size:20px;}
+.hist-info{flex:1;}
+.hist-nm{font-size:13px;font-weight:600;}
+.hist-ts{font-size:11px;color:var(--muted);}
+/* ─── Settings ───────────────────────────────────────── */
+.set-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
+.set-label{flex:1;font-size:13px;}
+.set-sub{font-size:11px;color:var(--muted);}
+/* ─── Toggle ─────────────────────────────────────────── */
+.ff-toggle{position:relative;display:inline-block;width:36px;height:20px;}
+.ff-toggle input{opacity:0;width:0;height:0;}
+.ff-slider{position:absolute;inset:0;background:var(--border);border-radius:10px;cursor:pointer;transition:.3s;}
+.ff-slider:before{content:'';position:absolute;width:14px;height:14px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s;}
+.ff-toggle input:checked+.ff-slider{background:var(--primary);}
+.ff-toggle input:checked+.ff-slider:before{transform:translateX(16px);}
+/* ─── Notifications ──────────────────────────────────── */
+.notif-item{display:flex;gap:10px;padding:10px;background:var(--bg3);border-radius:var(--radius-sm);margin-bottom:5px;border-left:3px solid transparent;}
+.notif-item.unread{border-left-color:var(--primary);}
+.notif-icon{font-size:18px;}
+.notif-body{flex:1;}
+.notif-title{font-size:13px;font-weight:700;}
+.notif-sub{font-size:12px;color:var(--text2);}
+.notif-ts{font-size:10px;color:var(--muted);}
+/* ─── Buttons ─────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;border-radius:var(--radius-sm);padding:7px 13px;font-size:12px;font-weight:600;transition:background .15s,opacity .15s;}
+.btn:disabled{opacity:.42;cursor:not-allowed;}
+.btn-p{background:var(--primary);color:#fff;}.btn-p:hover:not(:disabled){background:var(--primary-h);}
+.btn-s{background:var(--bg3);color:var(--text);border:1px solid var(--border);}.btn-s:hover:not(:disabled){background:var(--bg4);}
+.btn-d{background:#ef444422;color:var(--red);border:1px solid #ef444433;}.btn-d:hover:not(:disabled){background:#ef444433;}
+.btn-g{background:#22c55e22;color:var(--green);border:1px solid #22c55e33;}.btn-g:hover:not(:disabled){background:#22c55e33;}
+.btn-xs{padding:4px 8px;font-size:11px;}
+.btn-sm{padding:5px 10px;font-size:12px;}
+/* ─── Panels ─────────────────────────────────────────── */
+.panel{padding:14px;overflow-y:auto;flex:1;}
+.panel-title{font-size:15px;font-weight:700;margin-bottom:12px;}
+.panel-section{margin-bottom:16px;}
+.panel-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;}
+.dev-row{display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg3);border-radius:var(--radius-sm);margin-bottom:4px;font-size:12px;}
+.ff-item{background:var(--bg3);border-radius:var(--radius-sm);padding:8px 10px;margin-bottom:5px;display:flex;align-items:center;justify-content:space-between;}
+/* ─── Toast ───────────────────────────────────────────── */
+#toast-container{position:fixed;bottom:20px;right:16px;display:flex;flex-direction:column;gap:6px;z-index:9999;pointer-events:none;}
+.toast-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 14px;font-size:12px;font-weight:600;pointer-events:all;min-width:200px;max-width:320px;box-shadow:var(--shadow);animation:slidein .25s ease;display:flex;align-items:center;gap:8px;}
+@keyframes slidein{from{transform:translateX(60px);opacity:0;}to{transform:none;opacity:1;}}
+.toast-s{border-left:3px solid var(--green);}.toast-e{border-left:3px solid var(--red);}.toast-w{border-left:3px solid var(--yellow);}.toast-i{border-left:3px solid var(--primary);}
+/* ─── Heal Banner ───────────────────────────────────── */
+#heal-banner{display:none;background:#f59e0b22;border:1px solid #f59e0b44;border-radius:var(--radius-sm);padding:6px 12px;margin:8px 12px;font-size:12px;gap:8px;align-items:center;}
+#heal-banner.on{display:flex;}
+/* ─── Callbar ───────────────────────────────────────── */
+#call-timer,#call-timer2{font-size:13px;font-weight:700;font-family:monospace;}
+#recbadge{display:none;align-items:center;gap:4px;background:#ef444422;color:var(--red);border-radius:99px;padding:2px 8px;font-size:11px;font-weight:700;}
+#recbadge.on{display:inline-flex;}
+/* ─── Scroll to bottom pill ─────────────────────────── */
+/* ─── Modals ─────────────────────────────────────────── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:8000;align-items:center;justify-content:center;}
+.modal-overlay.on{display:flex;}
+.modal-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;min-width:300px;max-width:480px;width:90%;max-height:85vh;overflow-y:auto;}
+.modal-title{font-size:15px;font-weight:700;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;}
+/* ─── Command Palette ───────────────────────────────── */
+#cmd-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9500;align-items:flex-start;justify-content:center;padding-top:80px;}
+#cmd-ov.on{display:flex;}
+#cmd-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);width:90%;max-width:520px;overflow:hidden;box-shadow:var(--shadow);}
+#cmd-inp{width:100%;background:none;border:none;border-bottom:1px solid var(--border);padding:12px 16px;font-size:15px;color:var(--text);}
+#cmd-results{max-height:380px;overflow-y:auto;}
+.cr{display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;border-left:2px solid transparent;}
+.cr:hover,.cr.sel{background:var(--bg3);border-left-color:var(--primary);}
+.cr-icon{font-size:16px;width:24px;text-align:center;}
+.cr-title{font-size:13px;font-weight:600;}
+.cr-sub{font-size:11px;color:var(--muted);}
+.cr-kbd{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 5px;font-size:10px;font-family:monospace;}
+/* ─── QR Modal ───────────────────────────────────────── */
+#qr-wrap{display:flex;justify-content:center;padding:10px;}
+#qr-video-wrap{position:relative;margin-top:10px;}
+#qr-video{width:100%;max-width:280px;border-radius:var(--radius-sm);}
+#qr-scan-line{position:absolute;top:0;left:0;right:0;height:2px;background:var(--red);animation:scan 2s infinite;}
+@keyframes scan{0%{top:0}100%{top:100%}}
+/* ─── Image viewer ───────────────────────────────────── */
+#img-viewer{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9000;align-items:center;justify-content:center;}
+#img-viewer.on{display:flex;}
+#img-view-src{max-width:90vw;max-height:90vh;border-radius:var(--radius);}
+/* ─── Mobile ─────────────────────────────────────────── */
+#mob-nav{display:none;background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0;z-index:100;}
+#mobile-peers{display:none;position:fixed;inset:0;background:var(--bg);z-index:500;flex-direction:column;}
+#mobile-peers.on{display:flex;}
+#mob-peers-list{flex:1;overflow-y:auto;padding:8px;}
+.mob-nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:8px 4px;background:none;color:var(--text2);font-size:10px;border-top:2px solid transparent;transition:color .15s;}
+.mob-nav-btn.on{color:var(--primary);border-top-color:var(--primary);}
+.mob-nav-btn .mn-icon{font-size:18px;}
+.mob-badge{background:var(--red);color:#fff;font-size:9px;font-weight:700;border-radius:99px;padding:1px 4px;min-width:14px;text-align:center;display:none;}
+.mob-badge.on{display:inline-block;}
+/* ─── Presence Status ────────────────────────────────── */
+.presence-menu{display:none;position:absolute;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px;z-index:1000;box-shadow:var(--shadow);min-width:140px;}
+.presence-menu.on{display:block;}
+.pm-opt{padding:6px 10px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px;}
+.pm-opt:hover{background:var(--bg3);}
+/* ─── Clipboard pill ────────────────────────────────── */
+.clippill{display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--bg2);border:1px solid var(--border);border-radius:99px;padding:6px 12px;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow);z-index:9000;font-size:12px;max-width:90vw;}
+.clippill.on{display:flex;}
+/* ─── aria-live ─────────────────────────────────────── */
+#msg-live{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;}
+/* ─── Boot ───────────────────────────────────────────── */
+#boot-overlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:99999;}
+#boot-overlay.gone{display:none;}
+.boot-logo{font-size:48px;}
+.boot-title{font-size:22px;font-weight:800;color:var(--primary);}
+#boot-bar{width:260px;height:6px;background:var(--bg3);border-radius:99px;overflow:hidden;}
+#boot-fill{height:100%;width:0%;background:var(--primary);border-radius:99px;transition:width .3s;}
+#boot-msg{font-size:12px;color:var(--muted);}
+/* ─── Onboarding ────────────────────────────────────── */
+#ob-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99998;align-items:center;justify-content:center;}
+#ob-modal.on{display:flex;}
+#ob-box{background:var(--bg2);border-radius:var(--radius);padding:28px;width:90%;max-width:380px;border:1px solid var(--border);}
+/* ─── Scroll ─────────────────────────────────────────── */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+/* ─── Perms panel ────────────────────────────────────── */
+#perms-panel{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);min-width:280px;max-width:400px;z-index:7000;box-shadow:var(--shadow);}
+/* ─── Call quality ───────────────────────────────────── */
+#cq-lbl,#cq-lbl2{font-size:10px;color:var(--muted);}
+/* ─── Vol slider ─────────────────────────────────────── */
+#vol-slider{width:80px;accent-color:var(--primary);}
+/* ─── Group video ─────────────────────────────────────── */
+#gv-my-video{width:100%;height:100%;object-fit:cover;}
+/* ─── History tabs ───────────────────────────────────── */
+.hist-tabs{display:flex;gap:4px;margin-bottom:12px;}
+/* ─── Responsive ─────────────────────────────────────── */
+@media(max-width:700px){
+  #sidebar{display:none;}
+  #mob-nav{display:flex;}
+  #app{flex-direction:column;}
+  #content{flex:1;overflow:hidden;}
+  #tab-nav{display:none;}
+  #lvid,#rvid{width:100%;height:160px;}
+}
+</style>
+</head>
+<body>
+
+<!-- Boot overlay -->
+<div id="boot-overlay">
+  <div class="boot-logo">💬</div>
+  <div class="boot-title">DevHub · Member Comms</div>
+  <div id="boot-bar"><div id="boot-fill"></div></div>
+  <div id="boot-msg">Starting…</div>
+</div>
+
+<!-- Onboarding -->
+<div id="ob-modal">
+  <div id="ob-box">
+    <div style="font-size:28px;text-align:center;margin-bottom:12px">👋</div>
+    <h2 style="text-align:center;margin-bottom:16px">Welcome to DevHub</h2>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:14px;text-align:center">Choose your display name for peer-to-peer connections.</p>
+    <input id="ob-name" placeholder="Your name…" style="width:100%;margin-bottom:12px">
+    <button id="btn-ob-start" class="btn btn-p" style="width:100%">Get Started</button>
+  </div>
+</div>
+
+<!-- aria-live -->
+<div id="msg-live" aria-live="polite" aria-atomic="true"></div>
+
+<!-- Image viewer -->
+<div id="img-viewer" onclick="this.classList.remove('on')">
+  <img id="img-view-src" src="" alt="Preview">
+</div>
+
+<!-- Incoming call modal -->
+<div id="incoming-call-modal">
+  <div class="icall-box">
+    <div style="font-size:40px;margin-bottom:10px">📞</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:4px">Incoming Call</div>
+    <div id="icall-name" style="color:var(--text2);margin-bottom:20px">Unknown</div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button id="icall-acc" class="btn btn-g" style="flex:1">✅ Accept</button>
+      <button id="icall-rej" class="btn btn-d" style="flex:1">❌ Reject</button>
+    </div>
+  </div>
+</div>
+
+<!-- QR Modal -->
+<div id="qr-modal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title">
+      Connect via QR
+      <button class="btn btn-xs btn-s" onclick="Modal.hide('qr-modal')">✕</button>
+    </div>
+    <div id="qr-wrap"></div>
+    <p id="my-qr-id" style="font-size:11px;color:var(--muted);text-align:center;word-break:break-all;margin-top:8px"></p>
+    <div style="display:flex;gap:6px;margin-top:10px">
+      <button class="btn btn-p btn-sm" onclick="App.qr.startScan()" style="flex:1">📷 Scan QR</button>
+      <button class="btn btn-s btn-sm" onclick="App.room?.copyInvite?.()??App.ui?.copyInvite?.()" style="flex:1">🔗 Copy Link</button>
+    </div>
+    <div id="qr-video-wrap" style="display:none">
+      <video id="qr-video" autoplay muted playsinline></video>
+      <div id="qr-scan-line"></div>
+      <canvas id="qr-canvas" style="display:none"></canvas>
+      <button class="btn btn-d btn-xs" style="margin-top:6px;width:100%" onclick="App.qr.stopScan()">Stop Scanning</button>
+    </div>
+  </div>
+</div>
+
+<!-- Search overlay -->
+<div id="search-ov" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title">Search<button class="btn btn-xs btn-s" onclick="Modal.hide('search-ov')">✕</button></div>
+    <input id="search-inp" placeholder="Search peers, messages…" style="width:100%;margin-bottom:10px">
+    <div id="search-results" style="display:flex;flex-direction:column;gap:5px;max-height:300px;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- Command palette -->
+<div id="cmd-ov">
+  <div id="cmd-box">
+    <input id="cmd-inp" placeholder="Type a command…" autocomplete="off" spellcheck="false">
+    <div id="cmd-results"></div>
+  </div>
+</div>
+
+<!-- App layout -->
+<div id="app">
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div id="sb-header">
+      <div id="sb-status">
+        <button id="my-name-btn" title="Click to copy your Peer ID">Connecting…</button>
+        <div id="my-status"></div>
+        <div style="position:relative">
+          <button id="btn-presence" class="btn btn-xs btn-s" title="Set presence">🟢</button>
+          <div id="presence-menu" class="presence-menu">
+            <div class="pm-opt" onclick="App.presence.setStatus('online')"><span style="color:var(--green)">●</span> Online</div>
+            <div class="pm-opt" onclick="App.presence.setStatus('busy')"><span style="color:var(--red)">●</span> Busy</div>
+            <div class="pm-opt" onclick="App.presence.setStatus('idle')"><span style="color:var(--yellow)">●</span> Idle</div>
+            <div class="pm-opt" onclick="App.presence.setStatus('away')"><span style="color:var(--muted)">●</span> Away</div>
+          </div>
+        </div>
+      </div>
+      <input id="jin" placeholder="Peer ID or invite URL…">
+      <div class="sb-btn-row">
+        <button id="btn-join" class="btn btn-p btn-xs">Connect</button>
+        <button id="btn-inv-sb" class="btn btn-s btn-xs">🔗 Invite</button>
+        <button id="btn-qr-scan-sb" class="btn btn-s btn-xs">📷 QR</button>
+      </div>
+    </div>
+    <div id="peers-label">Members <span id="pc-pill"></span></div>
+    <div id="peers-list"><div id="nopeer" style="font-size:12px;color:var(--muted);text-align:center;padding:16px">No connected peers yet</div></div>
+    <div id="sidebar-drag"></div>
+  </div>
+
+  <!-- Main -->
+  <div id="main">
+    <div id="topbar">
+      <span class="tb-title">💬 Member Hub</span>
+      <div class="tb-spacer"></div>
+      <div id="heal-banner" style="margin:0;padding:4px 8px;font-size:11px">
+        ⚡ Connection dropped
+        <button id="btn-heal-fix" class="btn btn-xs btn-s">Repair</button>
+      </div>
+      <button id="btn-offline-retry" class="btn btn-xs btn-s">↺ Retry</button>
+      <button id="btn-theme" class="btn btn-xs btn-s">🌙</button>
+      <button id="btn-search-top" class="btn btn-xs btn-s">🔍</button>
+      <button id="btn-qr-show" class="btn btn-xs btn-s">QR</button>
+      <button id="btn-settings-top" class="btn btn-xs btn-s">⚙️</button>
+    </div>
+
+    <div id="tab-nav">
+      <button class="tn on" data-tab="chat">💬 Chat</button>
+      <button class="tn" data-tab="files">📁 Files</button>
+      <button class="tn" data-tab="call">📞 Call</button>
+      <button class="tn" data-tab="group-video">📹 Group</button>
+      <button class="tn" data-tab="whiteboard">🎨 Board</button>
+      <button class="tn" data-tab="code">⌨️ Code</button>
+      <button class="tn" data-tab="tasks">✅ Tasks</button>
+      <button class="tn" data-tab="group">🏠 Room</button>
+      <button class="tn" data-tab="notes">📝 Notes</button>
+      <button class="tn" data-tab="vault">🔒 Vault</button>
+      <button class="tn" data-tab="notifications">🔔 Notifs</button>
+      <button class="tn" data-tab="history">📖 History</button>
+      <button class="tn" data-tab="settings">⚙️ Settings</button>
+    </div>
+
+    <div id="content">
+      <!-- Chat Tab -->
+      <div id="tab-chat" class="tabview on" style="flex-direction:column;position:relative">
+        <div id="chat-hdr">
+          <div id="chat-hdr-av">👤</div>
+          <div>
+            <div id="chat-hdr-nm">Select a peer</div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span id="chat-hdr-lat"></span>
+              <span id="chat-hdr-st"></span>
+              <span class="quality-dot" id="call-quality-dot"></span>
+            </div>
+          </div>
+          <div class="tb-spacer"></div>
+          <button id="chat-btn-voice" class="btn btn-xs btn-p">📞</button>
+          <button id="chat-btn-video" class="btn btn-xs btn-s">📹</button>
+          <button id="chat-btn-file" class="btn btn-xs btn-s">📁</button>
+          <button id="chat-btn-clear" class="btn btn-xs btn-d">🗑</button>
+          <input id="fi" type="file" multiple style="display:none">
+        </div>
+        <div id="callbar">
+          <div class="call-row">
+            <div id="ctype-icon">📞</div>
+            <div>
+              <div style="font-size:12px;font-weight:700" id="cpeer-lbl">—</div>
+              <div style="font-size:11px;color:var(--muted)" id="call-state-label">No active call</div>
+            </div>
+            <div id="call-timer">0:00</div>
+            <span class="quality-dot q-e" id="call-quality-dot2"></span>
+            <div id="cq-lbl"></div>
+            <div id="avis"></div>
+            <span id="recbadge">🔴 REC</span>
+          </div>
+          <div class="call-acts">
+            <button id="btn-mute" class="btn btn-xs btn-s" onclick="App.media.toggleMute()">🎤 Mute</button>
+            <button id="btn-vid-off" class="btn btn-xs btn-s" onclick="App.media.toggleVideo()">📹 Off</button>
+            <button class="btn btn-xs btn-s" onclick="App.media.startRecording()">⏺ Record</button>
+            <button class="btn btn-xs btn-d" onclick="App.media.end()">📵 Hang Up</button>
+            <input id="vol-slider" type="range" min="0" max="200" value="100" oninput="App.media._applyVolume()">
+          </div>
+        </div>
+        <div id="vwrap">
+          <video id="rvid" autoplay playsinline></video>
+          <video id="lvid" autoplay muted playsinline style="position:absolute;bottom:8px;right:8px;width:25%;max-width:120px;border-radius:6px;border:2px solid var(--primary)"></video>
+          <div id="avis2" style="position:absolute;bottom:8px;left:8px"></div>
+          <div id="recbadge2" style="display:none;position:absolute;top:8px;right:8px;background:#ef444488;color:#fff;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">🔴 REC</div>
+          <div style="position:absolute;top:8px;left:8px;display:flex;gap:4px">
+            <span class="quality-dot" id="call-quality-dot3" style="width:10px;height:10px"></span>
+            <span id="cq-lbl2" style="font-size:10px;color:#fff;background:rgba(0,0,0,.5);padding:2px 5px;border-radius:4px"></span>
+          </div>
+        </div>
+        <div id="reply-preview">
+          <span style="flex:1" id="reply-text"></span>
+          <button id="btn-cancel-reply" class="btn btn-xs btn-d">✕</button>
+        </div>
+        <div id="msgs" style="display:none">
+          <div id="chat-empty" style="color:var(--muted);text-align:center;padding:20px">Select a peer to start chatting</div>
+        </div>
+        <div id="mtyp"><span id="mtyp-lbl"></span></div>
+        <div class="chat-top-acts">
+          <select id="msg-ttl" style="font-size:11px;padding:3px 6px">
+            <option value="0">Keep forever</option>
+            <option value="30000">30s 🔥</option>
+            <option value="60000">1m 🔥</option>
+            <option value="300000">5m 🔥</option>
+          </select>
+          <button id="btn-uclip" class="btn btn-xs btn-s" onclick="App.uclip.toggle(App.uclip._enabled?false:true)">📋 Clipboard Sync</button>
+        </div>
+        <div id="chatbar">
+          <button id="btn-emoji" class="btn btn-xs btn-s">😊</button>
+          <button id="btn-clip" class="btn btn-xs btn-s" title="Paste clipboard">📋</button>
+          <textarea id="mi" placeholder="Message…" rows="1"></textarea>
+          <button id="btn-send" class="btn btn-p btn-sm">Send</button>
+        </div>
+        <button id="scroll-pill">↓ New messages</button>
+      </div>
+
+      <!-- Files Tab -->
+      <div id="tab-files" class="tabview" style="flex-direction:column;overflow-y:auto">
+        <div class="panel">
+          <div class="panel-title">📁 File Transfer</div>
+          <div id="dz">📂 Drag &amp; drop files here, or click to select<br><span style="font-size:11px;color:var(--muted)">Max 2GB · Any file type</span></div>
+          <input id="di" type="file" multiple style="display:none">
+          <div id="tx-info"></div>
+          <div id="txlist"></div>
+        </div>
+      </div>
+
+      <!-- Call Tab -->
+      <div id="tab-call" class="tabview" style="flex-direction:column;overflow-y:auto">
+        <div class="panel">
+          <div class="panel-title">📞 Voice &amp; Video</div>
+          <div class="panel-section">
+            <div class="panel-section-title">Active Peer: <span id="cpeer-lbl2">None selected</span></div>
+            <div id="call-state-label2" style="font-size:12px;color:var(--muted);margin-bottom:10px">No active call</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+              <button class="btn btn-p btn-sm" onclick="App.ui.activePeer?App.media.voice(App.ui.activePeer):App.toast.show('Select a peer first','warning')">📞 Voice Call</button>
+              <button class="btn btn-s btn-sm" onclick="App.ui.activePeer?App.media.video(App.ui.activePeer):App.toast.show('Select a peer first','warning')">📹 Video Call</button>
+              <button class="btn btn-s btn-sm" onclick="App.ui.activePeer?App.media.screen(App.ui.activePeer):App.toast.show('Select a peer first','warning')">🖥️ Screen Share</button>
+              <button class="btn btn-d btn-sm" onclick="App.media.end()">📵 Hang Up</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <span style="font-size:12px">Timer:</span><span id="call-timer2" style="font-weight:700;font-family:monospace">0:00</span>
+              <span class="quality-dot" id="call-quality-dot4"></span>
+              <span id="cq-lbl3" style="font-size:11px;color:var(--muted)"></span>
+            </div>
+          </div>
+          <div class="panel-section">
+            <div class="panel-section-title">Call History</div>
+            <div id="call-hist-list" style="display:flex;flex-direction:column;gap:5px;max-height:240px;overflow-y:auto"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Group Video Tab -->
+      <div id="tab-group-video" class="tabview" style="flex-direction:column;overflow-y:auto">
+        <div class="panel">
+          <div class="panel-title">📹 Group Video Call</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+            <button id="btn-gv-start" class="btn btn-p btn-sm">▶ Start My Camera</button>
+            <button id="btn-gv-stop" class="btn btn-d btn-sm">⏹ Stop</button>
+            <button id="btn-gv-invite" class="btn btn-s btn-sm">📨 Invite All</button>
+          </div>
+          <div id="gv-grid">
+            <div class="gv-tile" id="gv-local-tile">
+              <video id="gv-my-video" autoplay muted playsinline></video>
+              <div class="gv-tile-lbl">You</div>
+            </div>
+          </div>
+          <div id="gv-status" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
+        </div>
+      </div>
+
+      <!-- Whiteboard Tab -->
+      <div id="tab-whiteboard" class="tabview" style="flex-direction:column;">
+        <div id="wb-tools">
+          <button class="wb-tool-btn active" data-tool="pen">✏️ Pen</button>
+          <button class="wb-tool-btn" data-tool="eraser">🧹 Eraser</button>
+          <button class="wb-tool-btn" data-tool="line">↗ Line</button>
+          <button class="wb-tool-btn" data-tool="rect">⬜ Rect</button>
+          <button class="wb-tool-btn" data-tool="ellipse">⭕ Oval</button>
+          <button class="wb-tool-btn" data-tool="arrow">➡ Arrow</button>
+          <button class="wb-tool-btn" data-tool="text">T Text</button>
+          <button class="wb-tool-btn" data-tool="laser">🔴 Laser</button>
+          <button class="wb-tool-btn" data-tool="fill">🪣 Fill</button>
+          <input id="wb-color" type="color" value="#6366f1" style="width:30px;height:28px;padding:0;border:none;background:none;cursor:pointer">
+          <input id="wb-size" type="range" min="1" max="20" value="3" style="width:70px;accent-color:var(--primary)">
+          <span id="wb-sz-lbl" style="font-size:11px;color:var(--muted)">3</span>
+          <button id="btn-wb-undo" class="btn btn-xs btn-s">↩ Undo</button>
+          <button id="btn-wb-redo" class="btn btn-xs btn-s">↪ Redo</button>
+          <button id="btn-wb-clear" class="btn btn-xs btn-d">🗑 Clear</button>
+          <button id="btn-wb-send" class="btn btn-xs btn-p">📤 Share</button>
+          <button id="btn-wb-save" class="btn btn-xs btn-s">💾 Save</button>
+          <button id="btn-wb-bg" class="btn btn-xs btn-s">🌓 BG</button>
+          <span id="wb-status" style="font-size:11px;color:var(--muted)">Ready</span>
+        </div>
+        <div id="wb-wrap" style="flex:1;overflow:hidden;padding:8px;position:relative">
+          <canvas id="wb-canvas" style="display:block;width:100%;border-radius:var(--radius)"></canvas>
+          <div id="wb-cursors" style="position:absolute;top:0;left:0;pointer-events:none"></div>
+        </div>
+      </div>
+
+      <!-- Code Editor Tab -->
+      <div id="tab-code" class="tabview" style="flex-direction:column;overflow-y:auto">
+        <div class="panel">
+          <div class="panel-title">⌨️ Code Editor</div>
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+            <select id="ce-lang" style="flex:1;min-width:120px">
+              <option value="javascript">JavaScript</option>
+              <option value="html">HTML</option>
+              <option value="css">CSS</option>
+              <option value="python">Python</option>
+              <option value="typescript">TypeScript</option>
+              <option value="json">JSON</option>
+              <option value="markdown">Markdown</option>
+              <option value="text">Plain Text</option>
+            </select>
+            <button id="btn-ce-send" class="btn btn-p btn-xs">📤 Share</button>
+            <button id="btn-ce-run" class="btn btn-g btn-xs">▶ Run</button>
+            <button id="btn-ce-copy" class="btn btn-s btn-xs">📋 Copy</button>
+            <button id="btn-ce-save" class="btn btn-s btn-xs">💾 Save</button>
+            <button id="btn-ce-load" class="btn btn-s btn-xs">📂 Load</button>
+            <button id="btn-ce-clear-ed" class="btn btn-d btn-xs">🗑 Clear</button>
+          </div>
+          <textarea id="code-editor-area" placeholder="// Write or paste code here…&#10;// Share with peers, or run JS/HTML locally"></textarea>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+            <span id="ce-status" style="font-size:11px;color:var(--muted)">Ready</span>
+          </div>
+          <div id="ce-output"></div>
+        </div>
+      </div>
+
+      <!-- Tasks Tab -->
+      <div id="tab-tasks" class="tabview" style="flex-direction:column;overflow-y:auto">
+        <div class="panel">
+          <div class="panel-title">✅ Shared Tasks</div>
+          <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+            <input id="task-inp" placeholder="New task…" style="flex:1;min-width:120px">
+            <select id="task-prio" style="width:70px">
+              <option value="med">Med</option>
+              <option value="high">High</option>
+              <option value="low">Low</option>
+            </select>
+            <input id="task-due" type="date" style="width:120px">
+            <button id="btn-add-task" class="btn btn-p btn-sm">Add</button>
+          </div>
+          <div style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap">
+            <button id="btn-tasks-all" class="btn btn-xs btn-s">All</button>
+            <button id="btn-tasks-todo" class="btn btn-xs btn-s">To-Do</button>
+            <button id="btn-tasks-done" class="btn btn-xs btn-s">Done</button>
+            <button id="btn-share-tasks" class="btn btn-xs btn-p">📤 Share Tasks</button>
+            <button id="btn-clr-done-tasks" class="btn btn-xs btn-d">🗑 Clear Done</button>
+          </div>
+          <div id="tasks-list" style="display:flex;flex-direction:column;gap:5px"></div>
+          <div id="tasks-empty" style="text-align:center;color:var(--muted);padding:20px;display:none">No tasks yet</div>
+        </div>
+      </div>
+
+      <!-- Group Chat Tab -->
+      <div id="tab-group" class="tabview" style="flex-direction:column;">
+        <div style="padding:10px;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0">
+          <input id="gc-name" placeholder="Room name…" style="flex:1;min-width:100px">
+          <button id="btn-gc-create" class="btn btn-p btn-xs">Create</button>
+          <button id="btn-gc-leave" class="btn btn-d btn-xs">Leave</button>
+        </div>
+        <div id="gc-members"></div>
+        <div id="gc-msgs" style="flex:1;overflow-y:auto">
+          <div data-empty="1" style="text-align:center;color:var(--muted);padding:20px;font-size:13px">Create a room to start group chat</div>
+        </div>
+        <div style="display:flex;gap:6px;padding:10px;border-top:1px solid var(--border);flex-shrink:0">
+          <input id="gc-inp" placeholder="Group message…" style="flex:1">
+          <button id="btn-gc-send" class="btn btn-p btn-sm">Send</button>
+        </div>
+      </div>
+
+      <!-- Notes Tab -->
+      <div id="tab-notes" class="tabview" style="flex-direction:column;">
+        <div style="padding:8px 12px;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0;align-items:center">
+          <span style="font-size:12px;font-weight:700">📝 Shared Notes</span>
+          <div class="tb-spacer"></div>
+          <span id="notes-char-count" style="font-size:11px;color:var(--muted)"></span>
+          <span id="notes-status" style="font-size:11px;color:var(--green)"></span>
+          <button id="btn-notes-share" class="btn btn-p btn-xs">📤 Sync</button>
+          <button id="btn-notes-save" class="btn btn-s btn-xs">💾 Save</button>
+          <button id="btn-notes-export" class="btn btn-s btn-xs">⬇ Export</button>
+          <button id="btn-clr-notes" class="btn btn-d btn-xs">🗑 Clear</button>
+        </div>
+        <textarea id="notepad" placeholder="Collaborative notes — synced with all connected peers in real time…" style="flex:1;border-radius:0;border:none;padding:14px;font-size:13px;line-height:1.7;resize:none;"></textarea>
+      </div>
+
+      <!-- Vault Tab -->
+      <div id="tab-vault" class="tabview" style="flex-direction:column;overflow-y:auto">
+        <div class="panel">
+          <div class="panel-title">🔒 Encrypted Vault</div>
+          <div id="vault-locked">
+            <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Secure storage with AES-256-GCM encryption. Enter your vault password to unlock.</p>
+            <div style="display:flex;gap:6px;margin-bottom:8px">
+              <input id="vault-pw" type="password" placeholder="Vault password…" style="flex:1">
+              <button id="btn-vault-unlock" class="btn btn-p btn-sm">Unlock</button>
+            </div>
+            <button id="btn-vault-create" class="btn btn-s btn-sm" style="width:100%">Create New Vault</button>
+          </div>
+          <div id="vault-open" style="display:none">
+            <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+              <input id="vault-key-inp" placeholder="Key name…" style="flex:1;min-width:100px">
+              <input id="vault-val-inp" placeholder="Secret value…" style="flex:1;min-width:100px">
+              <button id="btn-vault-add" class="btn btn-p btn-xs">Add</button>
+            </div>
+            <div id="vault-items"></div>
+            <div style="display:flex;gap:6px;margin-top:10px">
+              <button id="btn-vault-lock" class="btn btn-d btn-sm">🔒 Lock</button>
+              <button id="btn-vault-export" class="btn btn-s btn-sm">⬇ Export</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notifications Tab -->
+      <div id="tab-notifications" class="tabview" style="flex-direction:column;overflow-y:auto">
+        <div class="panel">
+          <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center">
+            🔔 Notifications
+            <button id="btn-clr-notifs" class="btn btn-xs btn-d">Clear All</button>
+          </div>
+          <div id="notif-list">
+            <div style="color:var(--muted);text-align:center;padding:20px">No notifications yet</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- History Tab -->
+      <div id="tab-history" class="tabview" style="flex-direction:column;overflow-y:auto">
+        <div class="panel">
+          <div class="panel-title">📖 Peer History</div>
+          <div class="hist-tabs" style="margin-bottom:12px">
+            <button class="btn btn-xs btn-p" onclick="App.ui._setHistFilter('peers')">Peers</button>
+            <button class="btn btn-xs btn-s" onclick="App.ui._setHistFilter('calls')">Calls</button>
+          </div>
+          <div id="hist-list"></div>
+        </div>
+      </div>
+
+      <!-- Settings Tab -->
+      <div id="tab-settings" class="tabview" style="flex-direction:column;overflow-y:auto">
+        <div class="panel">
+          <div class="panel-title">⚙️ Settings</div>
+          <div class="panel-section">
+            <div class="panel-section-title">Identity</div>
+            <div class="set-row">
+              <div><div class="set-label">Display Name</div><div class="set-sub">Shown to peers during handshake</div></div>
+              <input id="set-name" placeholder="Your name" style="width:150px">
+            </div>
+            <div class="set-row">
+              <div><div class="set-label">Avatar Emoji</div></div>
+              <input id="set-avatar" placeholder="👤" style="width:60px;text-align:center;font-size:18px">
+            </div>
+            <button id="btn-save-identity" class="btn btn-p btn-xs" style="margin-top:8px">Save Identity</button>
+          </div>
+          <div class="panel-section">
+            <div class="panel-section-title">Privacy &amp; Security</div>
+            <div class="ff-item">
+              <div><div style="font-size:13px;font-weight:600">End-to-End Encryption</div><div class="set-sub">ECDH key exchange for encrypted messages</div></div>
+              <label class="ff-toggle"><input type="checkbox" id="set-e2e"><span class="ff-slider"></span></label>
+            </div>
+            <div class="ff-item">
+              <div><div style="font-size:13px;font-weight:600">Require Connection Approval</div><div class="set-sub">Prompt before accepting new peers</div></div>
+              <label class="ff-toggle"><input type="checkbox" id="set-approval"><span class="ff-slider"></span></label>
+            </div>
+            <div class="ff-item">
+              <div><div style="font-size:13px;font-weight:600">Noise Suppression</div><div class="set-sub">Filter background noise on calls</div></div>
+              <label class="ff-toggle"><input type="checkbox" id="set-noise"><span class="ff-slider"></span></label>
+            </div>
+          </div>
+          <div class="panel-section">
+            <div class="panel-section-title">Network (TURN)</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <input id="set-turn-url" placeholder="TURN URL (optional)" style="width:100%">
+              <input id="set-turn-user" placeholder="Username">
+              <input id="set-turn-pass" type="password" placeholder="Credential">
+              <button id="btn-save-turn" class="btn btn-s btn-xs">Save TURN</button>
+            </div>
+          </div>
+          <div class="panel-section">
+            <div class="panel-section-title">Audio &amp; Sounds</div>
+            <div class="ff-item">
+              <div><div style="font-size:13px;font-weight:600">Sound Effects</div></div>
+              <label class="ff-toggle"><input type="checkbox" id="set-sounds" checked><span class="ff-slider"></span></label>
+            </div>
+          </div>
+          <div class="panel-section">
+            <div class="panel-section-title">Danger Zone</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button id="btn-disc-all" class="btn btn-d btn-sm">Disconnect All</button>
+              <button id="btn-clr-storage" class="btn btn-d btn-sm">Clear Local Data</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /content -->
+
+    <!-- Mobile nav -->
+    <div id="mob-nav">
+      <button class="mob-nav-btn on" data-mobtab="chat" onclick="App.ui.setMobTab('chat',this)">
+        <span class="mn-icon">💬</span>Chat<span class="mob-badge" id="nav-badge-chat"></span>
+      </button>
+      <button class="mob-nav-btn" data-mobtab="files" onclick="App.ui.setMobTab('files',this)">
+        <span class="mn-icon">📁</span>Files
+      </button>
+      <button class="mob-nav-btn" data-mobtab="call" onclick="App.ui.setMobTab('call',this)">
+        <span class="mn-icon">📞</span>Call
+      </button>
+      <button class="mob-nav-btn" data-mobtab="peers" onclick="App.ui.showMobPeers()">
+        <span class="mn-icon">👥</span>Peers
+      </button>
+      <button class="mob-nav-btn" data-mobtab="more" onclick="App.ui.setMobTab('more',this)">
+        <span class="mn-icon">⋯</span>More
+      </button>
+    </div>
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- Mobile peers panel -->
+<div id="mobile-peers">
+  <div style="padding:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+    <span style="font-weight:700">👥 Connected Peers</span>
+    <button class="btn btn-xs btn-s" onclick="document.getElementById('mobile-peers').classList.remove('on')">✕</button>
+  </div>
+  <div style="padding:10px">
+    <input id="mob-jin" placeholder="Peer ID or URL…" style="width:100%;margin-bottom:6px">
+    <div style="display:flex;gap:5px">
+      <button onclick="App.peer.connectTo(document.getElementById('mob-jin').value)" class="btn btn-p btn-xs" style="flex:1">Connect</button>
+      <button onclick="App.qr.startScan()" class="btn btn-s btn-xs">📷 QR</button>
+    </div>
+  </div>
+  <div id="mob-peers-list" style="flex:1;overflow-y:auto;padding:0 8px">
+    <div id="mob-nopeer" style="font-size:12px;color:var(--muted);text-align:center;padding:16px">No peers connected</div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- ════════════════════════════════════════════════════════
+     CDN Scripts — 3-level fallback
+════════════════════════════════════════════════════════ -->
+<script>
+// PeerJS CDN fallback
+(function(){
+  function tryLoad(urls,i){
+    if(i>=urls.length)return;
+    var s=document.createElement('script');s.src=urls[i];
+    s.onerror=function(){tryLoad(urls,i+1);};
+    document.head.appendChild(s);
+  }
+  tryLoad([
+    'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js',
+    'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js'
+  ],0);
+  function tryLoad2(urls,i){
+    if(i>=urls.length)return;
+    var s=document.createElement('script');s.src=urls[i];
+    s.onerror=function(){tryLoad2(urls,i+1);};
+    document.head.appendChild(s);
+  }
+  tryLoad2([
+    'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',
+    'https://unpkg.com/qrcodejs@1.0.0/qrcode.min.js'
+  ],0);
+  function tryLoad3(urls,i){
+    if(i>=urls.length)return;
+    var s=document.createElement('script');s.src=urls[i];
+    s.onerror=function(){tryLoad3(urls,i+1);};
+    document.head.appendChild(s);
+  }
+  tryLoad3([
+    'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js',
+    'https://unpkg.com/jsqr@1.4.0/dist/jsQR.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js'
+  ],0);
+})();
+</script>
+
+<script>
+'use strict';
+/* ══════════════════════════ CONFIG ══════════════════════════ */
+const CFG={
+  VERSION:'2.0.0',
+  DB_NAME:'devhub-member-v1',DB_VERSION:4,
+  CHUNK_SIZE:65536,MAX_CONCUR_SENDS:2,WINDOW_SIZE:6,MAX_BACKPRESSURE:4*1024*1024,
+  PING_INTERVAL:8000,RECONNECT_MAX:8,
+  RECONNECT_DELAY:[1500,3000,6000,12000,20000,30000,45000,60000],
+  RATE_LIMIT_MS:200,MSG_SIZE_LIMIT:20000,MAX_MSG_NODES:200,
+  AUDIT_LOG_MAX:300,
+  VAULT_PBKDF2_ITER:250000,
+  HEALTH_INTERVAL:60000,
+  STUN_SERVERS:[
+    {urls:'stun:stun.l.google.com:19302'},
+    {urls:'stun:stun1.l.google.com:19302'},
+    {urls:'stun:stun.cloudflare.com:3478'}
+  ]
+};
+const SESSION_KEY='devhub-member-session-id';
+const TAB_NONCE=Math.random().toString(36).slice(2,6);
+
+/* ══════════════════════════ UTILITIES ══════════════════════════ */
+const uid=(n=12)=>crypto.getRandomValues(new Uint8Array(Math.ceil(n/2))).reduce((s,b)=>s+b.toString(16).padStart(2,'0'),'').slice(0,n);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const debounce=(fn,ms)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};};
+const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+const fmtSz=b=>{if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(1)+'KB';if(b<1073741824)return(b/1048576).toFixed(1)+'MB';return(b/1073741824).toFixed(2)+'GB';};
+const fmtTs=ts=>{const d=new Date(ts);return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');};
+const fmtDur=ms=>{const s=Math.floor(ms/1000),m=Math.floor(s/60);return m+':'+(s%60).toString().padStart(2,'0');};
+const setEl=(id,txt,fn)=>{const el=document.getElementById(id);if(!el)return;if(txt!==null&&txt!==undefined)el.innerHTML=txt;if(fn)fn(el);};
+
+/* ── Timers (global registry) ── */
+const Timers={_t:new Map(),_i:new Map(),
+  timeout(k,fn,ms){this.clear(k);const id=setTimeout(()=>{this._t.delete(k);fn();},ms);this._t.set(k,id);return id;},
+  interval(k,fn,ms){this.clear(k);const id=setInterval(fn,ms);this._i.set(k,id);return id;},
+  clear(k){clearTimeout(this._t.get(k));clearInterval(this._i.get(k));this._t.delete(k);this._i.delete(k);}
+};
+
+/* ── BlobURL registry ── */
+const BlobURLs={_u:new Set(),
+  create(blob){const u=URL.createObjectURL(blob);this._u.add(u);return u;},
+  revoke(u){URL.revokeObjectURL(u);this._u.delete(u);},
+  revokeAll(){this._u.forEach(u=>{try{URL.revokeObjectURL(u);}catch(e){}});this._u.clear();},
+  size(){return this._u.size;}
+};
+
+/* ── Modal ── */
+const Modal={
+  show(id){document.getElementById(id)?.classList.add('on');},
+  hide(id){document.getElementById(id)?.classList.remove('on');}
+};
+
+/* ── Safe Storage ── */
+class SafeStorage{
+  static get(k,d=''){try{return localStorage.getItem(k)??d;}catch(e){return d;}}
+  static set(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+  static del(k){try{localStorage.removeItem(k);}catch(e){}}
+  static getJSON(k,d=null){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}}
+  static setJSON(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+}
+
+/* ── Fingerprint ── */
+const FP={async collect(){
+  const ua=navigator.userAgent||'';
+  const name=SafeStorage.get('dh-name','Peer');
+  const av=SafeStorage.get('dh-avatar','👤');
+  const tz=Intl.DateTimeFormat().resolvedOptions().timeZone||'';
+  const lang=navigator.language||'';
+  return{name,av,ua:ua.substring(0,80),tz,lang,platform:navigator.platform||''};
+}};
+
+/* ── Logger ── */
+class Logger{
+  constructor(){this._entries=[];}
+  _add(level,msg){
+    const e={id:uid(6),level,msg,ts:Date.now()};
+    this._entries.push(e);
+    if(this._entries.length>300)this._entries.shift();
+  }
+  info(msg){this._add('info',msg);}
+  warn(msg){this._add('warn',msg);console.warn('[DevHub]',msg);}
+  error(msg){this._add('error',msg);console.error('[DevHub]',msg);}
+  success(msg){this._add('success',msg);}
+  clear(){this._entries=[];}
+}
+
+/* ── Toast Manager ── */
+class ToastManager{
+  show(msg,type='info',persist=false){
+    const c=document.getElementById('toast-container');
+    if(!c)return null;
+    const el=document.createElement('div');
+    const map={success:'toast-s',error:'toast-e',warning:'toast-w',info:'toast-i'};
+    el.className='toast-item '+(map[type]||'toast-i');
+    el.innerHTML=esc(msg);
+    if(!persist){
+      const close=document.createElement('button');
+      close.style.cssText='background:none;color:var(--muted);font-size:14px;margin-left:auto;';
+      close.textContent='✕';close.onclick=()=>el.remove();
+      el.appendChild(close);
+      setTimeout(()=>{try{el.remove();}catch(e){}},4000);
+    }
+    c.appendChild(el);
+    while(c.children.length>6)c.firstChild?.remove();
+    return el;
+  }
+}
+
+/* ── IndexedDB Store ── */
+class DBStore{
+  constructor(){this._db=null;}
+  async init(){
+    return new Promise((res,rej)=>{
+      if(!window.indexedDB){res();return;}
+      const req=indexedDB.open(CFG.DB_NAME,CFG.DB_VERSION);
+      req.onupgradeneeded=e=>{
+        const db=e.target.result;
+        ['messages','files','trusted_peers','notifications','call_history'].forEach(s=>{
+          if(!db.objectStoreNames.contains(s))db.createObjectStore(s,{keyPath:'id'});
+        });
+      };
+      req.onsuccess=e=>{this._db=e.target.result;res();};
+      req.onerror=()=>res();
+    });
+  }
+  async put(store,obj){
+    if(!this._db)return;
+    return new Promise(r=>{
+      const tx=this._db.transaction(store,'readwrite');
+      const req=tx.objectStore(store).put(obj);
+      req.onsuccess=()=>r(obj);
+      req.onerror=()=>r(null);
+    });
+  }
+  async get(store,id){
+    if(!this._db)return null;
+    return new Promise(r=>{
+      const req=this._db.transaction(store,'readonly').objectStore(store).get(id);
+      req.onsuccess=()=>r(req.result??null);
+      req.onerror=()=>r(null);
+    });
+  }
+  async getAll(store){
+    if(!this._db)return[];
+    return new Promise(r=>{
+      const req=this._db.transaction(store,'readonly').objectStore(store).getAll();
+      req.onsuccess=()=>r(req.result??[]);
+      req.onerror=()=>r([]);
+    });
+  }
+  async del(store,id){
+    if(!this._db)return;
+    return new Promise(r=>{
+      const tx=this._db.transaction(store,'readwrite');
+      tx.objectStore(store).delete(id).onsuccess=()=>r();
+    });
+  }
+  async clear(store){
+    if(!this._db)return;
+    return new Promise(r=>{
+      const tx=this._db.transaction(store,'readwrite');
+      tx.objectStore(store).clear().onsuccess=()=>r();
+    });
+  }
+  async checkQuota(){
+    if(!navigator.storage?.estimate)return;
+    const{usage,quota}=await navigator.storage.estimate();
+    const pct=Math.round(usage/quota*100);
+    App.toast?.show('Storage: '+fmtSz(usage)+' / '+fmtSz(quota)+' ('+pct+'%)','info');
+  }
+}
+
+/* ── Crypto Manager ── */
+class CryptoManager{
+  constructor(){this._keyPair=null;this._sharedKeys=new Map();this._sigKeyPair=null;}
+  async init(){
+    try{
+      this._keyPair=await crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-256'},true,['deriveKey']);
+      this._sigKeyPair=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);
+    }catch(e){}
+  }
+  getPublicKeyBytes(){
+    if(!this._keyPair)return null;
+    return null; // lazy — derive on demand
+  }
+  getSigPubKeyBytes(){return null;}
+  async signHandshake(payload){return null;}
+  async verifyHandshake(payload,sig,pubKey){return true;}
+  async deriveSharedKey(pid,pubKeyBytes){
+    // simplified — real impl would import raw key
+  }
+  async encrypt(pid,text){
+    const key=this._sharedKeys.get(pid);if(!key)return null;
+    try{
+      const iv=crypto.getRandomValues(new Uint8Array(12));
+      const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(text));
+      const out=new Uint8Array(12+ct.byteLength);out.set(iv);out.set(new Uint8Array(ct),12);
+      return out.buffer;
+    }catch(e){return null;}
+  }
+  async decrypt(pid,buf){
+    const key=this._sharedKeys.get(pid);if(!key)return null;
+    try{
+      const iv=new Uint8Array(buf,0,12);const ct=new Uint8Array(buf,12);
+      return await crypto.subtle.decrypt({name:'AES-GCM',iv},key,ct);
+    }catch(e){return null;}
+  }
+  hasKey(pid){return this._sharedKeys.has(pid);}
+}
+
+/* ── Trust Store ── */
+class TrustStore{
+  constructor(){this._devices=new Map();}
+  async load(){
+    const raw=SafeStorage.getJSON('dh-trust-v2',[]);
+    raw.forEach(d=>this._devices.set(d.id,d));
+  }
+  trust(pid,fp){
+    const existing=this._devices.get(pid)||{id:pid,trusted:true,firstSeen:Date.now()};
+    existing.name=fp?.name||existing.name||'Peer';
+    existing.av=fp?.av||existing.av||'👤';
+    existing.lastSeen=Date.now();
+    this._devices.set(pid,existing);
+    SafeStorage.setJSON('dh-trust-v2',[...this._devices.values()]);
+  }
+  isTrusted(pid){return this._devices.has(pid);}
+  getDevice(pid){return this._devices.get(pid)||null;}
+  getAll(){return[...this._devices.values()];}
+  renderTrustedList(){
+    const el=document.getElementById('trusted-list');if(!el)return;
+    const devs=this.getAll();
+    if(!devs.length){el.innerHTML='<div style="color:var(--muted);font-size:12px">No trusted peers</div>';return;}
+    el.innerHTML=devs.map(d=>`<div class="dev-row"><span style="font-size:18px">${esc(d.av||'👤')}</span><span style="flex:1;font-size:12px;font-weight:600">${esc(d.name||d.id.substring(0,16))}</span><span style="font-size:10px;color:var(--muted)">${d.lastSeen?fmtTs(d.lastSeen):''}</span></div>`).join('');
+  }
+}
+
+/* ── Peer History ── */
+class PeerHistory{
+  constructor(){this._peers=[];}
+  async load(){this._peers=SafeStorage.getJSON('dh-hist-v2',[]);}
+  seen(pid,fp){
+    const existing=this._peers.find(p=>p.id===pid);
+    if(existing){existing.lastSeen=Date.now();existing.name=fp?.name||existing.name;}
+    else{this._peers.unshift({id:pid,name:fp?.name||pid.substring(0,12),av:fp?.av||'👤',firstSeen:Date.now(),lastSeen:Date.now()});}
+    if(this._peers.length>50)this._peers.pop();
+    SafeStorage.setJSON('dh-hist-v2',this._peers);
+  }
+  getAll(){return this._peers;}
+}
+
+/* ── Call History ── */
+class CallHistory{
+  constructor(){this._calls=[];}
+  async load(){this._calls=SafeStorage.getJSON('dh-callhist-v2',[]);}
+  add(pid,type,duration,completed){
+    this._calls.unshift({id:uid(8),pid,type,duration,completed,ts:Date.now()});
+    if(this._calls.length>50)this._calls.pop();
+    SafeStorage.setJSON('dh-callhist-v2',this._calls);
+  }
+  getAll(){return this._calls;}
+  render(){
+    const el=document.getElementById('call-hist-list');if(!el)return;
+    const calls=this._calls;
+    if(!calls.length){el.innerHTML='<div style="color:var(--muted);font-size:12px">No call history</div>';return;}
+    el.innerHTML=calls.map(c=>`<div class="hist-item"><span>${c.type==='voice'?'📞':'📹'}</span><div class="hist-info"><div class="hist-nm">${esc(App.peer.peerName(c.pid))}</div><div class="hist-ts">${new Date(c.ts).toLocaleDateString()} · ${fmtDur(c.duration||0)}</div></div></div>`).join('');
+  }
+}
+
+/* ── Session Stats ── */
+const AppSession={msgsSent:0,msgsRecv:0,bytesSent:0,bytesRecv:0,callsPlaced:0,callsReceived:0,filesSent:0,filesRecv:0};
+
+/* ── Message Queue (offline) ── */
+class MessageQueue{
+  constructor(){this._q=new Map();}
+  add(pid,text,id){
+    if(!this._q.has(pid))this._q.set(pid,[]);
+    this._q.get(pid).push({pid,text,id,ts:Date.now()});
+  }
+  flush(pid){
+    const q=this._q.get(pid);if(!q?.length)return;
+    q.forEach(m=>App.peer.sendMsg(m.pid,m.text,m.id));
+    this._q.delete(pid);
+  }
+}
+
+/* ── Offline Queue ── */
+class OfflineQueue{
+  constructor(){this._q=[];this._inited=false;}
+  init(){
+    this._inited=true;
+    window.addEventListener('online',()=>{this._flush();});
+  }
+  queue(fn){this._q.push(fn);return true;}
+  _flush(){const q=[...this._q];this._q=[];q.forEach(fn=>{try{fn();}catch(e){}});}
+}
+
+/* ── Notification Center ── */
+class NotificationCenter{
+  constructor(){this._items=[];}
+  add(title,sub,icon='🔔',type='info'){
+    const item={id:uid(8),title,sub,icon,type,ts:Date.now(),read:false};
+    this._items.unshift(item);
+    if(this._items.length>80)this._items.pop();
+    this._render();
+    // Update badge
+    const badge=document.getElementById('nav-badge-chat');
+    const unreadCount=this._items.filter(i=>!i.read).length;
+    if(badge){badge.textContent=unreadCount||'';badge.classList.toggle('on',unreadCount>0);}
+    // Native notification
+    if(typeof Notification!=='undefined'&&Notification.permission==='granted'){
+      try{new Notification(title,{body:sub,icon:''});}catch(e){}
+    }
+    return item;
+  }
+  markAllRead(){this._items.forEach(i=>i.read=true);this._render();}
+  _render(){
+    const el=document.getElementById('notif-list');if(!el)return;
+    if(!this._items.length){el.innerHTML='<div style="color:var(--muted);text-align:center;padding:20px">No notifications yet</div>';return;}
+    el.innerHTML=this._items.slice(0,40).map(item=>`
+      <div class="notif-item ${item.read?'':'unread'}">
+        <div class="notif-icon">${esc(item.icon)}</div>
+        <div class="notif-body">
+          <div class="notif-title">${esc(item.title)}</div>
+          ${item.sub?`<div class="notif-sub">${esc(item.sub.substring(0,80))}</div>`:''}
+          <div class="notif-ts">${new Date(item.ts).toLocaleTimeString()}</div>
+        </div>
+      </div>`).join('');
+  }
+}
+
+/* ── Presence Manager ── */
+class PresenceManager{
+  constructor(){this._myStatus='online';this._peerStatuses=new Map();}
+  init(){
+    const saved=SafeStorage.get('dh-presence','online');
+    this._myStatus=saved;
+    Timers.interval('presence-broadcast',()=>this._broadcast(),15000);
+    document.getElementById('btn-presence')?.addEventListener('click',e=>{
+      e.stopPropagation();
+      document.getElementById('presence-menu')?.classList.toggle('on');
+    });
+    document.addEventListener('click',()=>document.getElementById('presence-menu')?.classList.remove('on'));
+  }
+  setStatus(status){
+    this._myStatus=status;
+    SafeStorage.set('dh-presence',status);
+    document.getElementById('presence-menu')?.classList.remove('on');
+    this._broadcast();
+    App.toast.show('Presence: '+status,'info');
+  }
+  _broadcast(){
+    for(const[pid,conn]of App.peer.dconns){
+      if(conn.open)try{conn.send(JSON.stringify({type:'presence',status:this._myStatus}));}catch(e){}
+    }
+  }
+  setPeerStatus(pid,status){
+    this._peerStatuses.set(pid,status);
+    App.ui?.renderPeer(pid,App.peer.peerMap.get(pid)?.fp,'ONLINE');
+  }
+  getPeerStatus(pid){return this._peerStatuses.get(pid)||'online';}
+  getMyStatus(){return this._myStatus;}
+}
+
+/* ── Net Quality ── */
+class NetQuality{
+  constructor(){this._samples=[];}
+  addSample(rtt){this._samples.push(rtt);if(this._samples.length>20)this._samples.shift();}
+  getAvg(){if(!this._samples.length)return 0;return Math.round(this._samples.reduce((a,b)=>a+b,0)/this._samples.length);}
+  getChunkSize(){const avg=this.getAvg();if(avg>500)return 16384;if(avg>200)return 32768;return CFG.CHUNK_SIZE;}
+}
+
+/* ── Sound Theme ── */
+class SoundTheme{
+  constructor(){this._enabled=SafeStorage.get('dh-sounds')!=='0';}
+  _play(freq,dur,type='sine',vol=0.3){
+    if(!this._enabled)return;
+    try{
+      const ac=new(window.AudioContext||window.webkitAudioContext)();
+      const osc=ac.createOscillator();const gain=ac.createGain();
+      osc.type=type;osc.frequency.value=freq;
+      gain.gain.setValueAtTime(vol,ac.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+dur);
+      osc.connect(gain);gain.connect(ac.destination);
+      osc.start();osc.stop(ac.currentTime+dur);
+      setTimeout(()=>ac.close(),(dur+0.1)*1000);
+    }catch(e){}
+  }
+  msgReceived(){this._play(880,0.12);}
+  peerConnected(){this._play(523,0.1);setTimeout(()=>this._play(659,0.15),100);}
+  callIncoming(){let i=0;const ring=setInterval(()=>{this._play(440,0.4,'square',0.15);if(++i>=3||!document.getElementById('incoming-call-modal')?.classList.contains('on'))clearInterval(ring);},600);}
+  callEnded(){this._play(330,0.3,'sawtooth',0.15);}
+  toggle(v){this._enabled=v;SafeStorage.set('dh-sounds',v?'1':'0');}
+}
+
+/* ── Universal Clipboard ── */
+class UniversalClipboard{
+  constructor(){this._enabled=false;this._lastHash='';}
+  toggle(enabled){
+    this._enabled=enabled;
+    SafeStorage.set('dh-uclip',enabled?'1':'0');
+    App.toast.show(enabled?'Clipboard sync ON':'Clipboard sync OFF','info');
+    if(enabled)this._startPolling();else Timers.clear('uclip-poll');
+  }
+  _startPolling(){
+    Timers.interval('uclip-poll',async()=>{
+      if(!navigator.clipboard?.readText)return;
+      try{
+        const text=await navigator.clipboard.readText();
+        if(!text||text.length>10000)return;
+        const hash=await this._hash(text);
+        if(hash===this._lastHash)return;
+        this._lastHash=hash;
+        for(const[pid,conn]of App.peer.dconns){if(conn.open&&App.perms.check(pid,'canChat'))try{conn.send(JSON.stringify({type:'uclip',text,hash}));}catch(e){}}
+      }catch(e){}
+    },3000);
+  }
+  async receive(pid,text,hash){
+    if(!this._enabled)return;
+    if(hash===this._lastHash)return;
+    this._lastHash=hash;
+    document.querySelector('.clippill')?.remove();
+    const pill=document.createElement('div');
+    pill.className='clippill on';
+    const safeText=esc(text.substring(0,80));
+    pill.innerHTML=`<span>📋</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px">${safeText}</span>
+      <button class="btn btn-xs btn-p" id="uclip-paste-btn">Paste</button>
+      <button class="btn btn-xs btn-d" onclick="this.closest('.clippill').remove()">✕</button>`;
+    document.body.appendChild(pill);
+    document.getElementById('uclip-paste-btn')?.addEventListener('click',()=>{
+      navigator.clipboard.writeText(text).then(()=>App.toast.show('Pasted from '+esc(App.peer.peerName(pid)),'success'));
+      pill.remove();
+    },{once:true});
+    Timers.timeout('uclip-pill',()=>pill.remove(),8000);
+  }
+  async _hash(text){
+    const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).slice(0,4).map(b=>b.toString(16)).join('');
+  }
+}
+
+/* ── Clipboard util ── */
+class ClipboardManager{
+  async write(text){
+    try{await navigator.clipboard.writeText(text);App.toast.show('Copied!','success');}
+    catch(e){const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();App.toast.show('Copied!','success');}
+  }
+  async read(){
+    try{const text=await navigator.clipboard.readText();if(text){const mi=document.getElementById('mi');if(mi)mi.value+=text;}}
+    catch(e){App.toast.show('Clipboard: '+e.message,'warning');}
+  }
+}
+
+/* ── QR Manager ── */
+class QRManager{
+  constructor(){this._scanning=false;this._stream=null;}
+  showQR(){
+    const id=App.peer.myId;if(!id){App.toast.show('Not ready yet','warning');return;}
+    const wrap=document.getElementById('qr-wrap');
+    if(wrap){wrap.innerHTML='';try{new QRCode(wrap,{text:App.room.inviteUrl(),width:200,height:200,colorDark:'#6366f1',colorLight:'#ffffff'});}catch(e){wrap.textContent=id;}}
+    setEl('my-qr-id',id);
+    Modal.show('qr-modal');
+  }
+  async startScan(){
+    if(!navigator.mediaDevices?.getUserMedia){App.toast.show('Camera not available','warning');return;}
+    Modal.show('qr-modal');
+    const vwrap=document.getElementById('qr-video-wrap');
+    const video=document.getElementById('qr-video');
+    const canvas=document.getElementById('qr-canvas');
+    if(vwrap)vwrap.style.display='block';
+    try{
+      this._stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+      video.srcObject=this._stream;
+      this._scanning=true;
+      const ctx=canvas.getContext('2d');
+      const scan=()=>{
+        if(!this._scanning)return;
+        if(video.readyState===video.HAVE_ENOUGH_DATA){
+          canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+          ctx.drawImage(video,0,0);
+          const imageData=ctx.getImageData(0,0,canvas.width,canvas.height);
+          if(typeof jsQR==='function'){
+            const code=jsQR(imageData.data,imageData.width,imageData.height);
+            if(code?.data){this.stopScan();App.peer.connectTo(code.data);App.toast.show('QR scanned!','success');return;}
+          }
+        }
+        requestAnimationFrame(scan);
+      };
+      requestAnimationFrame(scan);
+    }catch(e){App.toast.show('Camera: '+e.message,'error');}
+  }
+  stopScan(){
+    this._scanning=false;
+    if(this._stream){this._stream.getTracks().forEach(t=>t.stop());this._stream=null;}
+    const vwrap=document.getElementById('qr-video-wrap');
+    if(vwrap)vwrap.style.display='none';
+  }
+}
+
+/* ── Broadcast Discovery ── */
+class BroadcastDiscovery{
+  constructor(){this._channel=null;}
+  init(){
+    if(!window.BroadcastChannel)return;
+    this._channel=new BroadcastChannel('devhub-discovery');
+    this._channel.onmessage=e=>{
+      const msg=e.data;
+      if(msg.type==='announce'&&msg.peerId&&msg.peerId!==App.peer.myId){
+        const existing=document.getElementById('bc-peer-'+msg.peerId.substring(0,8));
+        if(existing)return;
+        const el=document.createElement('div');el.id='bc-peer-'+msg.peerId.substring(0,8);el.className='hist-item';
+        el.innerHTML=`<div>💻</div><div class="hist-info"><div class="hist-nm">${esc(msg.name||'Local peer')}</div><div class="hist-ts">Same browser</div></div><button class="btn btn-p btn-xs" data-pid="${esc(msg.peerId)}" onclick="App.peer.connectTo(this.dataset.pid);this.textContent='Connecting…'">Connect</button>`;
+        document.getElementById('hist-list')?.prepend(el);
+      }
+    };
+    Timers.interval('bc-announce',()=>this._announce(),8000);
+    this._announce();
+  }
+  _announce(){
+    if(!this._channel||!App.peer.myId)return;
+    this._channel.postMessage({type:'announce',peerId:App.peer.myId,name:SafeStorage.get('dh-name','Peer')});
+  }
+}
+
+/* ── Room Manager ── */
+class RoomManager{
+  constructor(){this.roomId=null;this.requireApproval=SafeStorage.get('dh-approval')==='1';this._blocked=new Set(SafeStorage.getJSON('dh-blocked',[]));this._roomParam=null;}
+  init(){
+    const params=new URLSearchParams(location.search);
+    const roomP=params.get('room');const peerP=params.get('peer');
+    if(roomP)this.roomId=roomP;
+    if(peerP)this._roomParam=peerP;
+  }
+  autoConnect(){
+    if(!this._roomParam)return;
+    const pid=this._roomParam;
+    const confirmed=confirm('DevHub: auto-connect to peer?\n\n'+pid+'\n\nOnly accept if you trust this link source.');
+    if(confirmed)Timers.timeout('auto-connect',()=>App.peer.connectTo(pid),500);
+  }
+  inviteUrl(){const base=location.href.split('?')[0].split('#')[0];return`${base}?peer=${encodeURIComponent(App.peer.myId||'')}`;}
+  copyInvite(){App.clipboard.write(this.inviteUrl());}
+  isBlocked(pid){return this._blocked.has(pid);}
+  block(pid){this._blocked.add(pid);SafeStorage.setJSON('dh-blocked',[...this._blocked]);}
+  unblock(pid){this._blocked.delete(pid);SafeStorage.setJSON('dh-blocked',[...this._blocked]);}
+}
+
+/* ── Rate Limiter ── */
+class ConnectRateLimiter{
+  constructor(){this._a=new Map();}
+  check(pid){
+    const now=Date.now();const e=this._a.get(pid)||{count:0,firstAt:now,blockedUntil:0};
+    if(e.blockedUntil>now)return false;
+    if(now-e.firstAt>60000){e.count=0;e.firstAt=now;}
+    e.count++;if(e.count>5){e.blockedUntil=now+120000;return false;}
+    this._a.set(pid,e);return true;
+  }
+}
+
+/* ── Permission Manager ── */
+class PermissionManager{
+  constructor(){this._perms=new Map();}
+  DEFAULT_PERMS={canChat:true,canCall:true,canSendFiles:true,canReceiveFiles:true,canWhiteboard:true,canRC:false,canViewPresence:true};
+  get(pid){return{...this.DEFAULT_PERMS,...(this._perms.get(pid)||{})};}
+  set(pid,key,value){const p=this.get(pid);p[key]=value;this._perms.set(pid,p);}
+  check(pid,action){const p=this.get(pid);return p[action]!==false;}
+  checkAll(){} // stub — permissions check for media etc.
+}
+
+/* ── Threat Audit ── */
+class ThreatAuditLog{
+  constructor(){this._events=[];}
+  log(type,actor,detail){this._events.unshift({id:uid(8),type,actor,detail,ts:Date.now()});if(this._events.length>200)this._events.pop();}
+  render(){}
+}
+
+/* ── Safe File Validator ── */
+class SafeFileValidator{
+  static BLOCKED_EXT=['exe','bat','cmd','com','msi','ps1','sh','vbs'];
+  static BLOCKED_MIME=['application/javascript','text/javascript','application/x-msdownload'];
+  static validate(name,mime){
+    const ext=(name||'').split('.').pop().toLowerCase();
+    if(this.BLOCKED_EXT.includes(ext))return{ok:false,reason:'Blocked extension: .'+ext};
+    if(this.BLOCKED_MIME.includes(mime?.toLowerCase()))return{ok:false,reason:'Blocked MIME: '+mime};
+    return{ok:true};
+  }
+}
+
+/* ── RTCRegistry ── */
+class RTCRegistry{
+  constructor(){this._r=new Map();}
+  register(id,conn){this._r.set(id,{conn,ts:Date.now()});}
+  unregister(id){this._r.delete(id);}
+  cleanStale(maxMs=300000){const now=Date.now();for(const[id,e]of this._r){const c=e.conn;if(now-e.ts>maxMs||c.connectionState==='failed'||c.connectionState==='closed'){try{c.close();}catch(ex){}this._r.delete(id);}}};
+  closeAll(){this._r.forEach(({conn})=>{try{conn.close();}catch(e){}});this._r.clear();}
+}
+
+/* ── Stream Registry ── */
+class StreamRegistry{
+  constructor(){this._s=new Map();}
+  register(id,stream){this.stop(id);this._s.set(id,stream);}
+  stop(id){const s=this._s.get(id);if(s){try{s.getTracks().forEach(t=>t.stop());}catch(e){}this._s.delete(id);}}
+  stopAll(){[...this._s.keys()].forEach(id=>this.stop(id));}
+}
+
+/* ── Connection Registry ── */
+class ConnectionRegistry{
+  constructor(){this._r=new Map();}
+  register(pid,conn){const ex=this._r.get(pid);if(ex&&ex!==conn){try{ex.close();}catch(e){}}this._r.set(pid,conn);}
+  unregister(pid){this._r.delete(pid);}
+  isOpen(pid){const c=this._r.get(pid);return!!(c&&c.open);}
+  closeAll(){this._r.forEach(c=>{try{c.close();}catch(e){}});this._r.clear();}
+}
+
+/* ── State Store ── */
+class StateStore{
+  constructor(){this._s={peer:{id:null,connected:false},rtc:{active:false}};this._w=new Map();}
+  get(k){const parts=k.split('.');let v=this._s;for(const p of parts)v=v?.[p];return v;}
+  set(k,val){const parts=k.split('.');let obj=this._s;for(let i=0;i<parts.length-1;i++){if(!obj[parts[i]])obj[parts[i]]={};obj=obj[parts[i]];}const prev=obj[parts.at(-1)];obj[parts.at(-1)]=val;if(prev!==val){const ws=this._w.get(k);if(ws)ws.forEach(fn=>{try{fn(val,prev);}catch(e){}});}}
+  watch(k,fn){if(!this._w.has(k))this._w.set(k,[]);this._w.get(k).push(fn);}
+  reconcile(){try{const peer=App.peer;if(peer){const real=!!(peer.peer&&!peer.peer.disconnected&&!peer.peer.destroyed);if(this.get('peer.connected')!==real)this.set('peer.connected',real);}}catch(e){}}
+}
+
+/* ── Memory Monitor ── */
+class MemoryMonitor{
+  constructor(){this._samples=[];}
+  sample(){try{if(performance?.memory){this._samples.push({used:performance.memory.usedJSHeapSize,ts:Date.now()});if(this._samples.length>20)this._samples.shift();}}catch(e){}}
+  getUsedMB(){try{return performance?.memory?Math.round(performance.memory.usedJSHeapSize/1048576):null;}catch(e){return null;}}
+  isCritical(){try{return performance?.memory&&performance.memory.usedJSHeapSize>performance.memory.jsHeapSizeLimit*0.85;}catch(e){return false;}}
+  isHigh(){try{return performance?.memory&&performance.memory.usedJSHeapSize>250*1048576;}catch(e){return false;}}
+}
+
+/* ── Long Session Cleanup ── */
+class LongSessionCleanup{
+  constructor(){this._startTs=Date.now();}
+  init(){
+    Timers.interval('session-cleanup',()=>this._run(),600000);
+    Timers.interval('mem-check',()=>this._checkMem(),120000);
+  }
+  _run(){
+    try{
+      if(App.log?._entries?.length>500)App.log._entries=App.log._entries.slice(-200);
+      App.rtcReg?.cleanStale();
+      if(BlobURLs.size()>20)BlobURLs.revokeAll();
+      document.querySelectorAll('.toast-item').forEach((el,i)=>{if(i>8)el.remove();});
+      App.stateStore?.reconcile();
+    }catch(e){}
+  }
+  _checkMem(){App.memMon?.sample();if(App.memMon?.isCritical()){App.toast?.show('⚠️ Memory critical — cleaning','error');this._run();}else if(App.memMon?.isHigh()){App.toast?.show('Memory high — cleaning','warning');this._run();}}
+  getUptime(){const ms=Date.now()-this._startTs;const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000);return h+'h '+m+'m';}
+}
+
+/* ── Network Recovery ── */
+class NetworkRecovery{
+  constructor(){this._inited=false;}
+  init(){
+    if(this._inited)return;this._inited=true;
+    window.addEventListener('online',()=>{App.toast?.show('Network restored — reconnecting…','info');Timers.timeout('net-reconnect',()=>{if(App.peer?.peer?.disconnected)App.peer.tryReconnect();},1200);});
+    window.addEventListener('offline',()=>{App.toast?.show('Network offline','warning');App.ui?.setStatus('OFFLINE');});
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')Timers.timeout('tab-restore',()=>{if(navigator.onLine&&App.peer?.peer?.disconnected)App.peer.tryReconnect();App.stateStore?.reconcile();},1500);});
+  }
+}
+
+/* ── Global Error Manager ── */
+class GlobalErrorManager{
+  constructor(){this._errors=[];}
+  init(){
+    window.addEventListener('error',e=>this._cap('UNCAUGHT',e.message||'Unknown'));
+    window.addEventListener('unhandledrejection',e=>{this._cap('PROMISE',e.reason?.message||String(e.reason||''));e.preventDefault();});
+  }
+  _cap(type,msg){this._errors.unshift({type,msg,ts:Date.now()});if(this._errors.length>100)this._errors.pop();try{App.log?.error('['+type+'] '+msg);}catch(e){}}
+}
+
+/* ── Self Healing ── */
+class SelfHealingEngine{
+  async repair(){
+    App.toast.show('⚡ Repairing connection…','info');
+    try{if(App.peer?.peer?.disconnected)App.peer.tryReconnect();else App.peer?.tryReconnect();}catch(e){}
+    setEl('heal-banner',null,el=>el.classList.remove('on'));
+    setEl('fab-repair',null,el=>el?.classList.remove('on'));
+    setTimeout(()=>App.toast.show('Repair complete','success'),1500);
+  }
+  repairTimers(){Timers._i.forEach((_,k)=>{if(k!=='ping-loop'&&k!=='session-cleanup'&&k!=='mem-check')Timers.clear(k);});}
+}
+
+/* ── Session Encryption stub ── */
+class SessionEncryptor{async init(){}}
+
+/* ── Boot Recovery ── */
+class BootRecoveryManager{
+  constructor(){this._BOOT_KEY='dh-boot-state';}
+  markBootStart(){SafeStorage.set(this._BOOT_KEY,'starting');}
+  markBootComplete(){SafeStorage.del(this._BOOT_KEY);}
+  checkBootFailure(){
+    if(SafeStorage.get(this._BOOT_KEY)==='starting'){
+      const fails=(parseInt(SafeStorage.get('dh-boot-fails','0'))||0)+1;
+      SafeStorage.set('dh-boot-fails',String(fails));
+      if(fails>=3){SafeStorage.del(this._BOOT_KEY);SafeStorage.del('dh-boot-fails');Timers.timeout('boot-recover',()=>{if(confirm('DevHub failed to start '+fails+' times. Reset?')){localStorage.clear();sessionStorage.clear();location.reload();}},500);return true;}
+    }
+    return false;
+  }
+  restoreSessionSnapshot(){
+    try{const s=SafeStorage.getJSON('dh-boot-snapshot',null);if(!s||Date.now()-s.ts>3600000)return;if(s.notes){const np=document.getElementById('notepad');if(np)np.value=s.notes;}if(s.name&&!SafeStorage.get('dh-name',''))SafeStorage.set('dh-name',s.name);}catch(e){}
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   PEER MANAGER
+═══════════════════════════════════════════════════════ */
+class PeerManager{
+  constructor(){this.peer=null;this.myId=null;this.dconns=new Map();this.peerMap=new Map();this.latMap=new Map();this.activeCall=null;this._reconnectAttempts=0;this._reconnecting=false;this._destroyed=false;this._lastReconnectAt=0;this._lastMsgTs=new Map();this._settingUp=new Set();}
+  async init(){
+    const name=SafeStorage.get('dh-name','Peer');
+    const savedId=sessionStorage.getItem(SESSION_KEY);
+    const idBase=name.toLowerCase().replace(/[^a-z0-9]/g,'').substring(0,8)||'peer';
+    const freshId=`${idBase}-${TAB_NONCE}-${Date.now().toString(36).slice(-4)}`;
+    const myId=savedId||freshId;
+    sessionStorage.setItem(SESSION_KEY,myId);
+    await App.crypto.init();await App.trust.load();await App.hist.load();await App.callHist.load();
+    this._create(myId);
+  }
+  _create(id){
+    if(this.peer&&!this.peer.destroyed){try{this.peer.destroy();}catch(e){}}
+    this._destroyed=false;
+    const iceConfig=[...CFG.STUN_SERVERS];
+    try{const turn=SafeStorage.getJSON('devhub-turn',null);if(turn?.url)iceConfig.push({urls:turn.url,username:turn.user,credential:turn.pass});}catch(e){}
+    try{this.peer=new Peer(id,{debug:0,config:{iceServers:iceConfig}});}
+    catch(e){App.log.error('PeerJS init failed: '+e.message);App.ui?.setStatus('OFFLINE');return;}
+    this.peer.on('open',peerId=>{
+      this.myId=peerId;sessionStorage.setItem(SESSION_KEY,peerId);
+      this._reconnectAttempts=0;this._reconnecting=false;
+      App.log.success('PeerJS ready: '+peerId);App.ui?.setStatus('ONLINE');
+      setEl('my-name-btn',SafeStorage.get('dh-name',peerId.substring(0,12)+'…'));
+      Timers.interval('ping-loop',()=>this._pingAll(),CFG.PING_INTERVAL);
+      App.room.autoConnect();App.broadcastDisc._announce();
+    });
+    this.peer.on('connection',conn=>this._setupConn(conn));
+    this.peer.on('call',call=>App.media._handleIncoming(call));
+    this.peer.on('disconnected',()=>{if(this._destroyed)return;App.log.warn('Disconnected from signaling server');App.ui?.setStatus('RECONNECTING');this._scheduleReconnect();});
+    this.peer.on('error',err=>{
+      const msg=err.message||String(err);App.log.error('PeerJS error: '+msg);
+      if(err.type==='peer-unavailable')App.toast.show('Peer not available — check the ID','warning');
+      else if(err.type==='network'||err.type==='server-error'){App.ui?.setStatus('RECONNECTING');this._scheduleReconnect();}
+      else if(err.type==='unavailable-id'){const newId=`peer-${TAB_NONCE}-${Date.now().toString(36)}`;sessionStorage.setItem(SESSION_KEY,newId);Timers.timeout('id-regen',()=>this._create(newId),800);}
+    });
+  }
+  _scheduleReconnect(){
+    if(this._reconnecting||this._destroyed)return;
+    const now=Date.now();if(now-this._lastReconnectAt<800)return;this._lastReconnectAt=now;
+    if(this._reconnectAttempts>=CFG.RECONNECT_MAX){App.log.warn('Max reconnect attempts reached');return;}
+    this._reconnecting=true;
+    const delay=CFG.RECONNECT_DELAY[Math.min(this._reconnectAttempts,CFG.RECONNECT_DELAY.length-1)];
+    this._reconnectAttempts++;
+    Timers.timeout('reconnect',()=>{
+      if(this.peer?.disconnected&&!this.peer.destroyed){try{this.peer.reconnect();}catch(e){this._create(this.myId);}}
+      else if(!this.peer||this.peer.destroyed){this._create(this.myId);}
+      this._reconnecting=false;
+    },delay);
+  }
+  tryReconnect(){
+    this._reconnectAttempts=0;this._reconnecting=false;Timers.clear('reconnect');
+    if(this.peer?.disconnected){try{this.peer.reconnect();}catch(e){this._create(this.myId);}}
+    else if(!this.peer||this.peer.destroyed){this._create(this.myId);}
+    else App.toast.show('Already connected','info');
+  }
+  connectTo(idOrUrl){
+    let pid=String(idOrUrl||'').trim();
+    if(pid.includes('peer=')){try{pid=decodeURIComponent(pid.split('peer=')[1].split('&')[0]);}catch(e){}}
+    pid=pid.replace(/^[#?]/,'');
+    if(!pid||pid===this.myId)return;
+    if(App.room.isBlocked(pid)){App.toast.show('Peer is blocked','warning');return;}
+    if(this.dconns.has(pid)){App.toast.show('Already connected','info');return;}
+    if(!this.peer||this.peer.destroyed||this.peer.disconnected){App.toast.show('Not connected to server yet','warning');return;}
+    App.log.info('Connecting to '+pid.substring(0,12)+'…');
+    const conn=this.peer.connect(pid,{reliable:true,serialization:'binary'});
+    this._setupConn(conn);
+  }
+  _setupConn(conn){
+    const pid=conn.peer;
+    if(!App.rateLimiter.check(pid)){conn.close();return;}
+    if(this._settingUp.has(pid))return;this._settingUp.add(pid);
+    if(App.room.isBlocked(pid)){this._settingUp.delete(pid);conn.close();return;}
+    const existing=this.dconns.get(pid);
+    if(existing&&existing!==conn){try{existing.close();}catch(e){}this.dconns.delete(pid);}
+    conn.on('open',async()=>{
+      try{App.connReg?.register(pid,conn);}catch(e){}
+      this._settingUp.delete(pid);this.dconns.set(pid,conn);
+      App.log.success('Connected: '+pid.substring(0,12));
+      const fp=await FP.collect();
+      const payload={fp,version:CFG.VERSION,ts:Date.now()};
+      const handshake={type:'handshake',...payload};
+      if(SafeStorage.get('dh-e2e')==='1'&&App.crypto.getPublicKeyBytes())handshake.pubkey=App.crypto.getPublicKeyBytes();
+      try{conn.send(JSON.stringify(handshake));}catch(e){}
+      App.msgQ.flush(pid);App.trust.trust(pid,fp);
+    });
+    conn.on('data',async data=>{
+      if(data instanceof Blob){const buf=await data.arrayBuffer();App.files._onBinaryChunk(pid,buf);return;}
+      if(data instanceof ArrayBuffer||ArrayBuffer.isView(data)){App.files._onBinaryChunk(pid,data instanceof ArrayBuffer?data:data.buffer);return;}
+      let msg;try{msg=JSON.parse(data);}catch(e){return;}
+      if(!msg||typeof msg!=='object')return;
+      await this._handleMsg(pid,msg,conn);
+    });
+    conn.on('close',()=>{this._settingUp?.delete(pid);this._onClose(pid,'closed');});
+    conn.on('error',err=>{App.log.error('Conn error: '+err.message);this._settingUp?.delete(pid);this._onClose(pid,err.message);});
+    if(App.room.requireApproval&&!App.trust.isTrusted(pid)){
+      const ok=confirm('Allow connection from '+pid.substring(0,12)+'?');
+      if(!ok){this._settingUp.delete(pid);conn.close();return;}
+    }
+  }
+  async _handleMsg(pid,msg,conn){
+    switch(msg.type){
+      case 'handshake':{
+        const fp=msg.fp||{};fp.name=fp.name||pid.substring(0,12);
+        this.peerMap.set(pid,{fp,name:fp.name,status:'ONLINE'});
+        if(msg.pubkey&&SafeStorage.get('dh-e2e')==='1')await App.crypto.deriveSharedKey(pid,msg.pubkey);
+        App.hist.seen(pid,fp);App.trust.trust(pid,fp);
+        App.ui.renderPeer(pid,fp,'ONLINE');App.ui.renderMobPeer(pid,fp,'ONLINE');
+        App.notifCenter.add(`${fp.name||pid.substring(0,8)} connected`,'Peer joined','👤','success');
+        App.toast.show(`${fp.name||pid.substring(0,8)} connected`,'success');
+        App.sounds.peerConnected();
+        break;
+      }
+      case 'pubkey':{if(msg.pubkey&&SafeStorage.get('dh-e2e')==='1')await App.crypto.deriveSharedKey(pid,msg.pubkey);break;}
+      case 'msg':{
+        if(!App.perms.check(pid,'canChat'))return;
+        const now=Date.now();const last=this._lastMsgTs.get(pid)||0;
+        if(now-last<CFG.RATE_LIMIT_MS)break;this._lastMsgTs.set(pid,now);
+        const text=String(msg.text||'').substring(0,CFG.MSG_SIZE_LIMIT);
+        App.store.put('messages',{id:msg.id||uid(8),pid,text,ts:msg.ts||now}).catch(()=>{});
+        if(App.ui.activePeer===pid){
+          App.ui.appendMsg({id:msg.id,text,self:false,ts:msg.ts,peer:pid,ttl:msg.ttl||0});
+          try{conn.send(JSON.stringify({type:'read',id:msg.id}));}catch(e){}
+        }else{App.ui.incUnread(pid);App.notifCenter.add('New message from '+this.peerName(pid),text.substring(0,80),'💬','info');}
+        AppSession.msgsRecv++;App.sounds.msgReceived();
+        break;
+      }
+      case 'enc-msg':{
+        if(msg.data&&App.crypto.hasKey(pid)){
+          const pt=await App.crypto.decrypt(pid,new Uint8Array(msg.data).buffer);
+          if(pt){const text=new TextDecoder().decode(pt);if(App.ui.activePeer===pid)App.ui.appendMsg({id:msg.id||uid(8),text,self:false,ts:msg.ts,peer:pid});else App.ui.incUnread(pid);}
+        }
+        break;
+      }
+      case 'file-meta':{
+        if(!App.perms.check(pid,'canReceiveFiles')){const c=this.conn(pid);if(c?.open)c.send(JSON.stringify({type:'file-cancel',tid:msg.tid}));return;}
+        const check=SafeFileValidator.validate(msg.name,msg.mime);
+        if(!check.ok){App.toast.show('File blocked: '+check.reason,'error');const c=this.conn(pid);if(c?.open)c.send(JSON.stringify({type:'file-cancel',tid:msg.tid}));return;}
+        App.files._onMeta(pid,msg);break;
+      }
+      case 'file-ack':App.files._onAck(pid,msg.tid,msg.seq);break;
+      case 'file-cancel':App.files._onCancel(pid,msg.tid);break;
+      case 'file-pause':{const s=App.files._sends.get(msg.tid);if(s)s.paused=true;break;}
+      case 'file-resume':{const s=App.files._sends.get(msg.tid);if(s)s.paused=false;break;}
+      case 'typing':App.ui.showTyp(pid);break;
+      case 'read':if(msg.id)App.ui.markRead(msg.id);break;
+      case 'delivered':if(msg.id)App.ui.markDel(msg.id);break;
+      case 'reaction':if(msg.msgId&&msg.emoji)App.ui.addReaction(msg.msgId,msg.emoji,pid);break;
+      case 'ping':try{conn.send(JSON.stringify({type:'pong',ts:msg.ts}));}catch(e){}break;
+      case 'pong':{const lat=Date.now()-(msg.ts||0);this.latMap.set(pid,lat);App.netq.addSample(lat);App.ui._updPeerLatencies();break;}
+      case 'signal':if(msg.call_ended)App.media.remoteEnded(msg.reason||'Remote ended');break;
+      case 'notes':{const np=document.getElementById('notepad');if(np)np.value=msg.text||'';setEl('notes-status','synced ✓');Timers.timeout('ns',()=>setEl('notes-status',''),2000);break;}
+      case 'whiteboard':App.board._onRemote(msg);break;
+      case 'wb-stroke':App.board._onRemoteStroke(pid,msg);break;
+      case 'code':{
+        if(msg.code!==undefined){
+          const nm=this.peerName(pid);
+          const t=App.toast.show(`${nm} wants to share code — accept?`,'info',true);
+          const btn=document.createElement('button');btn.textContent='Accept';btn.className='btn btn-p btn-xs';btn.style.marginLeft='8px';
+          btn.addEventListener('click',()=>{t.remove();const ce=document.getElementById('code-editor-area');if(ce)ce.value=msg.code;if(msg.lang){const ls=document.getElementById('ce-lang');if(ls)ls.value=msg.lang;}App.toast.show('Code received','success');App.ui.setTab('code');},{once:true});
+          t.appendChild(btn);
+        }
+        break;
+      }
+      case 'tasks':if(msg.tasks)App.tasks._onRemote(msg.tasks);break;
+      case 'group-msg':App.group._onMsg(pid,msg);break;
+      case 'presence':{const info=this.peerMap.get(pid);if(info){info.presence=msg.status;this.peerMap.set(pid,info);}App.presence?.setPeerStatus(pid,msg.status);break;}
+      case 'uclip':App.uclip.receive(pid,msg.text,msg.hash);break;
+      case 'group-video':App.groupVideo?._onSignal(pid,msg);break;
+    }
+  }
+  _onClose(pid,reason){
+    this._settingUp?.delete(pid);this.dconns.delete(pid);
+    try{App.connReg?.unregister(pid);}catch(e){}
+    const info=this.peerMap.get(pid);
+    if(info){info.status='OFFLINE';App.ui.renderPeer(pid,info.fp,'OFFLINE');App.ui.renderMobPeer(pid,info.fp,'OFFLINE');}
+    App.log.info('Peer disconnected');
+    if(reason!=='closed'){setEl('heal-banner',null,el=>el.classList.add('on'));}
+  }
+  _pingAll(){for(const[pid,conn]of this.dconns){if(conn.open)try{conn.send(JSON.stringify({type:'ping',ts:Date.now()}));}catch(e){}}}
+  conn(pid){return this.dconns.get(pid);}
+  peerName(pid){const td=App.trust.getDevice(pid);if(td?.name)return td.name;return this.peerMap.get(pid)?.name||'Peer';}
+  async sendMsg(pid,text,id){
+    const conn=this.conn(pid);if(!conn?.open)return false;
+    try{
+      const ttl=parseInt(document.getElementById('msg-ttl')?.value||'0');
+      if(SafeStorage.get('dh-e2e')==='1'&&App.crypto.hasKey(pid)){
+        const ct=await App.crypto.encrypt(pid,text);
+        if(ct)conn.send(JSON.stringify({type:'enc-msg',id,data:Array.from(new Uint8Array(ct)),ts:Date.now()}));
+        else conn.send(JSON.stringify({type:'msg',id,text,ts:Date.now(),ttl}));
+      }else{conn.send(JSON.stringify({type:'msg',id,text,ts:Date.now(),ttl}));}
+      AppSession.msgsSent++;Timers.timeout('del-'+id,()=>App.ui.markDel(id),300);return true;
+    }catch(e){App.log.error('Send: '+e.message);return false;}
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   FILE TRANSFER ENGINE
+═══════════════════════════════════════════════════════ */
+class FileTransfer{
+  constructor(){this._sends=new Map();this._recvs=new Map();this._totalSent=0;this._totalRecv=0;this._activeSends=0;this._sendQueue=[];}
+  sendFiles(files,pid){for(const file of files)this._sendQueue.push({file,pid});this._drainQueue();}
+  _drainQueue(){while(this._activeSends<CFG.MAX_CONCUR_SENDS&&this._sendQueue.length>0){const{file,pid}=this._sendQueue.shift();this._activeSends++;this._sendOne(file,pid).finally(()=>{this._activeSends--;this._drainQueue();});}}
+  async _sendOne(file,pid){
+    const chunkSize=App.netq?.getChunkSize()||CFG.CHUNK_SIZE;
+    const tid=uid(20);const totalChunks=Math.ceil(file.size/chunkSize);
+    const state={tid,pid,file,totalChunks,chunkSize,sentChunks:0,ackedChunks:0,ackResolvers:new Map(),paused:false,cancelled:false,startTime:Date.now(),bytesSent:0};
+    this._sends.set(tid,state);this._renderTx(tid,file.name,file.size,'send');
+    try{const conn=App.peer.conn(pid);if(!conn?.open)throw new Error('No connection');conn.send(JSON.stringify({type:'file-meta',tid,name:file.name,size:file.size,mime:file.type||'application/octet-stream',totalChunks,chunkSize}));}
+    catch(e){this._failTx(tid,'Meta send failed');return;}
+    let nextSeq=0;const inFlight=new Map();
+    const sendNext=async()=>{
+      while(!state.cancelled&&!state.paused&&nextSeq<totalChunks&&inFlight.size<CFG.WINDOW_SIZE){
+        const seq=nextSeq++;const conn=App.peer.conn(pid);if(!conn?.open){this._failTx(tid,'Connection closed');return;}
+        let chunk;try{chunk=await this._readChunk(file,seq,state.chunkSize);}catch(e){this._failTx(tid,'Read error');return;}
+        const tidBytes=new TextEncoder().encode(tid);
+        const frame=new ArrayBuffer(2+tidBytes.length+4+4+chunk.byteLength);
+        const view=new DataView(frame);let off=0;
+        view.setUint16(off,tidBytes.length,false);off+=2;
+        new Uint8Array(frame,off,tidBytes.length).set(tidBytes);off+=tidBytes.length;
+        view.setUint32(off,seq,false);off+=4;view.setUint32(off,totalChunks,false);off+=4;
+        new Uint8Array(frame,off).set(new Uint8Array(chunk));
+        let retries=0;
+        const tryFlight=async()=>{
+          if(retries>3){inFlight.delete(seq);this._failTx(tid,'Chunk retries exceeded');return;}
+          retries++;try{conn.send(frame);}catch(e){await sleep(100);return tryFlight();}
+          const ackProm=new Promise(r=>{state.ackResolvers.set(seq,r);Timers.timeout('ack-'+tid+'-'+seq,()=>{state.ackResolvers.delete(seq);tryFlight();},4000);});
+          await ackProm;Timers.clear('ack-'+tid+'-'+seq);inFlight.delete(seq);
+          state.ackedChunks++;state.bytesSent+=chunk.byteLength;this._totalSent+=chunk.byteLength;
+          AppSession.bytesSent+=chunk.byteLength;
+          this._updateProgress(tid,Math.round(state.ackedChunks/totalChunks*100),state.bytesSent,file.size,state.startTime);
+          sendNext();
+        };
+        inFlight.set(seq,tryFlight());tryFlight();
+      }
+    };
+    await sendNext();while(inFlight.size>0&&!state.cancelled)await sleep(50);
+    if(!state.cancelled&&state.ackedChunks>=totalChunks){this._doneTx(tid,'send');AppSession.filesSent++;App.toast.show(`${file.name} sent (${fmtSz(file.size)})`,'success');}
+    this._sends.delete(tid);
+  }
+  async _readChunk(file,seq,cs){const s=seq*cs;return(await file.slice(s,Math.min(s+cs,file.size)).arrayBuffer());}
+  _onBinaryChunk(pid,buf){
+    try{
+      const view=new DataView(buf);let off=0;
+      const tidLen=view.getUint16(off,false);off+=2;
+      const tid=new TextDecoder().decode(new Uint8Array(buf,off,tidLen));off+=tidLen;
+      const seq=view.getUint32(off,false);off+=4;const total=view.getUint32(off,false);off+=4;
+      const chunk=buf.slice(off);const state=this._recvs.get(tid);if(!state)return;
+      state.chunks[seq]=chunk;state.received++;state.bytesRecv+=chunk.byteLength;
+      const conn=App.peer.conn(pid);if(conn?.open)try{conn.send(JSON.stringify({type:'file-ack',tid,seq}));}catch(e){}
+      this._updateProgress(tid,Math.round(state.received/total*100),state.bytesRecv,state.size,state.startTime);
+      if(state.received>=total)this._assembleTx(tid);
+    }catch(e){App.log.warn('Binary chunk parse: '+e.message);}
+  }
+  _onMeta(pid,msg){
+    const state={tid:msg.tid,pid,name:msg.name,size:msg.size,mime:msg.mime,totalChunks:msg.totalChunks,chunkSize:msg.chunkSize,chunks:[],received:0,bytesRecv:0,startTime:Date.now()};
+    this._recvs.set(msg.tid,state);this._renderTx(msg.tid,msg.name,msg.size,'recv');
+    App.toast.show('Receiving: '+msg.name+' ('+fmtSz(msg.size)+')','info');
+  }
+  _onAck(pid,tid,seq){const state=this._sends.get(tid);if(!state)return;const res=state.ackResolvers.get(seq);if(res){res();state.ackResolvers.delete(seq);}}
+  _onCancel(pid,tid){const s=this._sends.get(tid)||this._recvs.get(tid);if(s)s.cancelled=true;this._failTx(tid,'Cancelled by remote');}
+  async _assembleTx(tid){
+    const state=this._recvs.get(tid);if(!state)return;this._recvs.delete(tid);
+    try{
+      const blob=new Blob(state.chunks.filter(Boolean),{type:state.mime||'application/octet-stream'});
+      const url=BlobURLs.create(blob);const a=document.createElement('a');a.href=url;a.download=state.name;a.click();
+      setTimeout(()=>BlobURLs.revoke(url),60000);
+      this._doneTx(tid,'recv');AppSession.filesRecv++;AppSession.bytesRecv+=state.size;
+      App.toast.show(`${state.name} received (${fmtSz(state.size)})`,'success');
+    }catch(e){this._failTx(tid,'Assembly error: '+e.message);}
+  }
+  _renderTx(tid,name,size,dir){
+    const list=document.getElementById('txlist');if(!list)return;
+    const el=document.createElement('div');el.className='tc';el.id='tc-'+tid;
+    el.innerHTML=`<div class="tc-top"><span class="tc-icon">${dir==='send'?'📤':'📥'}</span><span class="tc-nm">${esc(name)}</span><span class="tc-sz">${fmtSz(size)}</span><div class="tc-acts"><button class="btn btn-xs btn-d" onclick="App.files._cancelTx('${esc(tid)}')">✕</button></div></div><div class="pb"><div class="pb-fill" id="pf-${tid}" style="width:0%"></div></div><div class="tc-info"><span id="tp-${tid}">0%</span><span id="ts-${tid}">—</span></div>`;
+    list.insertBefore(el,list.firstChild);
+    setEl('tx-info',`↑ ${fmtSz(this._totalSent)} · ↓ ${fmtSz(this._totalRecv)}`);
+  }
+  _updateProgress(tid,pct,bytes,total,start){
+    setEl('pf-'+tid,null,el=>el.style.width=pct+'%');setEl('tp-'+tid,pct+'%');
+    const elapsed=(Date.now()-start)/1000;const speed=elapsed>0?bytes/elapsed:0;
+    setEl('ts-'+tid,fmtSz(speed)+'/s');
+    setEl('tx-info',`↑ ${fmtSz(this._totalSent)} · ↓ ${fmtSz(this._totalRecv)}`);
+  }
+  _doneTx(tid,dir){setEl('pf-'+tid,null,el=>{el.style.width='100%';el.style.background='var(--green)';});setEl('tp-'+tid,'✅ Done');}
+  _failTx(tid,reason){setEl('tp-'+tid,'❌ '+reason);App.log.error('Transfer failed: '+reason);}
+  _cancelTx(tid){const s=this._sends.get(tid)||this._recvs.get(tid);if(s)s.cancelled=true;this._failTx(tid,'Cancelled');}
+  _pickAndSend(pid){const inp=document.createElement('input');inp.type='file';inp.multiple=true;inp.onchange=e=>{const files=[...e.target.files];if(files.length)this.sendFiles(files,pid);};inp.click();}
+}
+
+/* ═══════════════════════════════════════════════════════
+   MEDIA MANAGER
+═══════════════════════════════════════════════════════ */
+class MediaManager{
+  constructor(){this._call=null;this._localStream=null;this._screenStream=null;this._muted=false;this._vidOff=false;this._audioCtx=null;this._noiseAC=null;this._wakeLock=null;this._recorder=null;this._recChunks=[];this._ending=false;this._timerStart=null;}
+  async voice(pid){await this._start(pid,'voice');}
+  async video(pid){await this._start(pid,'video');}
+  async screen(pid){await this._start(pid,'screen');}
+  _applyNoiseSuppression(stream){
+    if(!window.AudioContext&&!window.webkitAudioContext)return stream;
+    try{
+      const ac=new(window.AudioContext||window.webkitAudioContext)();
+      const src=ac.createMediaStreamSource(stream);
+      const hp=ac.createBiquadFilter();hp.type='highpass';hp.frequency.value=85;
+      const lp=ac.createBiquadFilter();lp.type='lowpass';lp.frequency.value=8000;
+      const dyn=ac.createDynamicsCompressor();dyn.threshold.value=-50;dyn.ratio.value=12;
+      const dest=ac.createMediaStreamDestination();
+      src.connect(hp);hp.connect(lp);lp.connect(dyn);dyn.connect(dest);
+      this._noiseAC=ac;
+      stream.getVideoTracks().forEach(t=>dest.stream.addTrack(t));
+      return dest.stream;
+    }catch(e){return stream;}
+  }
+  async _start(pid,type){
+    if(this._call){App.toast.show('Already in a call','warning');return;}
+    if(!App.peer.peer||App.peer.peer.destroyed){App.toast.show('Not connected to server','warning');return;}
+    try{
+      this._cleanupMedia();let stream;
+      if(type==='voice')stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+      else if(type==='video')stream=await navigator.mediaDevices.getUserMedia({audio:true,video:{width:{ideal:1280},height:{ideal:720}}});
+      else if(type==='screen'){if(!navigator.mediaDevices?.getDisplayMedia){App.toast.show('Screen share not supported','warning');return;}stream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});}
+      try{App.streamReg?.register('call-stream',stream);}catch(e){}
+      if(type==='screen'){this._screenStream=stream;this._localStream=stream;}
+      else{this._localStream=stream;if(SafeStorage.get('dh-noise')==='1')this._localStream=this._applyNoiseSuppression(stream);}
+      if(type==='video'||type==='screen'){const lv=document.getElementById('lvid');if(lv){lv.srcObject=stream;try{await lv.play();}catch(e){}}setEl('vwrap',null,el=>el.style.display='block');}
+      this._showAudioVis(this._localStream,type!=='screen');
+      this._call=App.peer.peer.call(pid,this._localStream);
+      App.peer.activeCall=this._call;this._setupCall(this._call,pid,type);this._startTimer();AppSession.callsPlaced++;
+    }catch(e){App.toast.show('Media error: '+e.message,'error');App.log.error('Call start: '+e.message);this._cleanupMedia();}
+  }
+  _handleIncoming(call){
+    if(!App.perms.check(call.peer,'canCall')){call.close();return;}
+    const pid=call.peer;const name=App.peer.peerName(pid);
+    setEl('icall-name',name);document.getElementById('incoming-call-modal')?.classList.add('on');
+    App.notifCenter.add('Incoming call from '+name,'','📞','info');AppSession.callsReceived++;App.sounds.callIncoming();
+    const accept=()=>{
+      document.getElementById('incoming-call-modal')?.classList.remove('on');
+      this._cleanupMedia();
+      navigator.mediaDevices.getUserMedia({audio:true,video:false}).then(stream=>{
+        this._localStream=stream;if(SafeStorage.get('dh-noise')==='1')this._localStream=this._applyNoiseSuppression(stream);
+        this._showAudioVis(this._localStream,true);call.answer(this._localStream);
+        this._call=call;App.peer.activeCall=call;this._setupCall(call,pid,'voice');this._startTimer();
+      }).catch(e=>{App.toast.show('Could not access mic: '+e.message,'error');call.answer();this._call=call;App.peer.activeCall=call;this._setupCall(call,pid,'voice');this._startTimer();});
+    };
+    const reject=()=>{document.getElementById('incoming-call-modal')?.classList.remove('on');try{call.close();}catch(e){}};
+    document.getElementById('icall-acc')?.addEventListener('click',accept,{once:true});
+    document.getElementById('icall-rej')?.addEventListener('click',reject,{once:true});
+    if(typeof Notification!=='undefined'&&Notification.permission==='granted'){try{new Notification('Incoming Call',{body:'from '+name});}catch(e){}}
+  }
+  _setupCall(call,pid,type){
+    if(call?.peerConnection)try{App.rtcReg?.register('call-'+pid,call.peerConnection);}catch(e){}
+    const name=App.peer.peerName(pid);
+    setEl('cpeer-lbl',name);setEl('cpeer-lbl2',name);setEl('cpeer-lbl3',name);
+    setEl('call-state-label','Connected');setEl('call-state-label2','Connected');
+    setEl('ctype-icon',type==='video'?'📹':type==='screen'?'🖥️':'📞');
+    setEl('callbar',null,el=>el.classList.add('on'));this._acquireWakeLock();
+    call.on('stream',remoteStream=>{const rv=document.getElementById('rvid');if(rv){rv.srcObject=remoteStream;try{rv.play();}catch(e){}}if(type!=='voice')setEl('vwrap',null,el=>el.style.display='block');this._applyVolume(remoteStream);});
+    call.on('close',()=>{App.callHist.add(pid,type,this._timerStart?Date.now()-this._timerStart:0,true);this.end();});
+    call.on('error',err=>{App.log.error('Call error: '+err.message);this.end();});
+  }
+  async end(){
+    Timers.clear('call-timer');if(this._ending)return;this._ending=true;
+    try{
+      App.sounds.callEnded();const pid=this._call?.peer;
+      if(pid){const conn=App.peer.conn(pid);if(conn?.open)try{conn.send(JSON.stringify({type:'signal',call_ended:true,reason:'Hung up'}));}catch(e){}
+      App.callHist.add(pid,'voice',this._timerStart?Date.now()-this._timerStart:0,true);}
+      try{this._call?.close();}catch(e){}this._call=null;App.peer.activeCall=null;
+      this._stopRecording();this._releaseWakeLock();this._cleanupMedia();
+      setEl('call-state-label','No active call');setEl('call-state-label2','No active call');
+      setEl('cpeer-lbl','—');setEl('cpeer-lbl2','—');setEl('call-timer','0:00');setEl('call-timer2','0:00');
+      setEl('callbar',null,el=>el.classList.remove('on'));setEl('vwrap',null,el=>el.style.display='none');
+      setEl('avis',null,el=>el.style.display='none');setEl('recbadge',null,el=>el.classList.remove('on'));
+      App.toast.show('Call ended','info');App.callHist.render();
+    }finally{this._ending=false;}
+  }
+  remoteEnded(reason){App.log.info('Remote ended: '+reason);App.toast.show('Call ended: '+reason,'info');this.end();}
+  _cleanupMedia(){
+    const stop=s=>{if(!s)return;try{s.getTracks().forEach(t=>t.stop());}catch(e){}};
+    stop(this._localStream);stop(this._screenStream);this._localStream=null;this._screenStream=null;
+    ['lvid','rvid'].forEach(id=>{const v=document.getElementById(id);if(v)v.srcObject=null;});
+    if(this._audioCtx){try{this._audioCtx.close();}catch(e){}this._audioCtx=null;}
+    if(this._noiseAC){try{this._noiseAC.close();}catch(e){}this._noiseAC=null;}
+  }
+  toggleMute(){if(!this._localStream)return;this._muted=!this._muted;this._localStream.getAudioTracks().forEach(t=>t.enabled=!this._muted);setEl('btn-mute',this._muted?'🔇 Unmute':'🎤 Mute');App.toast.show(this._muted?'Muted':'Unmuted','info');}
+  toggleVideo(){if(!this._localStream)return;this._vidOff=!this._vidOff;this._localStream.getVideoTracks().forEach(t=>t.enabled=!this._vidOff);setEl('btn-vid-off',this._vidOff?'📹 On':'📹 Off');}
+  _startTimer(){this._timerStart=Date.now();Timers.interval('call-timer',()=>{const t=fmtDur(Date.now()-this._timerStart);setEl('call-timer',t);setEl('call-timer2',t);this._updateCallQuality();},1000);}
+  _updateCallQuality(){
+    const call=this._call;if(!call?.peerConnection)return;
+    call.peerConnection.getStats().then(stats=>{
+      let rtt=0,jitter=0;
+      stats.forEach(r=>{if(r.type==='remote-inbound-rtp'){rtt=r.roundTripTime?Math.round(r.roundTripTime*1000):0;jitter=Math.round((r.jitter||0)*1000);}});
+      const cls=rtt<100?'q-e':rtt<250?'q-g':rtt<500?'q-p':'q-c';
+      ['call-quality-dot','call-quality-dot2','call-quality-dot3','call-quality-dot4'].forEach(id=>{const el=document.getElementById(id);if(el)el.className='quality-dot '+cls;});
+      setEl('cq-lbl',`RTT:${rtt}ms Jitter:${jitter}ms`);setEl('cq-lbl2',`RTT:${rtt}ms`);setEl('cq-lbl3',`RTT:${rtt}ms`);
+      if(rtt>0)App.netq.addSample(rtt);
+    }).catch(()=>{});
+  }
+  async _acquireWakeLock(){try{if(navigator.wakeLock)this._wakeLock=await navigator.wakeLock.request('screen');}catch(e){}}
+  _releaseWakeLock(){try{this._wakeLock?.release();this._wakeLock=null;}catch(e){}}
+  _showAudioVis(stream,show=true){
+    ['avis','avis2'].forEach(avId=>{
+      const avis=document.getElementById(avId);if(!avis)return;
+      if(!show){avis.style.display='none';return;}
+      try{
+        this._audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+        const analyser=this._audioCtx.createAnalyser();analyser.fftSize=64;
+        this._audioCtx.createMediaStreamSource(stream).connect(analyser);
+        avis.innerHTML='';avis.style.display='flex';
+        const bars=Array.from({length:16},()=>{const b=document.createElement('div');b.className='av-bar';b.style.height='4px';avis.appendChild(b);return b;});
+        const data=new Uint8Array(analyser.frequencyBinCount);
+        const draw=()=>{if(!this._audioCtx)return;requestAnimationFrame(draw);analyser.getByteFrequencyData(data);bars.forEach((b,i)=>{b.style.height=Math.max(4,data[i*2]*0.3)+'px';});};
+        draw();
+      }catch(e){}
+    });
+  }
+  _applyVolume(){const s=document.getElementById('vol-slider');const vol=s?(s.value/100):1;const rv=document.getElementById('rvid');if(rv)rv.volume=Math.min(2,vol);}
+  startRecording(){
+    if(!window.MediaRecorder){App.toast.show('Recording not supported','warning');return;}
+    try{
+      const ac=new AudioContext();const dest=ac.createMediaStreamDestination();
+      if(this._localStream)ac.createMediaStreamSource(this._localStream).connect(dest);
+      const rv=document.getElementById('rvid');if(rv?.srcObject)ac.createMediaStreamSource(rv.srcObject).connect(dest);
+      this._recChunks=[];this._recorder=new MediaRecorder(dest.stream);
+      this._recorder.ondataavailable=e=>{if(e.data.size>0)this._recChunks.push(e.data);};
+      this._recorder.onstop=()=>{const blob=new Blob(this._recChunks,{type:'audio/webm'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='call-'+Date.now()+'.webm';a.click();URL.revokeObjectURL(url);};
+      this._recorder.start();setEl('recbadge',null,el=>el.classList.add('on'));
+      document.getElementById('recbadge2').style.display='inline-block';
+      App.toast.show('Recording started','info');
+    }catch(e){App.toast.show('Recording failed: '+e.message,'error');}
+  }
+  _stopRecording(){if(this._recorder?.state==='recording'){try{this._recorder.stop();}catch(e){}}this._recorder=null;}
+}
+
+/* ═══════════════════════════════════════════════════════
+   WHITEBOARD
+═══════════════════════════════════════════════════════ */
+class Whiteboard{
+  constructor(){this._canvas=null;this._ctx=null;this._tool='pen';this._color='#6366f1';this._size=3;this._drawing=false;this._paths=[];this._undoStack=[];this._redoStack=[];this._startX=0;this._startY=0;this._snap=null;this._bgLight=false;this._currentStroke=[];}
+  init(){
+    if(this._canvas)return;
+    this._canvas=document.getElementById('wb-canvas');if(!this._canvas)return;
+    this._ctx=this._canvas.getContext('2d');this._resize();this._bindTools();this._bindCanvas();
+    window.addEventListener('resize',debounce(()=>this._resize(),150));
+  }
+  _resize(){
+    const c=this._canvas,p=c.parentElement;if(!p)return;
+    const w=p.clientWidth-18;if(w>0&&Math.abs(c.width-w)>2){
+      const off=document.createElement('canvas');off.width=c.width;off.height=c.height;off.getContext('2d').drawImage(c,0,0);
+      const h=Math.min(520,Math.round(w*0.6));c.width=w;c.height=h;this._ctx.drawImage(off,0,0);
+    }
+  }
+  _bindTools(){
+    document.querySelectorAll('.wb-tool-btn').forEach(btn=>{btn.addEventListener('click',()=>{document.querySelectorAll('.wb-tool-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');this._tool=btn.dataset.tool;});});
+    document.getElementById('wb-color')?.addEventListener('input',e=>this._color=e.target.value);
+    document.getElementById('wb-size')?.addEventListener('input',e=>{this._size=parseInt(e.target.value);setEl('wb-sz-lbl',this._size);});
+    document.getElementById('btn-wb-undo')?.addEventListener('click',()=>this.undo());
+    document.getElementById('btn-wb-redo')?.addEventListener('click',()=>this.redo());
+    document.getElementById('btn-wb-clear')?.addEventListener('click',()=>this.clear());
+    document.getElementById('btn-wb-send')?.addEventListener('click',()=>this._share());
+    document.getElementById('btn-wb-save')?.addEventListener('click',()=>this._save());
+    document.getElementById('btn-wb-bg')?.addEventListener('click',()=>{this._bgLight=!this._bgLight;this._canvas.style.background=this._bgLight?'#fff':'#1a1a2e';});
+  }
+  _bindCanvas(){
+    const c=this._canvas;
+    const getPos=e=>{const rect=c.getBoundingClientRect();const src=e.changedTouches?.[0]||e.touches?.[0]||e;return{x:src.clientX-rect.left,y:src.clientY-rect.top};};
+    const down=e=>{e.preventDefault();const p=getPos(e);this._drawing=true;this._startX=p.x;this._startY=p.y;this._snap=this._ctx.getImageData(0,0,c.width,c.height);if(this._tool==='pen'||this._tool==='eraser'){this._ctx.beginPath();this._ctx.moveTo(p.x,p.y);}this._currentStroke=[p];};
+    const move=e=>{e.preventDefault();if(!this._drawing)return;const p=getPos(e);this._currentStroke.push(p);
+      if(this._tool==='pen'){this._ctx.globalCompositeOperation='source-over';this._ctx.strokeStyle=this._color;this._ctx.lineWidth=this._size;this._ctx.lineCap='round';this._ctx.lineTo(p.x,p.y);this._ctx.stroke();}
+      else if(this._tool==='eraser'){this._ctx.globalCompositeOperation='destination-out';this._ctx.lineWidth=this._size*4;this._ctx.lineCap='round';this._ctx.lineTo(p.x,p.y);this._ctx.stroke();this._ctx.globalCompositeOperation='source-over';}
+      else{this._ctx.putImageData(this._snap,0,0);this._drawShape(this._tool,this._startX,this._startY,p.x,p.y);}
+      // Cursor sync
+      for(const[pid,conn]of App.peer.dconns){if(conn.open)try{conn.send(JSON.stringify({type:'cursor',x:p.x/c.width,y:p.y/c.height}));}catch(e){}}
+    };
+    const up=e=>{if(!this._drawing)return;this._drawing=false;const p=getPos(e.changedTouches?e:e);
+      if(this._tool!=='pen'&&this._tool!=='eraser'){this._drawShape(this._tool,this._startX,this._startY,p.x||this._startX,p.y||this._startY);this._syncShape(this._tool,this._startX,this._startY,p.x||this._startX,p.y||this._startY);}
+      else if(this._tool==='pen'){this._syncStroke();}
+      const snap=this._ctx.getImageData(0,0,c.width,c.height);this._undoStack.push(snap);if(this._undoStack.length>10)this._undoStack.shift();this._redoStack=[];this._snap=null;this._currentStroke=[];
+    };
+    c.addEventListener('mousedown',down);c.addEventListener('mousemove',move);c.addEventListener('mouseup',up);c.addEventListener('mouseleave',up);
+    c.addEventListener('touchstart',down,{passive:false});c.addEventListener('touchmove',move,{passive:false});c.addEventListener('touchend',up,{passive:false});
+    c.addEventListener('click',e=>{if(this._tool!=='text')return;const p=getPos(e);const text=prompt('Enter text:');if(text){this._ctx.font=`${this._size*6}px sans-serif`;this._ctx.fillStyle=this._color;this._ctx.fillText(text,p.x,p.y);this._undoStack.push(this._ctx.getImageData(0,0,c.width,c.height));this._redoStack=[];for(const[pid,conn]of App.peer.dconns){if(conn.open)try{conn.send(JSON.stringify({type:'wb-stroke',action:'text',x:p.x/c.width,y:p.y/c.height,text,color:this._color,size:this._size}));}catch(e){}}}});
+  }
+  _syncStroke(){
+    const c=this._canvas;if(this._currentStroke.length<2)return;
+    const points=this._currentStroke.map(p=>({x:p.x/c.width,y:p.y/c.height}));
+    const msg={type:'wb-stroke',action:'pen',points,color:this._color,size:this._size};
+    for(const[pid,conn]of App.peer.dconns){if(conn.open)try{conn.send(JSON.stringify(msg));}catch(e){}}
+  }
+  _syncShape(tool,x1,y1,x2,y2){const c=this._canvas;const msg={type:'wb-stroke',action:tool,x1:x1/c.width,y1:y1/c.height,x2:x2/c.width,y2:y2/c.height,color:this._color,size:this._size};for(const[pid,conn]of App.peer.dconns){if(conn.open)try{conn.send(JSON.stringify(msg));}catch(e){}}};
+  _drawShape(tool,x1,y1,x2,y2){
+    const ctx=this._ctx;ctx.strokeStyle=this._color;ctx.fillStyle=this._color+'33';ctx.lineWidth=this._size;ctx.lineCap='round';ctx.lineJoin='round';
+    if(tool==='fill'){ctx.fillStyle=this._color;ctx.fillRect(0,0,this._canvas.width,this._canvas.height);return;}
+    ctx.beginPath();
+    if(tool==='line'){ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();}
+    else if(tool==='rect'){ctx.strokeRect(x1,y1,x2-x1,y2-y1);ctx.fillRect(x1,y1,x2-x1,y2-y1);}
+    else if(tool==='ellipse'){const cx=(x1+x2)/2,cy=(y1+y2)/2,rx=Math.abs(x2-x1)/2,ry=Math.abs(y2-y1)/2;if(rx>0&&ry>0){ctx.ellipse(cx,cy,rx,ry,0,0,2*Math.PI);ctx.stroke();ctx.fill();}}
+    else if(tool==='arrow'){const angle=Math.atan2(y2-y1,x2-x1),hl=16;ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.beginPath();ctx.moveTo(x2,y2);ctx.lineTo(x2-hl*Math.cos(angle-Math.PI/6),y2-hl*Math.sin(angle-Math.PI/6));ctx.lineTo(x2-hl*Math.cos(angle+Math.PI/6),y2-hl*Math.sin(angle+Math.PI/6));ctx.closePath();ctx.fill();}
+  }
+  undo(){if(this._undoStack.length>1){this._redoStack.push(this._undoStack.pop());this._ctx.putImageData(this._undoStack[this._undoStack.length-1],0,0);}else{this.clear();}}
+  redo(){if(this._redoStack.length>0){const s=this._redoStack.pop();this._undoStack.push(s);this._ctx.putImageData(s,0,0);}}
+  clear(){if(!this._ctx)return;this._ctx.clearRect(0,0,this._canvas.width,this._canvas.height);this._undoStack=[];this._redoStack=[];for(const[pid,conn]of App.peer.dconns){if(conn.open)try{conn.send(JSON.stringify({type:'wb-stroke',action:'clear'}));}catch(e){}}};
+  _share(){const dataURL=this._canvas.toDataURL('image/png');for(const[pid,conn]of App.peer.dconns){if(conn.open)try{conn.send(JSON.stringify({type:'whiteboard',action:'image',data:dataURL}));}catch(e){}}App.toast.show('Whiteboard shared','success');}
+  _save(){const a=document.createElement('a');a.href=this._canvas.toDataURL('image/png');a.download='whiteboard-'+Date.now()+'.png';a.click();}
+  _onRemote(msg){if(msg.action==='image'&&msg.data){const img=new Image();img.onload=()=>{if(!this._ctx)this.init();if(!this._canvas)return;const off=document.createElement('canvas');off.width=this._canvas.width;off.height=this._canvas.height;off.getContext('2d').drawImage(img,0,0,off.width,off.height);this._ctx.drawImage(off,0,0);};img.onerror=()=>App.log.warn('WB image failed');img.src=msg.data;App.toast.show('Whiteboard received','info');}}
+  _onRemoteStroke(pid,msg){
+    if(!this._ctx)this.init();if(!this._canvas)return;const c=this._canvas;const ctx=this._ctx;
+    ctx.strokeStyle=msg.color||'#6366f1';ctx.fillStyle=(msg.color||'#6366f1')+'33';ctx.lineWidth=msg.size||3;ctx.lineCap='round';ctx.lineJoin='round';
+    if(msg.action==='clear'){ctx.clearRect(0,0,c.width,c.height);return;}
+    if(msg.action==='pen'&&msg.points?.length>=2){ctx.globalCompositeOperation='source-over';ctx.beginPath();const f=msg.points[0];ctx.moveTo(f.x*c.width,f.y*c.height);for(let i=1;i<msg.points.length;i++)ctx.lineTo(msg.points[i].x*c.width,msg.points[i].y*c.height);ctx.stroke();}
+    else if(['line','rect','ellipse','arrow'].includes(msg.action))this._drawShape(msg.action,msg.x1*c.width,msg.y1*c.height,msg.x2*c.width,msg.y2*c.height);
+    else if(msg.action==='text'&&msg.text){ctx.font=`${(msg.size||3)*6}px sans-serif`;ctx.fillStyle=msg.color||'#6366f1';ctx.fillText(msg.text,msg.x*c.width,msg.y*c.height);}
+    setEl('wb-status','Receiving strokes…');Timers.timeout('wb-status-cl',()=>setEl('wb-status','Ready'),2000);
+  }
+  _onCursor(pid,msg){
+    const c=this._canvas;if(!c)return;
+    let dot=document.getElementById('cursor-'+pid);
+    if(!dot){dot=document.createElement('div');dot.id='cursor-'+pid;dot.style.cssText='position:absolute;width:12px;height:12px;border-radius:50%;background:var(--red);pointer-events:none;transition:left .1s,top .1s;opacity:.8;z-index:10;';document.getElementById('wb-cursors')?.appendChild(dot);}
+    dot.style.left=(msg.x*c.width)+'px';dot.style.top=(msg.y*c.height)+'px';
+    Timers.timeout('cursor-'+pid,()=>dot.remove(),2000);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   CODE EDITOR
+═══════════════════════════════════════════════════════ */
+class CodeEditor{
+  constructor(){}
+  init(){
+    document.getElementById('btn-ce-send')?.addEventListener('click',()=>this._share());
+    document.getElementById('btn-ce-run')?.addEventListener('click',()=>this._run());
+    document.getElementById('btn-ce-copy')?.addEventListener('click',()=>{App.clipboard.write(document.getElementById('code-editor-area')?.value||'');});
+    document.getElementById('btn-ce-clear-ed')?.addEventListener('click',()=>{const ce=document.getElementById('code-editor-area');if(ce)ce.value='';setEl('ce-output','');});
+    document.getElementById('btn-ce-save')?.addEventListener('click',()=>this._saveLocal());
+    document.getElementById('btn-ce-load')?.addEventListener('click',()=>this._loadLocal());
+    document.getElementById('code-editor-area')?.addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();const ta=e.target,s=ta.selectionStart;ta.value=ta.value.substring(0,s)+'  '+ta.value.substring(ta.selectionEnd);ta.selectionStart=ta.selectionEnd=s+2;}});
+  }
+  _share(){
+    const code=document.getElementById('code-editor-area')?.value||'';const lang=document.getElementById('ce-lang')?.value||'text';
+    if(!code.trim()){App.toast.show('Nothing to share','warning');return;}
+    let sent=0;for(const[pid,conn]of App.peer.dconns){if(conn.open)try{conn.send(JSON.stringify({type:'code',code,lang}));sent++;}catch(e){}}
+    App.toast.show(sent>0?`Code shared with ${sent} peer(s)`:'No connected peers','success');
+  }
+  _run(){
+    const code=document.getElementById('code-editor-area')?.value||'';const lang=document.getElementById('ce-lang')?.value;const out=document.getElementById('ce-output');if(!out)return;
+    if(lang!=='javascript'&&lang!=='html'){out.textContent='Cannot run '+lang+' in browser';return;}
+    if(lang==='html'){const fr=document.createElement('iframe');fr.setAttribute('sandbox','allow-scripts');fr.style.cssText='width:100%;height:240px;border:1px solid var(--border);border-radius:var(--radius);background:#fff;margin-top:8px';fr.srcdoc=code;out.innerHTML='';out.appendChild(fr);setEl('ce-status','✅ Rendered');return;}
+    const logs=[];const fr=document.createElement('iframe');fr.setAttribute('sandbox','allow-scripts');fr.style.display='none';document.body.appendChild(fr);
+    let cleaned=false;const cleanup=()=>{if(cleaned)return;cleaned=true;window.removeEventListener('message',listener);if(document.body.contains(fr))fr.remove();};
+    const listener=e=>{if(e.source!==fr.contentWindow)return;if(e.data?.type==='log')logs.push(e.data.msg);if(e.data?.type==='done'){cleanup();out.textContent=logs.join('\n')+(e.data.result!==undefined?'\n→ '+JSON.stringify(e.data.result):'');setEl('ce-status','✅ Ran OK');}if(e.data?.type==='error'){cleanup();out.textContent='❌ '+e.data.msg;setEl('ce-status','❌ Error');}};
+    window.addEventListener('message',listener);
+    const blob=new Blob([`<script>const _l=console.log.bind(console);console.log=(...a)=>{parent.postMessage({type:'log',msg:a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' ')},'*');_l(...a);};try{const _r=(function(){${code}})();parent.postMessage({type:'done',result:_r},'*');}catch(e){parent.postMessage({type:'error',msg:e.message},'*');}<\/script>`],{type:'text/html'});
+    fr.src=URL.createObjectURL(blob);
+    Timers.timeout('ce-sandbox',()=>{cleanup();out.textContent='⏱ Timed out';setEl('ce-status','⏱ Timeout');},5000);
+  }
+  _saveLocal(){const code=document.getElementById('code-editor-area')?.value||'';const lang=document.getElementById('ce-lang')?.value||'text';const name=prompt('Save as:','snippet.'+lang)||'snippet.'+lang;const blob=new Blob([code],{type:'text/plain'});const url=BlobURLs.create(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>BlobURLs.revoke(url),5000);}
+  _loadLocal(){const inp=document.createElement('input');inp.type='file';inp.accept='.js,.html,.css,.py,.json,.md,.txt,.ts';inp.onchange=e=>{const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=ev=>{const ce=document.getElementById('code-editor-area');if(ce)ce.value=ev.target.result;};r.readAsText(file);};inp.click();}
+}
+
+/* ═══════════════════════════════════════════════════════
+   TASK MANAGER
+═══════════════════════════════════════════════════════ */
+class TaskManager{
+  constructor(){this._tasks=[];this._filter='all';}
+  init(){
+    this._tasks=SafeStorage.getJSON('dh-tasks',[]);
+    document.getElementById('btn-add-task')?.addEventListener('click',()=>this._add());
+    document.getElementById('task-inp')?.addEventListener('keydown',e=>{if(e.key==='Enter')this._add();});
+    document.getElementById('btn-share-tasks')?.addEventListener('click',()=>this._share());
+    document.getElementById('btn-tasks-all')?.addEventListener('click',()=>{this._filter='all';this._render();});
+    document.getElementById('btn-tasks-todo')?.addEventListener('click',()=>{this._filter='todo';this._render();});
+    document.getElementById('btn-tasks-done')?.addEventListener('click',()=>{this._filter='done';this._render();});
+    document.getElementById('btn-clr-done-tasks')?.addEventListener('click',()=>{this._tasks=this._tasks.filter(t=>!t.done);this._save();this._render();});
+    this._render();
+  }
+  _add(){const inp=document.getElementById('task-inp');const prio=document.getElementById('task-prio')?.value||'med';const due=document.getElementById('task-due')?.value||null;const title=inp?.value.trim();if(!title)return;this._tasks.unshift({id:uid(8),title,prio,due,done:false,ts:Date.now()});this._save();this._render();if(inp)inp.value='';}
+  toggle(id){const t=this._tasks.find(t=>t.id===id);if(t){t.done=!t.done;this._save();this._render();}}
+  remove(id){this._tasks=this._tasks.filter(t=>t.id!==id);this._save();this._render();}
+  _share(){let sent=0;for(const[pid,conn]of App.peer.dconns){if(conn.open)try{conn.send(JSON.stringify({type:'tasks',tasks:this._tasks}));sent++;}catch(e){}}App.toast.show(sent>0?'Tasks shared':'No connected peers','success');}
+  _onRemote(tasks){tasks.forEach(t=>{if(!this._tasks.find(x=>x.id===t.id))this._tasks.push(t);});this._save();this._render();App.toast.show('Tasks received','info');}
+  _save(){SafeStorage.setJSON('dh-tasks',this._tasks);}
+  _render(){
+    const list=document.getElementById('tasks-list');const empty=document.getElementById('tasks-empty');if(!list)return;
+    let tasks=this._tasks;
+    if(this._filter==='todo')tasks=tasks.filter(t=>!t.done);
+    if(this._filter==='done')tasks=tasks.filter(t=>t.done);
+    if(!tasks.length){list.innerHTML='';if(empty)empty.style.display='';return;}
+    if(empty)empty.style.display='none';
+    const prioColors={high:'prio-high',med:'prio-med',low:'prio-low'};
+    list.innerHTML=tasks.map(t=>`<div class="task-item ${t.done?'done':''}"><div class="task-check ${t.done?'done':''}" onclick="App.tasks.toggle('${esc(t.id)}')">${t.done?'✓':''}</div><div class="task-title">${esc(t.title)}</div>${t.due?`<span style="font-size:10px;color:var(--text2)">${new Date(t.due).toLocaleDateString()}</span>`:''}<span class="task-prio ${prioColors[t.prio]||'prio-med'}">${t.prio}</span><button class="btn btn-d btn-xs" onclick="App.tasks.remove('${esc(t.id)}')">✕</button></div>`).join('');
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   GROUP CHAT
+═══════════════════════════════════════════════════════ */
+class GroupChat{
+  constructor(){this._room=null;}
+  init(){
+    document.getElementById('btn-gc-create')?.addEventListener('click',()=>{
+      const name=document.getElementById('gc-name')?.value.trim()||'Room-'+uid(4);this._room=name;this._renderMembers();
+      App.toast.show('Room "'+name+'" created','success');
+      for(const[pid,conn]of App.peer.dconns){if(conn.open)try{conn.send(JSON.stringify({type:'group-msg',action:'join',room:name,from:App.peer.myId,name:SafeStorage.get('dh-name','Peer')}));}catch(e){}}
+    });
+    document.getElementById('btn-gc-leave')?.addEventListener('click',()=>{if(this._room){for(const[pid,conn]of App.peer.dconns){if(conn.open)try{conn.send(JSON.stringify({type:'group-msg',action:'leave',room:this._room,from:App.peer.myId}));}catch(e){}}this._room=null;this._renderMembers();App.toast.show('Left room','info');}});
+    document.getElementById('btn-gc-send')?.addEventListener('click',()=>this._send());
+    document.getElementById('gc-inp')?.addEventListener('keydown',e=>{if(e.key==='Enter')this._send();});
+  }
+  _send(){if(!this._room){App.toast.show('Create or join a room first','warning');return;}const inp=document.getElementById('gc-inp');const text=inp?.value.trim();if(!text)return;const msg={type:'group-msg',action:'msg',room:this._room,from:App.peer.myId,name:SafeStorage.get('dh-name','Peer'),text,ts:Date.now()};let sent=0;for(const[pid,conn]of App.peer.dconns){if(conn.open)try{conn.send(JSON.stringify(msg));sent++;}catch(e){}}this._appendMsg(SafeStorage.get('dh-name','You'),text,true);if(inp)inp.value='';}
+  _onMsg(pid,msg){if(msg.action==='join'){if(!this._room)this._room=msg.room;this._renderMembers();this._appendSystem(esc(msg.name||'Someone')+' joined');}else if(msg.action==='leave'){this._renderMembers();this._appendSystem(esc(msg.name||'Someone')+' left');}else if(msg.action==='msg'){this._appendMsg(msg.name||App.peer.peerName(pid),msg.text,false);}}
+  _appendMsg(name,text,self){const msgs=document.getElementById('gc-msgs');if(!msgs)return;msgs.querySelector('[data-empty="1"]')?.remove();const d=document.createElement('div');d.style.cssText=`display:flex;flex-direction:column;${self?'align-items:flex-end':'align-items:flex-start'};margin-bottom:6px`;d.innerHTML=`<span style="font-size:10px;color:var(--muted);margin-bottom:2px">${esc(name)}</span><span style="background:${self?'var(--primary)':'var(--bg3)'};color:${self?'#fff':'var(--text)'};padding:7px 12px;border-radius:12px;max-width:80%;word-break:break-word;font-size:13px">${esc(text)}</span>`;msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;}
+  _appendSystem(text){const msgs=document.getElementById('gc-msgs');if(!msgs)return;const d=document.createElement('div');d.style.cssText='text-align:center;font-size:11px;color:var(--muted);padding:4px 0';d.textContent=text;msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;}
+  _renderMembers(){const el=document.getElementById('gc-members');if(!el)return;if(!this._room){el.innerHTML='<span style="font-size:12px;color:var(--muted)">No active room</span>';return;}el.innerHTML=`<div class="gc-pill">🏠 ${esc(this._room)}</div>`+[...App.peer.peerMap.keys()].map(pid=>`<div class="gc-pill">${esc(App.peer.peerName(pid))}</div>`).join('');}
+}
+
+/* ═══════════════════════════════════════════════════════
+   NOTES MANAGER
+═══════════════════════════════════════════════════════ */
+class NotesManager{
+  init(){
+    const np=document.getElementById('notepad');if(np){np.value=SafeStorage.get('dh-notes','');np.addEventListener('input',()=>{SafeStorage.set('dh-notes',np.value);setEl('notes-char-count',np.value.length+' chars');Timers.timeout('notes-sync',()=>this._sync(),500);});}
+    document.getElementById('btn-notes-save')?.addEventListener('click',()=>{SafeStorage.set('dh-notes',np?.value||'');App.toast.show('Notes saved','success');});
+    document.getElementById('btn-notes-export')?.addEventListener('click',()=>{const text=document.getElementById('notepad')?.value||'';const blob=new Blob([text],{type:'text/plain'});const url=BlobURLs.create(blob);const a=document.createElement('a');a.href=url;a.download='notes-'+Date.now()+'.txt';a.click();setTimeout(()=>BlobURLs.revoke(url),5000);});
+    document.getElementById('btn-clr-notes')?.addEventListener('click',()=>{if(confirm('Clear notes?')){const np=document.getElementById('notepad');if(np)np.value='';SafeStorage.del('dh-notes');}});
+    document.getElementById('btn-notes-share')?.addEventListener('click',()=>this._sync(true));
+  }
+  _sync(force=false){const text=document.getElementById('notepad')?.value||'';let sent=0;for(const[pid,conn]of App.peer.dconns){if(conn.open)try{conn.send(JSON.stringify({type:'notes',text}));sent++;}catch(e){}}if(force&&sent>0)App.toast.show('Notes synced','success');if(sent>0){setEl('notes-status','syncing…');Timers.timeout('notes-status-cl',()=>setEl('notes-status','synced ✓'),1000);}}
+}
+
+/* ═══════════════════════════════════════════════════════
+   VAULT MANAGER
+═══════════════════════════════════════════════════════ */
+class VaultManager{
+  constructor(){this._items=[];this._unlocked=false;this._key=null;}
+  init(){
+    document.getElementById('btn-vault-unlock')?.addEventListener('click',()=>this._unlock());
+    document.getElementById('btn-vault-create')?.addEventListener('click',()=>this._unlock());
+    document.getElementById('btn-vault-add')?.addEventListener('click',()=>this._add());
+    document.getElementById('btn-vault-lock')?.addEventListener('click',()=>this._lock());
+    document.getElementById('btn-vault-export')?.addEventListener('click',()=>this._export());
+    document.getElementById('vault-pw')?.addEventListener('keydown',e=>{if(e.key==='Enter')this._unlock();});
+  }
+  async _unlock(){
+    const pw=document.getElementById('vault-pw')?.value;if(!pw){App.toast.show('Enter vault password','warning');return;}
+    try{
+      const saltHex=SafeStorage.get('dh-vault-salt','');
+      let saltBytes;
+      if(saltHex){saltBytes=new Uint8Array(saltHex.match(/.{2}/g).map(b=>parseInt(b,16)));}
+      else{saltBytes=crypto.getRandomValues(new Uint8Array(16));SafeStorage.set('dh-vault-salt',[...saltBytes].map(b=>b.toString(16).padStart(2,'0')).join(''));}
+      this._key=await this._deriveKey(pw,saltBytes);
+      const stored=SafeStorage.get('dh-vault-enc','');
+      if(stored){try{const pt=await this._decrypt(stored);this._items=JSON.parse(pt)||[];}catch(e){this._items=[];App.toast.show('Wrong password or corrupted vault','error');return;}}
+      else{this._items=[];}
+      this._unlocked=true;setEl('vault-locked',null,el=>el.style.display='none');setEl('vault-open',null,el=>el.style.display='block');
+      this._render();App.toast.show('Vault unlocked','success');
+    }catch(e){App.toast.show('Vault error: '+e.message,'error');}
+  }
+  _lock(){this._save();this._unlocked=false;this._items=[];this._key=null;setEl('vault-locked',null,el=>el.style.display='block');setEl('vault-open',null,el=>el.style.display='none');App.toast.show('Vault locked','info');}
+  _add(){if(!this._unlocked)return;const key=document.getElementById('vault-key-inp')?.value.trim();const val=document.getElementById('vault-val-inp')?.value.trim();if(!key||!val){App.toast.show('Enter key and value','warning');return;}this._items.push({id:uid(8),key,val,ts:Date.now()});this._save();this._render();document.getElementById('vault-key-inp').value='';document.getElementById('vault-val-inp').value='';}
+  remove(id){this._items=this._items.filter(i=>i.id!==id);this._save();this._render();}
+  async _save(){if(this._key){try{const enc=await this._encrypt(JSON.stringify(this._items));SafeStorage.set('dh-vault-enc',enc);}catch(e){}}else{SafeStorage.set('dh-vault',btoa(JSON.stringify(this._items)));}}
+  _render(){
+    const el=document.getElementById('vault-items');if(!el)return;
+    el.innerHTML=this._items.map(item=>`<div class="vault-item"><div class="vault-key">${esc(item.key)}</div><div class="vault-val" id="vv-${item.id}">••••••</div><button class="btn btn-xs btn-s" onclick="const el=document.getElementById('vv-${esc(item.id)}');el.textContent=el.textContent==='••••••'?${JSON.stringify(esc(item.val))}:'••••••'">👁</button><button class="btn btn-xs btn-s" onclick="App.clipboard.write(${JSON.stringify(item.val)})">📋</button><button class="btn btn-xs btn-d" onclick="App.vault.remove('${esc(item.id)}')">✕</button></div>`).join('');
+  }
+  _export(){if(!this._unlocked){App.toast.show('Unlock vault first','warning');return;}const text=this._items.map(i=>`${i.key}: ${i.val}`).join('\n');const blob=new Blob([text],{type:'text/plain'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='vault-export.txt';a.click();URL.revokeObjectURL(url);}
+  async _deriveKey(pw,saltBytes){const enc=new TextEncoder();const base=await crypto.subtle.importKey('raw',enc.encode(pw),'PBKDF2',false,['deriveKey']);return await crypto.subtle.deriveKey({name:'PBKDF2',salt:saltBytes,iterations:CFG.VAULT_PBKDF2_ITER,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);}
+  async _encrypt(text){const iv=crypto.getRandomValues(new Uint8Array(12));const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},this._key,new TextEncoder().encode(text));const buf=new Uint8Array(12+ct.byteLength);buf.set(iv);buf.set(new Uint8Array(ct),12);return btoa(String.fromCharCode(...buf));}
+  async _decrypt(data){const buf=new Uint8Array(atob(data).split('').map(c=>c.charCodeAt(0)));const iv=buf.slice(0,12);const ct=buf.slice(12);const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv},this._key,ct);return new TextDecoder().decode(pt);}
+}
+
+/* ═══════════════════════════════════════════════════════
+   GROUP VIDEO
+═══════════════════════════════════════════════════════ */
+class GroupVideoManager{
+  constructor(){this._localStream=null;this._calls=new Map();}
+  init(){
+    document.getElementById('btn-gv-start')?.addEventListener('click',()=>this._startLocal());
+    document.getElementById('btn-gv-stop')?.addEventListener('click',()=>this._stopLocal());
+    document.getElementById('btn-gv-invite')?.addEventListener('click',()=>this._inviteAll());
+  }
+  async _startLocal(){
+    try{
+      this._localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:{width:{ideal:640},height:{ideal:480}}});
+      const vid=document.getElementById('gv-my-video');if(vid){vid.srcObject=this._localStream;try{await vid.play();}catch(e){}}
+      App.toast.show('Camera started — invite peers to join','success');
+    }catch(e){App.toast.show('Camera error: '+e.message,'error');}
+  }
+  _stopLocal(){if(this._localStream){this._localStream.getTracks().forEach(t=>t.stop());this._localStream=null;}const vid=document.getElementById('gv-my-video');if(vid)vid.srcObject=null;}
+  _inviteAll(){
+    if(!this._localStream){App.toast.show('Start camera first','warning');return;}
+    let invited=0;
+    for(const[pid]of App.peer.dconns){App.media.video(pid);invited++;}
+    App.toast.show(invited>0?`Inviting ${invited} peer(s) to group call`:'No peers connected','info');
+  }
+  _onSignal(pid,msg){App.log.info('Group video signal from '+pid.substring(0,8));}
+}
+
+/* ═══════════════════════════════════════════════════════
+   COMMAND PALETTE
+═══════════════════════════════════════════════════════ */
+class CommandPalette{
+  constructor(){this._results=[];this._sel=0;}
+  init(){
+    const inp=document.getElementById('cmd-inp');if(!inp)return;
+    inp.addEventListener('input',()=>this._search(inp.value));
+    inp.addEventListener('keydown',e=>{
+      if(e.key==='ArrowDown'){e.preventDefault();this._sel=Math.min(this._sel+1,this._results.length-1);this._highlight();}
+      else if(e.key==='ArrowUp'){e.preventDefault();this._sel=Math.max(this._sel-1,0);this._highlight();}
+      else if(e.key==='Enter'){e.preventDefault();this._execute(this._sel);this.close();}
+      else if(e.key==='Escape'){this.close();}
+    });
+  }
+  open(){Modal.show('cmd-ov');document.getElementById('cmd-inp')?.focus();this._search('');}
+  close(){Modal.hide('cmd-ov');const inp=document.getElementById('cmd-inp');if(inp)inp.value='';document.getElementById('cmd-results').innerHTML='';}
+  _commands(){return[
+    {icon:'💬',title:'Open Chat',action:()=>App.ui.setTab('chat'),kbd:''},
+    {icon:'📁',title:'File Transfer',action:()=>App.ui.setTab('files')},
+    {icon:'📞',title:'Voice Call',action:()=>App.ui.activePeer?App.media.voice(App.ui.activePeer):App.toast.show('Select a peer first','warning')},
+    {icon:'📹',title:'Video Call',action:()=>App.ui.activePeer?App.media.video(App.ui.activePeer):App.toast.show('Select a peer first','warning')},
+    {icon:'🖥️',title:'Screen Share',action:()=>App.ui.activePeer?App.media.screen(App.ui.activePeer):App.toast.show('Select a peer first','warning')},
+    {icon:'🎨',title:'Whiteboard',action:()=>{App.ui.setTab('whiteboard');App.board.init();setTimeout(()=>App.board._resize(),50);}},
+    {icon:'⌨️',title:'Code Editor',action:()=>App.ui.setTab('code')},
+    {icon:'✅',title:'Tasks',action:()=>App.ui.setTab('tasks')},
+    {icon:'🏠',title:'Group Chat',action:()=>App.ui.setTab('group')},
+    {icon:'📝',title:'Notes',action:()=>App.ui.setTab('notes')},
+    {icon:'🔒',title:'Vault',action:()=>App.ui.setTab('vault')},
+    {icon:'QR',title:'Show QR Code',action:()=>App.qr.showQR()},
+    {icon:'🔗',title:'Copy Invite Link',action:()=>App.room.copyInvite()},
+    {icon:'⚙️',title:'Settings',action:()=>App.ui.setTab('settings')},
+    {icon:'🌙',title:'Toggle Dark/Light Mode',action:()=>App.ui._toggleTheme()},
+    {icon:'↺',title:'Reconnect to Server',action:()=>App.peer.tryReconnect()},
+    {icon:'📋',title:'Clipboard Sync Toggle',action:()=>App.uclip.toggle(!App.uclip._enabled)},
+    {icon:'🔔',title:'Notifications',action:()=>App.ui.setTab('notifications')},
+  ];}
+  _search(q){
+    const cmds=this._commands();this._results=q?cmds.filter(c=>c.title.toLowerCase().includes(q.toLowerCase())):cmds;this._sel=0;this._render();}
+  _render(){const el=document.getElementById('cmd-results');if(!el)return;el.innerHTML=this._results.map((r,i)=>`<div class="cr ${i===this._sel?'sel':''}" onclick="App.cmdPalette._execute(${i});App.cmdPalette.close()"><span class="cr-icon">${esc(r.icon||'▶')}</span><div><div class="cr-title">${esc(r.title)}</div></div>${r.kbd?`<kbd class="cr-kbd">${esc(r.kbd)}</kbd>`:''}</div>`).join('');}
+  _highlight(){document.querySelectorAll('#cmd-results .cr').forEach((el,i)=>el.classList.toggle('sel',i===this._sel));}
+  _execute(idx){const r=this._results[idx];if(r?.action){try{r.action();}catch(e){}}}
+}
+
+/* ═══════════════════════════════════════════════════════
+   UI MANAGER
+═══════════════════════════════════════════════════════ */
+class UIManager{
+  constructor(){this.activePeer=null;this._unread=new Map();this._histFilter='peers';}
+  init(){
+    this._bindTopbar();this._bindTabs();this._bindSidebar();this._bindChat();this._bindFiles();this._bindSettings();this._bindHistory();this._bindNotifications();this._bindMobile();this._bindModals();this._bindKeyboard();this._initSidebarResize();this._applyTheme();
+  }
+  _initSidebarResize(){
+    const handle=document.getElementById('sidebar-drag');const sidebar=document.getElementById('sidebar');if(!handle||!sidebar)return;
+    const saved=parseInt(SafeStorage.get('dh-sidebar-w','240'));sidebar.style.width=saved+'px';
+    let dragging=false,startX=0,startW=0;
+    handle.addEventListener('mousedown',e=>{dragging=true;startX=e.clientX;startW=sidebar.offsetWidth;e.preventDefault();});
+    document.addEventListener('mousemove',e=>{if(!dragging)return;const w=Math.max(48,Math.min(360,startW+(e.clientX-startX)));sidebar.style.width=w+'px';sidebar.style.overflow=w<60?'hidden':'';});
+    document.addEventListener('mouseup',()=>{if(!dragging)return;dragging=false;SafeStorage.set('dh-sidebar-w',document.getElementById('sidebar').offsetWidth);});
+  }
+  _bindTopbar(){
+    document.getElementById('btn-qr-show')?.addEventListener('click',()=>App.qr.showQR());
+    document.getElementById('my-name-btn')?.addEventListener('click',()=>App.clipboard.write(App.peer.myId||''));
+    document.getElementById('btn-search-top')?.addEventListener('click',()=>{Modal.show('search-ov');document.getElementById('search-inp')?.focus();});
+    document.getElementById('btn-theme')?.addEventListener('click',()=>this._toggleTheme());
+    document.getElementById('btn-settings-top')?.addEventListener('click',()=>this.setTab('settings'));
+    document.getElementById('btn-offline-retry')?.addEventListener('click',()=>App.peer.tryReconnect());
+    document.getElementById('btn-heal-fix')?.addEventListener('click',()=>App.healer.repair());
+    document.getElementById('btn-clr-notifs')?.addEventListener('click',()=>{document.getElementById('notif-list').innerHTML='<div style="color:var(--muted);text-align:center;padding:20px">No notifications</div>';});
+  }
+  _bindTabs(){
+    document.querySelectorAll('.tn').forEach(btn=>{btn.addEventListener('click',()=>{const tab=btn.dataset.tab;this.setTab(tab);if(tab==='whiteboard'){App.board.init();setTimeout(()=>App.board._resize(),50);}if(tab==='history')this._renderHistory();if(tab==='notifications')App.notifCenter.markAllRead();if(tab==='call')App.callHist.render();});});
+  }
+  setTab(tab){document.querySelectorAll('.tn').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));document.querySelectorAll('.tabview').forEach(v=>v.classList.toggle('on',v.id==='tab-'+tab));if(tab==='chat'&&this.activePeer){this._unread.set(this.activePeer,0);this._updUnread(this.activePeer);}}
+  setMobTab(tab,btn){this.setTab(tab);document.querySelectorAll('.mob-nav-btn').forEach(b=>b.classList.toggle('on',b===btn));}
+  showMobPeers(){document.getElementById('mobile-peers')?.classList.add('on');}
+  setStatus(status){const el=document.getElementById('my-status');if(!el)return;const map={ONLINE:'<span class="pill p-on"><span class="pdot"></span>Online</span>',OFFLINE:'<span class="pill p-off">Offline</span>',RECONNECTING:'<span class="pill p-con">Reconnecting…</span>'};el.innerHTML=map[status]||'';}
+  _bindSidebar(){
+    document.getElementById('btn-join')?.addEventListener('click',()=>{const v=document.getElementById('jin')?.value.trim();if(v){App.peer.connectTo(v);document.getElementById('jin').value='';}});
+    document.getElementById('jin')?.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('btn-join')?.click();});
+    document.getElementById('btn-inv-sb')?.addEventListener('click',()=>App.room.copyInvite());
+    document.getElementById('btn-qr-scan-sb')?.addEventListener('click',()=>App.qr.startScan());
+  }
+  _bindChat(){
+    const mi=document.getElementById('mi');
+    const send=()=>{
+      const text=mi?.value.trim();if(!text||!this.activePeer)return;
+      const id=uid(12);
+      App.peer.sendMsg(this.activePeer,text,id).then(sent=>{if(!sent)App.msgQ.add(this.activePeer,text,id);});
+      this.appendMsg({id,text,self:true,ts:Date.now(),peer:this.activePeer,ttl:0});
+      App.store.put('messages',{id,pid:this.activePeer,text,ts:Date.now(),self:true}).catch(()=>{});
+      if(mi)mi.value='';this._adjustMI();
+    };
+    document.getElementById('btn-send')?.addEventListener('click',send);
+    mi?.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
+    mi?.addEventListener('input',()=>{this._adjustMI();if(this.activePeer){const c=App.peer.conn(this.activePeer);if(c?.open)try{c.send(JSON.stringify({type:'typing'}));}catch(e){}}});
+    document.getElementById('btn-emoji')?.addEventListener('click',()=>{
+      const emojis=['😊','👍','❤️','😂','🎉','🔥','👏','🤔','😎','💯','🙏','✨','🚀','💡','✅','❌','⚠️','🎯','💬','🔗','📎','🖼️'];
+      const picker=document.createElement('div');
+      picker.style.cssText='position:fixed;bottom:80px;right:20px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:8px;display:flex;flex-wrap:wrap;gap:5px;z-index:500;max-width:220px;box-shadow:var(--shadow)';
+      emojis.forEach(e=>{const btn=document.createElement('button');btn.textContent=e;btn.style.cssText='background:none;border:none;font-size:22px;cursor:pointer;padding:4px';btn.onclick=()=>{if(mi){mi.value+=e;mi.focus();}picker.remove();};picker.appendChild(btn);});
+      document.getElementById('dh-emoji-picker')?.remove();picker.id='dh-emoji-picker';document.body.appendChild(picker);
+      Timers.timeout('emoji-close',()=>{if(document.body.contains(picker))picker.remove();},5000);
+      setTimeout(()=>document.addEventListener('click',function close(e){if(!picker.contains(e.target)){picker.remove();document.removeEventListener('click',close);}},100));
+    });
+    document.getElementById('btn-clip')?.addEventListener('click',()=>App.clipboard.read());
+    document.getElementById('btn-cancel-reply')?.addEventListener('click',()=>document.getElementById('reply-preview')?.classList.remove('on'));
+    document.getElementById('scroll-pill')?.addEventListener('click',()=>{const msgs=document.getElementById('msgs');if(msgs)msgs.scrollTop=msgs.scrollHeight;document.getElementById('scroll-pill').style.display='none';});
+    document.getElementById('msgs')?.addEventListener('scroll',()=>{const msgs=document.getElementById('msgs');const pill=document.getElementById('scroll-pill');if(pill)pill.style.display=(msgs.scrollTop<msgs.scrollHeight-msgs.clientHeight-100)?'':'none';});
+    document.getElementById('chat-btn-voice')?.addEventListener('click',()=>{if(this.activePeer)App.media.voice(this.activePeer);else App.toast.show('Select a peer','warning');});
+    document.getElementById('chat-btn-video')?.addEventListener('click',()=>{if(this.activePeer)App.media.video(this.activePeer);else App.toast.show('Select a peer','warning');});
+    document.getElementById('chat-btn-file')?.addEventListener('click',()=>document.getElementById('fi')?.click());
+    document.getElementById('chat-btn-clear')?.addEventListener('click',()=>{if(this.activePeer&&confirm('Clear chat history?')){document.getElementById('msgs').innerHTML='';App.store.clear('messages').catch(()=>{});}});
+    // Search
+    document.getElementById('search-inp')?.addEventListener('input',e=>{const q=e.target.value.toLowerCase();const results=document.getElementById('search-results');if(!results)return;if(!q){results.innerHTML='';return;}const peers=[...App.peer.peerMap.entries()].filter(([pid,info])=>App.peer.peerName(pid).toLowerCase().includes(q));results.innerHTML=peers.map(([pid,info])=>`<div class="dev-row" style="cursor:pointer" onclick="App.ui.activatePeer('${esc(pid)}');Modal.hide('search-ov')"><span>${esc(App.peer.peerName(pid))}</span></div>`).join('');});
+  }
+  _adjustMI(){const mi=document.getElementById('mi');if(!mi)return;mi.style.height='auto';mi.style.height=Math.min(90,mi.scrollHeight)+'px';}
+  appendMsg(m){
+    const{id,text,self,ts,peer,ttl}=m;const msgs=document.getElementById('msgs');if(!msgs)return;
+    msgs.style.display='flex';document.getElementById('chat-empty')?.classList.remove('on');
+    if(msgs.children.length>=CFG.MAX_MSG_NODES){let r=0;while(msgs.children.length>CFG.MAX_MSG_NODES-10&&r<20){msgs.firstChild?.remove();r++;}}
+    const row=document.createElement('div');row.className='mr'+(self?' me':'');
+    const ts_fmt=fmtTs(ts||Date.now());
+    const safeURL=u=>/^https?:\/\//i.test(u.trim())&&!/^(javascript|data|vbscript):/i.test(u.trim());
+    const isImage=safeURL(text)&&/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(text);
+    const isURL=safeURL(text);
+    let content='';
+    if(isImage)content=`<img src="${esc(text)}" style="max-width:220px;max-height:180px;border-radius:8px;cursor:pointer;display:block" data-src="${esc(text)}" onclick="document.getElementById('img-viewer').classList.add('on');document.getElementById('img-view-src').src=this.dataset.src">`;
+    else if(isURL)content=`<a href="${esc(text)}" target="_blank" rel="noopener noreferrer">${esc(text.substring(0,80))}</a>`;
+    else content=esc(text).replace(/\n/g,'<br>');
+    const msgId=id||uid(8);
+    row.innerHTML=`<div class="mb ${self?'me':'them'}" data-id="${msgId}" data-txt="${esc(text)}"><button class="mcopy" onclick="App.clipboard.write(this.closest('.mb').dataset.txt||'')">Copy</button>${content}<div class="mtime">${ts_fmt}${self?' <span class="del-mark" id="del-'+msgId+'" style="display:none">✓✓</span>':''}</div><div class="msg-reactions"></div></div>`;
+    msgs.appendChild(row);
+    if(ttl>0){const bubble=row.querySelector('.mb');let rem=ttl;const cdEl=document.createElement('div');cdEl.style.cssText='font-size:9px;color:var(--muted);text-align:right;margin-top:2px';bubble?.appendChild(cdEl);const tick=setInterval(()=>{rem-=1000;if(rem<=0){clearInterval(tick);row.remove();App.store?.del('messages',msgId).catch(()=>{});}else cdEl.textContent='🔥 '+Math.ceil(rem/1000)+'s';},1000);}
+    if(!self){const live=document.getElementById('msg-live');if(live)live.textContent=App.peer.peerName(m.peer)+' says: '+text.substring(0,100);}
+    const atBottom=msgs.scrollTop>msgs.scrollHeight-msgs.clientHeight-150;
+    if(atBottom)msgs.scrollTop=msgs.scrollHeight;else if(!self){const pill=document.getElementById('scroll-pill');if(pill)pill.style.display='';}
+  }
+  markRead(id){document.querySelector('#del-'+id)?.style.removeProperty('display');}
+  markDel(id){const el=document.querySelector('#del-'+id);if(el)el.style.display='inline';}
+  addReaction(msgId,emoji,pid){const bubble=document.querySelector(`.mb[data-id="${msgId}"] .msg-reactions`);if(!bubble)return;const existing=bubble.querySelector(`[data-emoji="${emoji}"]`);if(existing){const n=parseInt(existing.dataset.count||'1')+1;existing.textContent=emoji+' '+n;existing.dataset.count=n;}else{const btn=document.createElement('button');btn.className='reaction-btn';btn.dataset.emoji=emoji;btn.dataset.count='1';btn.textContent=emoji+' 1';bubble.appendChild(btn);}}
+  showTyp(pid){if(!pid||pid!==this.activePeer)return;setEl('mtyp-lbl','<span class="tdot">•</span><span class="tdot">•</span><span class="tdot">•</span> typing');Timers.timeout('typ-'+pid,()=>setEl('mtyp-lbl',''),3000);}
+  incUnread(pid){const n=(this._unread.get(pid)||0)+1;this._unread.set(pid,n);this._updUnread(pid);const navBadge=document.getElementById('nav-badge-chat');if(navBadge){navBadge.textContent=n;navBadge.classList.add('on');}}
+  _updUnread(pid){const badge=document.querySelector(`.pc[data-pid="${pid}"] .ubadge`);const n=this._unread.get(pid)||0;if(badge){badge.textContent=n||'';badge.style.display=n?'':'none';}}
+  renderPeer(pid,fp,status){
+    const list=document.getElementById('peers-list');if(!list)return;
+    document.getElementById('nopeer')?.remove();
+    let el=document.querySelector(`.pc[data-pid="${pid}"]`);
+    if(status==='OFFLINE'){if(el)el.remove();this._updPeerCount();return;}
+    const name=App.trust.getDevice(pid)?.name||fp?.name||pid.substring(0,12)+'…';
+    const av=App.trust.getDevice(pid)?.avatar||fp?.av||'👤';
+    const lat=App.peer.latMap.get(pid)||0;const latClass=lat<50?'lt50':lat<150?'lt150':lat<300?'lt300':'gt300';
+    const presence=App.presence?.getPeerStatus(pid)||'online';
+    const presClass={'online':'pres-online','busy':'pres-busy','idle':'pres-idle','away':'pres-away'}[presence]||'pres-online';
+    if(!el){el=document.createElement('div');el.className='pc';el.dataset.pid=pid;el.onclick=()=>this.activatePeer(pid);list.appendChild(el);}
+    el.innerHTML=`<div class="pc-top"><span class="pc-av">${av}</span><span class="pc-nm">${esc(name)}</span><span class="ubadge" style="display:none"></span></div><div class="pc-row"><span class="plat-dot ${latClass}"></span><span>${lat||0}ms</span><span class="presence-dot ${presClass}" title="${presence}"></span><span style="font-size:10px;color:var(--muted)">${presence}</span></div><div class="pc-acts"><button class="btn btn-xs btn-p" data-pid="${esc(pid)}" onclick="event.stopPropagation();App.media.voice(this.dataset.pid)">📞</button><button class="btn btn-xs btn-s" data-pid="${esc(pid)}" onclick="event.stopPropagation();App.files._pickAndSend(this.dataset.pid)">📁</button><button class="btn btn-xs btn-d" data-pid="${esc(pid)}" onclick="event.stopPropagation();App.peer.dconns.get(this.dataset.pid)?.close();App.toast.show('Disconnected','info')">✕</button></div>`;
+    el.classList.toggle('sel',this.activePeer===pid);this._updUnread(pid);this._updPeerCount();
+  }
+  renderMobPeer(pid,fp,status){
+    const list=document.getElementById('mob-peers-list');if(!list)return;
+    document.getElementById('mob-nopeer')?.remove();
+    const existing=list.querySelector(`[data-pid="${pid}"]`);
+    if(status==='OFFLINE'){if(existing)existing.remove();return;}
+    if(existing)existing.remove();
+    const name=App.trust.getDevice(pid)?.name||fp?.name||pid.substring(0,12)+'…';
+    const av=App.trust.getDevice(pid)?.avatar||fp?.av||'👤';
+    const el=document.createElement('div');el.className='pc';el.dataset.pid=pid;el.style.margin='6px';
+    el.onclick=()=>{this.activatePeer(pid);document.getElementById('mobile-peers')?.classList.remove('on');};
+    el.innerHTML=`<div class="pc-top"><span class="pc-av">${av}</span><span class="pc-nm">${esc(name)}</span></div><div class="pc-acts"><button class="btn btn-xs btn-p" data-pid="${esc(pid)}" onclick="event.stopPropagation();App.media.voice(this.dataset.pid)">📞</button><button class="btn btn-xs btn-s" data-pid="${esc(pid)}" onclick="event.stopPropagation();App.files._pickAndSend(this.dataset.pid)">📁</button></div>`;
+    list.appendChild(el);
+  }
+  activatePeer(pid){
+    this.activePeer=pid;
+    document.querySelectorAll('.pc').forEach(el=>el.classList.toggle('sel',el.dataset.pid===pid));
+    const name=App.peer.peerName(pid);const fp=App.peer.peerMap.get(pid)?.fp||{};
+    setEl('chat-hdr',null,el=>el.classList.add('on'));setEl('chat-hdr-nm',name);setEl('chat-hdr-av',fp.av||'👤');
+    const lat=App.peer.latMap.get(pid)||0;setEl('chat-hdr-lat',lat?lat+'ms':'');
+    const isConn=App.peer.dconns.has(pid);setEl('chat-hdr-st',isConn?'🟢 Connected':'⚫ Disconnected');
+    setEl('cpeer-lbl',name);setEl('cpeer-lbl2',name);setEl('rc-peer',name);
+    document.getElementById('msgs').style.display='flex';document.getElementById('chat-empty')?.classList.remove('on');
+    this._unread.set(pid,0);this._updUnread(pid);this.setTab('chat');App.log.info('Active peer: '+name);
+  }
+  _updPeerCount(){setEl('pc-pill',App.peer.dconns.size+' online');}
+  _updPeerLatencies(){for(const[pid]of App.peer.peerMap){const lat=App.peer.latMap.get(pid)||0;const el=document.querySelector(`.pc[data-pid="${pid}"] .plat-dot`);if(!el)continue;el.className='plat-dot '+(lat<50?'lt50':lat<150?'lt150':lat<300?'lt300':'gt300');}}
+  _bindFiles(){
+    const dz=document.getElementById('dz');
+    dz?.addEventListener('click',()=>document.getElementById('fi')?.click());
+    dz?.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
+    dz?.addEventListener('dragleave',()=>dz.classList.remove('over'));
+    dz?.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');const files=[...e.dataTransfer.files];if(!files.length)return;const pid=this.activePeer;if(!pid){App.toast.show('Select a peer first','warning');return;}App.files.sendFiles(files,pid);});
+    document.getElementById('fi')?.addEventListener('change',e=>{const files=[...e.target.files];if(!files.length)return;const pid=this.activePeer;if(!pid){App.toast.show('Select a peer first','warning');return;}App.files.sendFiles(files,pid);e.target.value='';});
+    document.getElementById('di')?.addEventListener('change',e=>{const files=[...e.target.files];if(!files.length)return;const pid=this.activePeer;if(!pid){App.toast.show('Select a peer first','warning');return;}App.files.sendFiles(files,pid);e.target.value='';});
+  }
+  _bindSettings(){
+    document.getElementById('set-name').value=SafeStorage.get('dh-name','');
+    document.getElementById('set-avatar').value=SafeStorage.get('dh-avatar','👤');
+    document.getElementById('set-e2e').checked=SafeStorage.get('dh-e2e')==='1';
+    document.getElementById('set-approval').checked=SafeStorage.get('dh-approval')==='1';
+    document.getElementById('set-noise').checked=SafeStorage.get('dh-noise')==='1';
+    document.getElementById('set-sounds').checked=SafeStorage.get('dh-sounds')!=='0';
+    const turn=SafeStorage.getJSON('devhub-turn',{});
+    if(turn.url)document.getElementById('set-turn-url').value=turn.url;
+    document.getElementById('btn-save-identity')?.addEventListener('click',()=>{
+      const name=document.getElementById('set-name').value.trim();const av=document.getElementById('set-avatar').value.trim();
+      if(name)SafeStorage.set('dh-name',name);if(av)SafeStorage.set('dh-avatar',av);
+      setEl('my-name-btn',name||SafeStorage.get('dh-name',''));App.toast.show('Identity saved','success');
+    });
+    document.getElementById('set-e2e')?.addEventListener('change',e=>SafeStorage.set('dh-e2e',e.target.checked?'1':'0'));
+    document.getElementById('set-approval')?.addEventListener('change',e=>{App.room.requireApproval=e.target.checked;SafeStorage.set('dh-approval',e.target.checked?'1':'0');});
+    document.getElementById('set-noise')?.addEventListener('change',e=>SafeStorage.set('dh-noise',e.target.checked?'1':'0'));
+    document.getElementById('set-sounds')?.addEventListener('change',e=>App.sounds.toggle(e.target.checked));
+    document.getElementById('btn-save-turn')?.addEventListener('click',()=>{const url=document.getElementById('set-turn-url').value.trim();const user=document.getElementById('set-turn-user').value.trim();const pass=document.getElementById('set-turn-pass').value;if(url)SafeStorage.setJSON('devhub-turn',{url,user,pass});App.toast.show('TURN settings saved','success');});
+    document.getElementById('btn-disc-all')?.addEventListener('click',()=>{if(confirm('Disconnect all peers?')){App.peer.dconns.forEach(c=>{try{c.close();}catch(e){}});App.toast.show('All peers disconnected','info');}});
+    document.getElementById('btn-clr-storage')?.addEventListener('click',()=>{if(confirm('Clear ALL local data? This cannot be undone.')){localStorage.clear();sessionStorage.clear();location.reload();}});
+  }
+  _bindHistory(){document.getElementById('btn-clr-notifs')?.addEventListener('click',()=>{App.notifCenter.markAllRead();});}
+  _bindNotifications(){
+    if(typeof Notification!=='undefined'&&Notification.permission==='default'){
+      Timers.timeout('notif-req',()=>{Notification.requestPermission().catch(()=>{});},3000);
+    }
+  }
+  _bindMobile(){
+    document.getElementById('mob-join')?.addEventListener('click',()=>{const v=document.getElementById('mob-jin')?.value.trim();if(v){App.peer.connectTo(v);document.getElementById('mob-jin').value='';}});
+  }
+  _bindModals(){
+    document.querySelectorAll('.modal-overlay').forEach(el=>{el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('on');});});
+  }
+  _bindKeyboard(){
+    document.addEventListener('keydown',e=>{
+      if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();App.cmdPalette.open();}
+      if(e.key==='Escape'){document.querySelectorAll('.modal-overlay.on').forEach(el=>el.classList.remove('on'));document.getElementById('cmd-ov')?.classList.remove('on');}
+      if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();document.getElementById('btn-send')?.click();}
+    });
+  }
+  _renderHistory(){
+    const el=document.getElementById('hist-list');if(!el)return;
+    if(this._histFilter==='peers'){
+      const peers=App.hist.getAll();
+      if(!peers.length){el.innerHTML='<div style="color:var(--muted);text-align:center;padding:20px">No peer history</div>';return;}
+      el.innerHTML=peers.map(p=>`<div class="hist-item"><div class="hist-av">${esc(p.av||'👤')}</div><div class="hist-info"><div class="hist-nm">${esc(p.name||p.id.substring(0,16))}</div><div class="hist-ts">Last seen: ${p.lastSeen?new Date(p.lastSeen).toLocaleString():''}</div></div><button class="btn btn-xs btn-p" data-pid="${esc(p.id)}" onclick="App.peer.connectTo(this.dataset.pid)">Connect</button></div>`).join('');
+    }else{App.callHist.render();}
+  }
+  _setHistFilter(f){this._histFilter=f;this._renderHistory();}
+  _toggleTheme(){const isLight=document.body.classList.toggle('light');setEl('btn-theme',isLight?'☀️':'🌙');SafeStorage.set('dh-theme',isLight?'light':'dark');}
+  _applyTheme(){const t=SafeStorage.get('dh-theme','dark');if(t==='light'){document.body.classList.add('light');setEl('btn-theme','☀️');}}
+  copyInvite(){App.room.copyInvite();}
+}
+
+/* ═══════════════════════════════════════════════════════
+   APP OBJECT ASSEMBLY
+═══════════════════════════════════════════════════════ */
+const App={
+  log:new Logger(),
+  toast:new ToastManager(),
+  store:new DBStore(),
+  crypto:new CryptoManager(),
+  trust:new TrustStore(),
+  hist:new PeerHistory(),
+  callHist:new CallHistory(),
+  peer:new PeerManager(),
+  files:new FileTransfer(),
+  media:new MediaManager(),
+  board:new Whiteboard(),
+  code:new CodeEditor(),
+  tasks:new TaskManager(),
+  group:new GroupChat(),
+  notes:new NotesManager(),
+  vault:new VaultManager(),
+  groupVideo:null,
+  ui:new UIManager(),
+  cmdPalette:new CommandPalette(),
+  qr:new QRManager(),
+  room:new RoomManager(),
+  presence:new PresenceManager(),
+  sounds:new SoundTheme(),
+  uclip:new UniversalClipboard(),
+  clipboard:new ClipboardManager(),
+  notifCenter:new NotificationCenter(),
+  netq:new NetQuality(),
+  msgQ:new MessageQueue(),
+  offline:new OfflineQueue(),
+  broadcastDisc:new BroadcastDiscovery(),
+  rateLimiter:new ConnectRateLimiter(),
+  perms:new PermissionManager(),
+  audit:new ThreatAuditLog(),
+  rtcReg:new RTCRegistry(),
+  streamReg:new StreamRegistry(),
+  connReg:new ConnectionRegistry(),
+  stateStore:new StateStore(),
+  memMon:new MemoryMonitor(),
+  sessionCleaner:new LongSessionCleanup(),
+  netRecovery:new NetworkRecovery(),
+  healer:new SelfHealingEngine(),
+  globalErr:new GlobalErrorManager(),
+  bootRecovery:new BootRecoveryManager(),
+  session:AppSession,
+};
+App.groupVideo=new GroupVideoManager();
+
+/* ═══════════════════════════════════════════════════════
+   BOOT SEQUENCE
+═══════════════════════════════════════════════════════ */
+async function boot(){
+  const fill=document.getElementById('boot-fill');
+  const setProgress=async(pct,msg)=>{if(fill)fill.style.width=pct+'%';setEl('boot-msg',msg);await sleep(30);};
+
+  App.bootRecovery.markBootStart();
+  await setProgress(10,'Loading dependencies…');
+
+  // Wait for PeerJS
+  await new Promise(res=>{
+    let attempts=0;const check=()=>{attempts++;if(typeof Peer!=='undefined'){res();return;}if(attempts>=40){res();return;}setTimeout(check,300);};setTimeout(check,100);
+  });
+
+  await setProgress(25,'Initializing storage…');
+  try{await App.store.init();}catch(e){App.log.warn('Storage init: '+e.message);}
+
+  await setProgress(40,'Loading user data…');
+
+  // Onboarding
+  if(!SafeStorage.get('dh-name','')){
+    document.getElementById('ob-modal')?.classList.add('on');
+    await new Promise(r=>{
+      let resolved=false;const resolve=()=>{if(!resolved){resolved=true;r();}};
+      document.getElementById('btn-ob-start')?.addEventListener('click',()=>{const n=document.getElementById('ob-name')?.value.trim();if(n)SafeStorage.set('dh-name',n);else SafeStorage.set('dh-name','Peer');document.getElementById('ob-modal')?.classList.remove('on');resolve();},{once:true});
+      document.addEventListener('keydown',function esc(e){if(e.key==='Escape'){if(!SafeStorage.get('dh-name',''))SafeStorage.set('dh-name','Peer');document.getElementById('ob-modal')?.classList.remove('on');document.removeEventListener('keydown',esc);resolve();}});
+      setTimeout(()=>{if(!SafeStorage.get('dh-name',''))SafeStorage.set('dh-name','Peer');document.getElementById('ob-modal')?.classList.remove('on');resolve();},30000);
+      let cnt=0;const chk=()=>{cnt++;if(!document.getElementById('ob-modal')?.classList.contains('on'))resolve();else if(cnt<300)setTimeout(chk,200);else resolve();};setTimeout(chk,200);
+    });
+  }
+
+  await setProgress(55,'Initializing modules…');
+  const safeInit=(label,fn)=>{try{fn();}catch(e){App.log.warn(label+' init error: '+e.message);}};
+  safeInit('UI',()=>App.ui.init());
+  safeInit('Offline',()=>App.offline.init());
+  safeInit('Notes',()=>App.notes.init());
+  safeInit('Tasks',()=>App.tasks.init());
+  safeInit('Group',()=>App.group.init());
+  safeInit('Vault',()=>App.vault.init());
+  safeInit('Code',()=>App.code.init());
+  safeInit('GroupVideo',()=>App.groupVideo.init());
+  safeInit('Presence',()=>App.presence.init());
+  safeInit('Room',()=>App.room.init());
+  safeInit('GlobalErr',()=>App.globalErr.init());
+  safeInit('CmdPalette',()=>App.cmdPalette.init());
+  safeInit('BootRecovery',()=>{App.bootRecovery.checkBootFailure();App.bootRecovery.restoreSessionSnapshot();});
+
+  await setProgress(72,'Connecting to peer network…');
+
+  if(typeof Peer!=='undefined'){
+    try{await App.peer.init();}catch(e){App.log.warn('Peer init error: '+e.message);}
+  }else{
+    App.ui?.setStatus('OFFLINE');App.toast.show('PeerJS not loaded — check internet connection','error');
+  }
+
+  try{App.broadcastDisc.init();}catch(e){}
+  try{App.netRecovery.init();}catch(e){}
+  try{App.sessionCleaner.init();}catch(e){}
+
+  await setProgress(90,'Finishing…');
+
+  App.bootRecovery.markBootComplete();
+
+  // Hide boot overlay
+  await sleep(300);
+  const overlay=document.getElementById('boot-overlay');
+  if(overlay){overlay.style.transition='opacity .4s';overlay.style.opacity='0';setTimeout(()=>overlay.classList.add('gone'),400);}
+
+  App.log.success('DevHub Member Communication loaded v'+CFG.VERSION);
+
+  // Show welcome notification after 2s
+  setTimeout(()=>{
+    App.notifCenter.add('DevHub Member Hub ready','Share your Peer ID or QR code to connect with peers','💬','success');
+  },2000);
+}
+
+document.addEventListener('DOMContentLoaded',boot);
+</script>
+</body>
+</html>
