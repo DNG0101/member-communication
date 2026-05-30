@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f0f17">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; connect-src *; media-src *; img-src * data: blob:; style-src 'self' 'unsafe-inline';">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="description" content="DevHub — Secure P2P Communication Hub">
@@ -175,7 +176,8 @@ a{color:var(--primary);text-decoration:none;}
 .tn:hover{color:var(--text);}
 .tn.on{color:var(--primary);border-bottom-color:var(--primary);}
 /* ─── Tabs ────────────────────────────────────── */
-.tabview{display:none;flex:1;overflow:hidden;flex-direction:column;}
+.tabview{display:none;flex:1;overflow:hidden;flex-direction:column;opacity:0;}
+.tabview.on{opacity:1;}
 .tabview.on{display:flex;}
 /* ═══════════════════════════════════════════════
    CHAT MODULE
@@ -497,6 +499,11 @@ a{color:var(--primary);text-decoration:none;}
 /* ─── Onboarding ──────────────────────────────── */
 #ob-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99998;align-items:center;justify-content:center;}
 #ob-modal.on{display:flex;}
+.ob-dot{width:10px;height:10px;border-radius:50%;background:var(--bg3);border:2px solid var(--border);transition:background .2s,border-color .2s;cursor:pointer;}
+.ob-dot.ob-dot-active{background:var(--primary);border-color:var(--primary);}
+.ob-step{animation:ob-fade-in .25s ease;}
+@keyframes ob-fade-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.ob-step{animation:none;}}
 #ob-box{background:var(--bg2);border-radius:var(--radius);padding:28px;width:90%;max-width:380px;border:1px solid var(--border);}
 /* ─── Scrollbar ───────────────────────────────── */
 ::-webkit-scrollbar{width:4px;height:4px;}
@@ -563,12 +570,42 @@ a{color:var(--primary);text-decoration:none;}
   #wb-canvas{image-rendering:pixelated;}
 }
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border-width:0}
+
+@media(prefers-reduced-motion:reduce){*,::before,::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important;}}
+.msg-link{color:var(--primary);text-decoration:underline;word-break:break-all;}.msg-link:hover{opacity:.8;}
+.search-result.sel{background:var(--bg3);outline:2px solid var(--primary-glow);}
+.sr-announce{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;}
+#msgs{contain:layout style;}
+
+/* ─── Micro-interactions ─── */
+@keyframes peer-slide-in{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:translateX(0)}}
+@keyframes btn-tap{0%{transform:scale(1)}50%{transform:scale(0.95)}100%{transform:scale(1)}}
+@keyframes tab-fade-in{from{opacity:0}to{opacity:1}}
+.peer-card-new{animation:peer-slide-in .22s ease;}
+.tabview.on{animation:tab-fade-in .12s ease;}
+@media(prefers-reduced-motion:reduce){
+  .peer-card-new{animation:none!important;}
+  .tabview.on{animation:none!important;}
+}
 </style>
 </head>
 <body>
 
 <!-- Skip navigation link -->
 <a id="skip-link" href="#content">Skip to main content</a>
+<div id="sr-announcer" class="sr-announce" aria-live="polite" aria-atomic="true" role="status"></div>
+
+
+
+<!-- PeerJS failure banner -->
+<div id="peerjs-fail-banner" role="alert" style="display:none;position:fixed;top:44px;left:0;right:0;z-index:99996;background:var(--red,#ef4444);color:#fff;font-size:13px;font-weight:600;text-align:center;padding:8px 40px;">
+  ⚠️ P2P library failed to load. <button onclick="window.location.reload()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.5);padding:2px 10px;border-radius:4px;margin-left:8px;cursor:pointer;font-weight:700">Retry</button>
+</div>
+
+<!-- Offline banner -->
+<div id="offline-banner" role="alert" aria-live="assertive" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99997;background:var(--amber,#f59e0b);color:#000;font-weight:700;font-size:13px;text-align:center;padding:8px 16px;box-shadow:0 2px 8px rgba(0,0,0,.3);">
+  📡 You are offline — messages will be queued and sent when reconnected
+</div>
 
 <!-- Boot overlay -->
 <div id="boot-overlay" role="status" aria-label="Loading DevHub" aria-live="polite">
@@ -584,12 +621,44 @@ a{color:var(--primary);text-decoration:none;}
 <!-- Onboarding -->
 <div id="ob-modal" role="dialog" aria-modal="true" aria-labelledby="ob-title">
   <div id="ob-box">
-    <div style="font-size:28px;text-align:center;margin-bottom:12px" aria-hidden="true">👋</div>
-    <h2 id="ob-title" style="text-align:center;margin-bottom:16px">Welcome to DevHub</h2>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:14px;text-align:center">Choose your display name for peer-to-peer connections.</p>
-    <label for="ob-name" class="sr-only">Your display name</label>
-    <input id="ob-name" placeholder="Your name…" style="width:100%;margin-bottom:12px" autocomplete="nickname" maxlength="40">
-    <button id="btn-ob-start" class="btn btn-p" style="width:100%">Get Started</button>
+    <!-- Step indicator -->
+    <div id="ob-steps" style="display:flex;justify-content:center;gap:8px;margin-bottom:16px" aria-label="Onboarding progress">
+      <div class="ob-dot ob-dot-active" data-step="0" aria-label="Step 1 of 3"></div>
+      <div class="ob-dot" data-step="1" aria-label="Step 2 of 3"></div>
+      <div class="ob-dot" data-step="2" aria-label="Step 3 of 3"></div>
+    </div>
+    <!-- Step 0: Name -->
+    <div id="ob-step-0" class="ob-step">
+      <div style="font-size:32px;text-align:center;margin-bottom:10px" aria-hidden="true">👋</div>
+      <h2 id="ob-title" style="text-align:center;margin-bottom:10px">Welcome to DevHub</h2>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:14px;text-align:center">Choose your display name for peer-to-peer connections.</p>
+      <label for="ob-name" class="sr-only">Your display name</label>
+      <input id="ob-name" placeholder="Your name…" style="width:100%;margin-bottom:12px" autocomplete="nickname" maxlength="40">
+      <button id="btn-ob-start" class="btn btn-p" style="width:100%">Continue →</button>
+    </div>
+    <!-- Step 1: Share ID -->
+    <div id="ob-step-1" class="ob-step" style="display:none">
+      <div style="font-size:32px;text-align:center;margin-bottom:10px" aria-hidden="true">🔗</div>
+      <h2 style="text-align:center;margin-bottom:10px">Share Your ID</h2>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:14px;text-align:center">Your unique Peer ID lets others connect to you. Share it via the QR button or copy-paste it.</p>
+      <div style="background:var(--bg3);border-radius:8px;padding:10px;font-size:11px;font-family:monospace;text-align:center;margin-bottom:16px;word-break:break-all">Your ID appears in the sidebar after connecting</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-s" style="flex:1" onclick="OB._skip()">Skip</button>
+        <button class="btn btn-p" style="flex:1" onclick="OB._next()">Next →</button>
+      </div>
+    </div>
+    <!-- Step 2: Features -->
+    <div id="ob-step-2" class="ob-step" style="display:none">
+      <div style="font-size:32px;text-align:center;margin-bottom:10px" aria-hidden="true">🚀</div>
+      <h2 style="text-align:center;margin-bottom:10px">Explore DevHub</h2>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:10px;text-align:center">Use the tabs to access Chat, Calls, Files, Whiteboard, Code, Tasks, Notes, and more.</p>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:16px">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><span>💬</span><span>Chat &amp; call peers in real-time</span></div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><span>📁</span><span>Transfer files with drag &amp; drop</span></div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><span>⌨️</span><span>Press Ctrl+K for quick commands</span></div>
+      </div>
+      <button id="btn-ob-done" class="btn btn-p" style="width:100%">Let's go! 🎉</button>
+    </div>
   </div>
 </div>
 
@@ -625,6 +694,7 @@ a{color:var(--primary);text-decoration:none;}
     <p id="my-qr-id" style="font-size:11px;color:var(--muted);text-align:center;word-break:break-all;margin-top:8px"></p>
     <div style="display:flex;gap:6px;margin-top:10px">
       <button class="btn btn-p btn-sm" onclick="App.qr.startScan()" style="flex:1">📷 Scan QR</button>
+      <button class="btn btn-s btn-sm" onclick="App.qr.flipCamera()" title="Flip front/rear camera" aria-label="Flip camera">🔄 Flip Cam</button>
       <button class="btn btn-s btn-sm" onclick="App.room?.copyInvite?.()" style="flex:1">🔗 Copy Link</button>
     </div>
     <div id="qr-video-wrap" style="display:none">
@@ -644,7 +714,7 @@ a{color:var(--primary);text-decoration:none;}
       <button class="btn btn-xs btn-s" onclick="Modal.hide('search-ov')" aria-label="Close search">✕</button>
     </div>
     <label for="search-inp" class="sr-only">Search peers and messages</label>
-    <input id="search-inp" placeholder="Search peers, messages…" style="width:100%;margin-bottom:10px" autocomplete="off">
+    <input id="search-inp" placeholder="Search peers, tasks, notes, commands…" style="width:100%;margin-bottom:8px" autocomplete="off"><div id="search-count" style="font-size:11px;color:var(--muted);min-height:16px;margin-bottom:6px"></div>
     <div id="search-results" style="display:flex;flex-direction:column;gap:5px;max-height:300px;overflow-y:auto" role="listbox" aria-label="Search results"></div>
   </div>
 </div>
@@ -1201,11 +1271,20 @@ a{color:var(--primary);text-decoration:none;}
     s.onerror=function(){tryLoad(urls,i+1,onLoad);};
     document.head.appendChild(s);
   }
+  _showFailBanner(){
+    const b=document.getElementById('peerjs-fail-banner');
+    if(b){b.style.display='block';}
+    App.toast?.show?.('P2P library failed to load — check your connection','error');
+  }
   tryLoad([
     'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js',
     'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js'
-  ],0);
+  ],0,null,()=>{
+    const b=document.getElementById('peerjs-fail-banner');if(b)b.style.display='block';
+    App.toast?.show?.('P2P library failed to load — check your connection and refresh','error');
+    console.error('[DevHub] All PeerJS CDN endpoints failed');
+  });
   tryLoad([
     'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',
@@ -1222,11 +1301,16 @@ a{color:var(--primary);text-decoration:none;}
 <script>
 'use strict';
 
+/* requestIdleCallback polyfill */
+window.requestIdleCallback=window.requestIdleCallback||function(cb,opts){const start=Date.now();return setTimeout(()=>cb({didTimeout:false,timeRemaining:()=>Math.max(0,50-(Date.now()-start))}),opts?.timeout||1);};
+window.cancelIdleCallback=window.cancelIdleCallback||clearTimeout;
+function idleRun(fn){requestIdleCallback(fn,{timeout:2000});}
+
 /* ══════════════════════════════════════════════════════════
    CONFIG
 ══════════════════════════════════════════════════════════ */
 const CFG={
-  VERSION:'3.0.0',
+  VERSION:'3.2.0',
   DB_NAME:'devhub-member-v1',DB_VERSION:4,
   CHUNK_SIZE:65536,MAX_CONCUR_SENDS:2,WINDOW_SIZE:6,MAX_BACKPRESSURE:4*1024*1024,
   PING_INTERVAL:8000,RECONNECT_MAX:8,
@@ -1235,6 +1319,10 @@ const CFG={
   AUDIT_LOG_MAX:300,
   VAULT_PBKDF2_ITER:250000,
   HEALTH_INTERVAL:60000,
+  ICE_RESTART_RTT_THRESHOLD:800,
+  FILE_CHECKSUM_CHUNK_LIMIT:200,
+  SEARCH_SCORE_THRESHOLD:0.3,
+  VIDEO_QUALITY_PROFILES:{low:{w:640,h:360,fps:15},med:{w:1280,h:720,fps:24},high:{w:1920,h:1080,fps:30}},
   STUN_SERVERS:[
     {urls:'stun:stun.l.google.com:19302'},
     {urls:'stun:stun1.l.google.com:19302'},
@@ -1245,7 +1333,128 @@ const CFG={
     {urls:'stun:global.stun.twilio.com:3478'}
   ]
 };
+
+/* ══════════════════════════════════════════════════════════
+   LAZY MODULE BASE — initOnce() pattern for heavy modules
+══════════════════════════════════════════════════════════ */
+class LazyModule{
+  constructor(){this._initialized=false;this._initError=null;this._initPromise=null;}
+  async initOnce(){
+    if(this._initialized)return true;
+    if(this._initPromise)return this._initPromise;
+    this._initPromise=(async()=>{
+      try{await this._doInit();this._initialized=true;return true;}
+      catch(e){this._initError=e;App?.log?.error?.('LazyModule '+this.constructor.name+': '+e.message);return false;}
+      finally{this._initPromise=null;}
+    })();
+    return this._initPromise;
+  }
+  async _doInit(){}
+  reset(){this._initialized=false;this._initError=null;}
+}
+function safeCall(fn,mod,fallback){
+  try{return fn();}
+  catch(e){App?.log?.error?.('['+mod+'] '+e.message);App?.toast?.show?.('Module error in '+mod,'error');if(fallback)try{fallback();}catch(_){}return undefined;}
+}
+
+/* ══════════════════════════════════════════════════════════
+   DEVICE IDENTITY SYSTEM — privacy-safe browser identity
+   Combines persistent UUID + lightweight fingerprint
+══════════════════════════════════════════════════════════ */
+(function buildDeviceIdentity(){
+  const LS_KEY='dh-device-id';
+  const LS_FIRST='dh-device-first';
+
+  /* ─── Persistent UUID ─── */
+  let persistentId=null;
+  try{persistentId=localStorage.getItem(LS_KEY);}catch(e){}
+  if(!persistentId){
+    persistentId=([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));
+    try{localStorage.setItem(LS_KEY,persistentId);}catch(e){}
+    // fallback: sessionStorage
+    try{if(!localStorage.getItem(LS_KEY))sessionStorage.setItem(LS_KEY,persistentId);}catch(e){}
+  }
+  const firstSeen=parseInt(localStorage.getItem(LS_FIRST)||'0')||Date.now();
+  try{if(!localStorage.getItem(LS_FIRST))localStorage.setItem(LS_FIRST,String(firstSeen));}catch(e){}
+
+  /* ─── Privacy-safe fingerprint ─── */
+  const fp={
+    ua:(navigator.userAgent||'').substring(0,80),
+    lang:navigator.language||'',
+    tz:Intl.DateTimeFormat().resolvedOptions().timeZone||'',
+    sw:screen.width||0,sh:screen.height||0,
+    cores:navigator.hardwareConcurrency||0,
+    mem:navigator.deviceMemory||0,
+    touch:navigator.maxTouchPoints||0,
+    cd:screen.colorDepth||0,
+    dpr:window.devicePixelRatio||1,
+    plat:navigator.platform||'',
+  };
+  const fpStr=Object.values(fp).join('|');
+  let hash=0;
+  for(let i=0;i<fpStr.length;i++){hash=((hash<<5)-hash+fpStr.charCodeAt(i))|0;}
+  const fingerprint='fp-'+(Math.abs(hash)>>>0).toString(36);
+
+  /* ─── Confidence score ─── */
+  const confidenceScore=Math.min(100,40+(fp.cores?10:0)+(fp.mem?10:0)+(fp.tz?15:0)+(fp.sw?15:0)+(fp.lang?10:0));
+
+  window.DeviceIdentity={
+    persistentId,
+    fingerprint,
+    firstSeen,
+    lastSeen:Date.now(),
+    confidenceScore,
+    deviceProfile:window.DeviceProfile||null,
+    refresh(){this.lastSeen=Date.now();}
+  };
+})();
+
 const SESSION_KEY='devhub-member-session-id';
+
+/* ══════════════════════════════════════════════════════════
+   ONBOARDING WALKTHROUGH CONTROLLER
+══════════════════════════════════════════════════════════ */
+const OB={
+  _step:0,
+  _next(){
+    if(this._step>=2)return;
+    this._step++;
+    this._render();
+  },
+  _skip(){
+    SafeStorage.set('dh-ob-done','1');
+    Modal.hide('ob-modal');
+  },
+  _done(){
+    SafeStorage.set('dh-ob-done','1');
+    Modal.hide('ob-modal');
+    App.toast?.show?.('Welcome to DevHub! 🎉','success');
+  },
+  _render(){
+    const step=this._step;
+    [0,1,2].forEach(i=>{
+      const el=document.getElementById('ob-step-'+i);
+      if(el)el.style.display=(i===step)?'block':'none';
+      const dot=document.querySelector('.ob-dot[data-step="'+i+'"]');
+      if(dot)dot.classList.toggle('ob-dot-active',i===step);
+    });
+  },
+  init(){
+    document.getElementById('btn-ob-done')?.addEventListener('click',()=>this._done());
+    document.getElementById('btn-ob-start')?.addEventListener('click',()=>{
+      const n=(document.getElementById('ob-name')?.value||'').trim();
+      if(!n){App.toast?.show?.('Enter a name','warning');return;}
+      SafeStorage.set('dh-name',n);SafeStorage.set('dh-avatar','👤');
+      setEl('my-name-btn',esc(n));
+      const sn=document.getElementById('set-name');if(sn)sn.value=n;
+      this._next();
+    });
+    document.getElementById('ob-name')?.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('btn-ob-start')?.click();});
+    // Dot click navigation
+    document.querySelectorAll('.ob-dot').forEach((dot,i)=>{dot.addEventListener('click',()=>{if(i<this._step+1)this._step=i;this._render();});});
+  }
+};
+
 const TAB_NONCE=Math.random().toString(36).slice(2,6);
 
 /* ══════════════════════════════════════════════════════════
@@ -1364,6 +1573,7 @@ const TAB_NONCE=Math.random().toString(36).slice(2,6);
     viewport:{w:W,h:H},
     screen:{w:sw,h:screen.height||H},
     capabilities,
+    videoProfile:(()=>{if(perfClass==='low-end'||connQuality==='slow'||et==='2g')return 'low';if(perfClass==='high-end'&&(connQuality==='fast'||dl>10))return 'high';return 'med';})(),
     raw:{ua:ua.substring(0,100),cores,mem,et,dl}
   };
 
@@ -1505,6 +1715,7 @@ class ToastManager{
     el.className='toast-item '+(map[type]||'toast-i');
     el.setAttribute('role',type==='error'?'alert':'status');
     el.setAttribute('aria-live',type==='error'?'assertive':'polite');
+    el.setAttribute('aria-atomic','true');
     el.innerHTML=esc(msg);
     if(!persist){
       const close=document.createElement('button');
@@ -1799,7 +2010,7 @@ class NetQuality{
   constructor(){this._samples=[];}
   addSample(rtt){this._samples.push(rtt);if(this._samples.length>20)this._samples.shift();this._updateBadge();}
   getAvg(){if(!this._samples.length)return 0;return Math.round(this._samples.reduce((a,b)=>a+b,0)/this._samples.length);}
-  getChunkSize(){const avg=this.getAvg();if(avg>500)return 16384;if(avg>200)return 32768;return CFG.CHUNK_SIZE;}
+  getChunkSize(){const dp=window.DeviceProfile;if(dp?.performance==='low-end')return 16384;if(dp?.performance==='high-end'&&dp?.connection==='fast')return 262144;const avg=this.getAvg();if(avg>500)return 16384;if(avg>200)return 32768;return CFG.CHUNK_SIZE;}
   _updateBadge(){
     const avg=this.getAvg();if(!avg)return;
     const badge=document.getElementById('net-quality-badge');
@@ -1919,7 +2130,7 @@ class ClipboardManager{
 
 /* ─── QR Manager ─── */
 class QRManager{
-  constructor(){this._scanning=false;this._stream=null;}
+  constructor(){this._scanning=false;this._stream=null;this._facingMode='environment';}
   showQR(){
     const id=App.peer.myId;if(!id){App.toast.show('Not ready yet','warning');return;}
     const wrap=document.getElementById('qr-wrap');
@@ -1935,40 +2146,61 @@ class QRManager{
     setEl('my-qr-id',esc(id));
     Modal.show('qr-modal');
   }
+  flipCamera(){
+    this._facingMode=this._facingMode==='environment'?'user':'environment';
+    if(this._scanning){this.stopScan();setTimeout(()=>this.startScan(),300);}
+    else{App.toast.show('Camera flipped (will apply on next scan)','info');}
+  }
   async startScan(){
-    if(!navigator.mediaDevices?.getUserMedia){App.toast.show('Camera not available','warning');return;}
+    if(!navigator.mediaDevices?.getUserMedia){App.toast.show('Camera not available on this device','warning');return;}
     Modal.show('qr-modal');
     const vwrap=document.getElementById('qr-video-wrap');
     const video=document.getElementById('qr-video');
     const canvas=document.getElementById('qr-canvas');
     if(vwrap)vwrap.style.display='block';
-    try{
-      this._stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
-      video.srcObject=this._stream;
-      await video.play();
-      this._scanning=true;
-      const ctx=canvas.getContext('2d');
-      const scan=()=>{
-        if(!this._scanning)return;
-        if(video.readyState===video.HAVE_ENOUGH_DATA){
-          canvas.width=video.videoWidth;canvas.height=video.videoHeight;
-          ctx.drawImage(video,0,0);
-          const imageData=ctx.getImageData(0,0,canvas.width,canvas.height);
-          if(typeof jsQR==='function'){
-            const code=jsQR(imageData.data,imageData.width,imageData.height);
-            if(code?.data){
-              this.stopScan();
-              App.peer.connectTo(code.data);
-              App.toast.show('QR scanned!','success');
-              Modal.hide('qr-modal');
-              return;
-            }
+    const tryCamera=async(facingMode)=>{
+      try{
+        this._stream=await navigator.mediaDevices.getUserMedia({video:{facingMode,width:{ideal:1280},height:{ideal:720}}});
+        video.srcObject=this._stream;
+        await video.play();
+        this._scanning=true;
+        const ctx=canvas.getContext('2d');
+        const scan=()=>{
+          if(!this._scanning)return;
+          if(video.readyState===video.HAVE_ENOUGH_DATA){
+            try{
+              canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+              ctx.drawImage(video,0,0);
+              const imageData=ctx.getImageData(0,0,canvas.width,canvas.height);
+              if(typeof jsQR==='function'){
+                const code=jsQR(imageData.data,imageData.width,imageData.height);
+                if(code?.data){
+                  this.stopScan();
+                  App.peer.connectTo(code.data);
+                  App.toast.show('QR scanned: connected!','success');
+                  Modal.hide('qr-modal');
+                  return;
+                }
+              }
+            }catch(err){this.stopScan();App.toast.show('Scan error: '+err.message,'error');return;}
           }
-        }
+          raf(scan);
+        };
         raf(scan);
-      };
-      raf(scan);
-    }catch(e){App.toast.show('Camera error: '+e.message,'error');}
+      }catch(e){
+        let msg;
+        if(e.name==='NotAllowedError'||e.name==='PermissionDeniedError')msg='Camera permission denied — please allow access in browser settings';
+        else if(e.name==='NotFoundError'||e.name==='DevicesNotFoundError')msg='No camera found on this device';
+        else if(e.name==='NotReadableError'||e.name==='TrackStartError')msg='Camera in use by another app — close it and retry';
+        else if(e.name==='OverconstrainedError'){
+          if(facingMode==='environment'){App.toast.show('Rear camera unavailable, trying front…','info');await tryCamera('user');return;}
+          msg='Camera constraints not supported';
+        }
+        else msg='Camera error: '+e.message;
+        if(msg)App.toast.show(msg,'error');
+      }
+    };
+    await tryCamera(this._facingMode);
   }
   stopScan(){
     this._scanning=false;
@@ -2173,18 +2405,25 @@ class NetworkRecovery{
   init(){
     if(this._inited)return;this._inited=true;
     window.addEventListener('online',()=>{
-      App.toast?.show('Network restored — reconnecting…','info');
+      const _ob=document.getElementById('offline-banner');if(_ob)_ob.style.display='none';
+      App.toast?.show('Network restored — reconnecting…','success');
       Timers.timeout('net-reconnect',()=>{if(App.peer?.peer?.disconnected)App.peer.tryReconnect();},1200);
     });
     window.addEventListener('offline',()=>{
-      App.toast?.show('Network offline','warning');
+      const _ob=document.getElementById('offline-banner');if(_ob)_ob.style.display='block';
+      App.toast?.show('You are offline — messages will be queued','warning');
       App.ui?.setStatus('OFFLINE');
     });
-    document.addEventListener('visibilitychange',()=>{
+    if(!navigator.onLine){const _ob=document.getElementById('offline-banner');if(_ob)_ob.style.display='block';}
+    document.addEventListener('visibilitychange',()=>{ // _onVisibility()
       if(document.visibilityState==='visible'){
         Timers.timeout('tab-restore',()=>{
           if(navigator.onLine&&App.peer?.peer?.disconnected)App.peer.tryReconnect();
           App.stateStore?.reconcile();
+          // Reconnect any stale peer data connections
+          if(navigator.onLine&&App.peer?.dconns){
+            for(const[pid,conn]of App.peer.dconns){if(!conn?.open)try{App.peer.connectTo(pid);}catch(e){}}
+          }
         },1500);
       }
     });
@@ -2217,7 +2456,12 @@ class GlobalErrorManager{
     this._errors.unshift({type,msg,ts:Date.now()});
     if(this._errors.length>100)this._errors.pop();
     try{App.log?.error('['+type+'] '+msg);}catch(e){}
+    if(type==='UNCAUGHT'){
+      try{App.toast?.show('Unexpected error: '+String(msg).substring(0,80),'error');}catch(e){}
+    }
   }
+  getErrors(){return[...this._errors];}
+  clearErrors(){this._errors=[];}
 }
 
 /* ─── Self Healing Engine ─── */
@@ -2542,6 +2786,7 @@ class PeerManager{
 ══════════════════════════════════════════════════════════ */
 class FileTransfer{
   constructor(){this._sends=new Map();this._recvs=new Map();this._totalSent=0;this._totalRecv=0;this._activeSends=0;this._sendQueue=[];}
+  async _sha256(buf){if(!crypto?.subtle)return null;try{const h=await crypto.subtle.digest('SHA-256',buf);return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');}catch(e){return null;}}
   sendFiles(files,pid){for(const file of files)this._sendQueue.push({file,pid});this._drainQueue();}
   _drainQueue(){
     while(this._activeSends<CFG.MAX_CONCUR_SENDS&&this._sendQueue.length>0){
@@ -2557,7 +2802,10 @@ class FileTransfer{
     const tid=uid(8);const chunkSize=App.netq.getChunkSize();
     const check=SafeFileValidator.validate(file.name,file.type);
     if(!check.ok){App.toast.show('File blocked: '+check.reason,'error');return;}
-    const meta={type:'file-meta',tid,name:file.name,size:file.size,mime:file.type||'application/octet-stream',chunks:Math.ceil(file.size/chunkSize)};
+    let _fullBuf;
+    try{_fullBuf=await file.arrayBuffer();}catch(e){App.toast.show('Cannot read file: '+e.message,'error');return;}
+    const _cksum=await this._sha256(_fullBuf);
+    const meta={type:'file-meta',tid,name:file.name,size:file.size,mime:file.type||'application/octet-stream',chunks:Math.ceil(file.size/chunkSize),checksum:_cksum};
     try{conn.send(JSON.stringify(meta));}catch(e){App.toast.show('Failed to start transfer','error');return;}
     const state={tid,cancelled:false,paused:false,ackd:new Set(),pending:new Map(),seq:0,startTs:Date.now()};
     this._sends.set(tid,state);
@@ -2571,7 +2819,7 @@ class FileTransfer{
         await sleep(30);
       }
       const start=i*chunkSize;
-      const chunk=await file.slice(start,start+chunkSize).arrayBuffer();
+      const chunk=_fullBuf.slice(start,start+chunkSize);
       try{
         conn.send(chunk);
         state.pending.set(i,true);
@@ -2587,7 +2835,7 @@ class FileTransfer{
   }
   _onMeta(pid,msg){
     const{tid,name,size,mime,chunks}=msg;
-    this._recvs.set(tid,{pid,name,size,mime,chunks,received:0,chunks_data:new Array(chunks),cancelled:false,startTs:Date.now()});
+    this._recvs.set(tid,{pid,name,size,mime,chunks,received:0,chunks_data:new Array(chunks),cancelled:false,paused:false,startTs:Date.now(),expectedChecksum:msg.checksum||null});
     this._renderTx(tid,name,size,'recv');
     App.toast.show(`Receiving: ${esc(name)} (${fmtSz(size)})`,'info');
     App.notifCenter.add('Incoming file: '+esc(name),'From '+App.peer.peerName(pid),'📁','info');
@@ -2612,7 +2860,13 @@ class FileTransfer{
   async _assembleTx(tid){
     const state=this._recvs.get(tid);if(!state)return;this._recvs.delete(tid);
     try{
-      const blob=new Blob(state.chunks_data.filter(Boolean),{type:state.mime||'application/octet-stream'});
+      const valid=state.chunks_data.filter(Boolean);
+      if(valid.length!==state.chunks){this._failTx(tid,'Incomplete: '+valid.length+'/'+state.chunks+' chunks');return;}
+      const blob=new Blob(valid,{type:state.mime||'application/octet-stream'});
+      if(state.expectedChecksum){
+        const ab=await blob.arrayBuffer();const actual=await this._sha256(ab);
+        if(actual&&actual!==state.expectedChecksum){this._failTx(tid,'Checksum mismatch — file may be corrupted');return;}
+      }
       const url=BlobURLs.create(blob);
       const a=document.createElement('a');a.href=url;a.download=state.name;
       document.body.appendChild(a);a.click();document.body.removeChild(a);
@@ -2626,7 +2880,7 @@ class FileTransfer{
     const el=document.createElement('div');el.className='tc';el.id='tc-'+tid;
     el.setAttribute('role','listitem');
     const safeName=esc(name);const safeTid=esc(tid);
-    el.innerHTML=`<div class="tc-top"><span class="tc-icon" aria-hidden="true">${dir==='send'?'📤':'📥'}</span><span class="tc-nm" title="${safeName}">${safeName}</span><span class="tc-sz">${fmtSz(size)}</span><div class="tc-acts"><button class="btn btn-xs btn-d" onclick="App.files._cancelTx('${safeTid}')" aria-label="Cancel transfer">✕</button></div></div><div class="pb" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"><div class="pb-fill" id="pf-${safeTid}" style="width:0%"></div></div><div class="tc-info"><span id="tp-${safeTid}" aria-live="polite">0%</span><span id="ts-${safeTid}">—</span></div>`;
+    el.innerHTML=`<div class="tc-top"><span class="tc-icon" aria-hidden="true">${dir==='send'?'📤':'📥'}</span><span class="tc-nm" title="${safeName}">${safeName}</span><span class="tc-sz">${fmtSz(size)}</span><div class="tc-acts">${dir==='send'?`<button class="btn btn-xs" id="pbtn-${safeTid}" onclick="App.files._togglePause('${safeTid}')" aria-label="Pause transfer">⏸</button>`:''}<button class="btn btn-xs btn-d" onclick="App.files._cancelTx('${safeTid}')" aria-label="Cancel transfer">✕</button></div></div><div class="pb" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"><div class="pb-fill" id="pf-${safeTid}" style="width:0%"></div></div><div class="tc-info"><span id="tp-${safeTid}" aria-live="polite">0%</span><span id="ts-${safeTid}">—</span></div>`;
     list.insertBefore(el,list.firstChild);
     setEl('tx-info',`↑ ${fmtSz(this._totalSent)} · ↓ ${fmtSz(this._totalRecv)}`);
   }
@@ -2640,6 +2894,7 @@ class FileTransfer{
   _doneTx(tid,dir){setEl('pf-'+tid,null,el=>{el.style.width='100%';el.style.background='var(--green)';el.parentElement?.setAttribute('aria-valuenow','100');});setEl('tp-'+tid,'✅ Done');}
   _failTx(tid,reason){setEl('tp-'+tid,'❌ '+esc(reason));App.log.error('Transfer failed: '+reason);}
   _cancelTx(tid){const s=this._sends.get(tid)||this._recvs.get(tid);if(s)s.cancelled=true;this._failTx(tid,'Cancelled');}
+  _togglePause(tid){const s=this._sends.get(tid);if(!s)return;s.paused=!s.paused;const b=document.getElementById('pbtn-'+tid);if(b){b.textContent=s.paused?'▶':'⏸';b.setAttribute('aria-label',s.paused?'Resume transfer':'Pause transfer');}App.toast.show(s.paused?'Transfer paused':'Transfer resumed','info');}
   _pickAndSend(pid){const inp=document.createElement('input');inp.type='file';inp.multiple=true;inp.onchange=e=>{const files=[...e.target.files];if(files.length)this.sendFiles(files,pid);};inp.click();}
 }
 
@@ -2652,6 +2907,36 @@ class MediaManager{
     this._muted=false;this._vidOff=false;
     this._audioCtx=null;this._noiseAC=null;this._wakeLock=null;
     this._recorder=null;this._recChunks=[];this._ending=false;this._timerStart=null;
+    this._iceTimer=null;this._lastRtt=0;
+    this._bindVisibilityRecovery();
+  }
+  _bindVisibilityRecovery(){
+    document.addEventListener('visibilitychange',()=>{
+      if(document.visibilityState!=='visible')return;
+      const pc=this._call?.peerConnection;if(!pc)return;
+      const bad=pc.connectionState==='failed'||pc.iceConnectionState==='failed'||pc.iceConnectionState==='disconnected';
+      if(bad){App.log?.info?.('Tab visible after connection loss — ICE restart');this._attemptIceRestart();}
+      else if(this._localStream){
+        this._localStream.getTracks().forEach(track=>{
+          const sender=pc.getSenders().find(s=>s.track?.kind===track.kind);
+          if(sender&&sender.track!==track){try{sender.replaceTrack(track);}catch(e){}}
+        });
+      }
+    });
+  }
+  _getVideoConstraints(){
+    const vp=window.DeviceProfile?.videoProfile||'med';
+    const P={low:{width:{ideal:640},height:{ideal:360},frameRate:{max:15}},med:{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:24}},high:{width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30}}};
+    return P[vp]||P.med;
+  }
+  async _attemptIceRestart(){
+    const pc=this._call?.peerConnection;if(!pc)return;
+    try{
+      App.toast?.show?.('Reconnecting call…','warning');
+      if(pc.restartIce){pc.restartIce();}
+      else{const offer=await pc.createOffer({iceRestart:true});await pc.setLocalDescription(offer);}
+      App.log?.info?.('ICE restart triggered');
+    }catch(e){App.log?.error?.('ICE restart failed: '+e.message);}
   }
   async voice(pid){await this._start(pid,'voice');}
   async video(pid){await this._start(pid,'video');}
@@ -2679,10 +2964,8 @@ class MediaManager{
       if(type==='voice'){
         stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,sampleRate:48000},video:false});
       }else if(type==='video'){
-        const avgRtt=App.netq?.getAvg()||0;
-        const isLowBW=avgRtt>300||(navigator.connection&&(navigator.connection.effectiveType==='2g'||navigator.connection.downlink<1));
-        const vidConstraints=isLowBW?{width:{ideal:640},height:{ideal:360},frameRate:{max:15}}:{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30}};
-        stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:vidConstraints});
+        const vidConstraints=this._getVideoConstraints();
+        stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,sampleRate:48000},video:vidConstraints});
       }else if(type==='screen'){
         if(!navigator.mediaDevices?.getDisplayMedia){App.toast.show('Screen share not supported','warning');return;}
         stream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});
@@ -2742,6 +3025,18 @@ class MediaManager{
     setEl('ctype-icon',type==='video'?'📹':type==='screen'?'🖥️':'📞');
     setEl('callbar',null,el=>el.classList.add('on'));
     this._acquireWakeLock();
+    if(call?.peerConnection){
+      call.peerConnection.addEventListener('iceconnectionstatechange',()=>{
+        const s=call.peerConnection.iceConnectionState;
+        App.log?.info?.('ICE state: '+s);
+        if(s==='failed'||s==='disconnected'){
+          clearTimeout(this._iceTimer);
+          this._iceTimer=setTimeout(()=>this._attemptIceRestart(),2500);
+        }else if(s==='connected'||s==='completed'){
+          clearTimeout(this._iceTimer);
+        }
+      });
+    }
     call.on('stream',remoteStream=>{
       const rv=document.getElementById('rvid');
       if(rv){rv.srcObject=remoteStream;try{rv.play();}catch(e){}}
@@ -2811,7 +3106,10 @@ class MediaManager{
       const cls=rtt<100?'q-e':rtt<250?'q-g':rtt<500?'q-p':'q-c';
       ['call-quality-dot','call-quality-dot2','call-quality-dot3','call-quality-dot4'].forEach(id=>{const el=document.getElementById(id);if(el)el.className='quality-dot '+cls;});
       setEl('cq-lbl',`RTT:${rtt}ms Jitter:${jitter}ms`);setEl('cq-lbl2',`RTT:${rtt}ms`);setEl('cq-lbl3',`RTT:${rtt}ms`);
-      if(rtt>0)App.netq.addSample(rtt);
+      if(rtt>0){App.netq.addSample(rtt);
+        if(rtt>CFG.ICE_RESTART_RTT_THRESHOLD&&this._lastRtt<CFG.ICE_RESTART_RTT_THRESHOLD){clearTimeout(this._iceTimer);this._iceTimer=setTimeout(()=>this._attemptIceRestart(),1000);}
+        this._lastRtt=rtt;
+      }
     }).catch(()=>{});
   }
   async _acquireWakeLock(){try{if(navigator.wakeLock)this._wakeLock=await navigator.wakeLock.request('screen');}catch(e){}}
@@ -3350,6 +3648,38 @@ class GroupVideoManager{
   _onSignal(pid,msg){}
 }
 
+
+/* ══════════════════════════════════════════════════════════
+   GLOBAL SEARCH ENGINE — fuzzy ranked multi-corpus
+══════════════════════════════════════════════════════════ */
+class GlobalSearch{
+  _score(text,q){
+    if(!text||!q)return 0;
+    const t=text.toLowerCase();const s=q.toLowerCase();
+    if(t===s)return 1;if(t.startsWith(s))return 0.9;if(t.includes(s))return 0.75;
+    let si=0,matches=0;
+    for(let i=0;i<t.length&&si<s.length;i++){if(t[i]===s[si]){matches++;si++;}}
+    if(si===s.length)return 0.3+0.4*(matches/t.length);
+    return 0;
+  }
+  search(q){
+    if(!q||q.length<2)return[];
+    const results=[];
+    // Peers
+    try{for(const[pid,info]of(App.peer?.peerMap||[])){const nm=info?.name||info?.fp?.name||pid;const s=this._score(nm,q);if(s>CFG.SEARCH_SCORE_THRESHOLD)results.push({type:'peer',score:s,id:pid,title:nm,sub:'Peer · '+(info.status||'?'),icon:info?.fp?.av||'👤',action:()=>{App.ui.selectPeer(pid);Modal.hide('search-ov');}});}}catch(e){}
+    // Tasks
+    try{for(const t of(App.tasks?._tasks||[])){const s=this._score(t.title,q);if(s>CFG.SEARCH_SCORE_THRESHOLD)results.push({type:'task',score:s,id:t.id,title:t.title,sub:'Task · '+(t.done?'Done':'Todo')+' · '+t.prio,icon:t.done?'✅':'⬜',action:()=>{App.ui.setTab('tasks');Modal.hide('search-ov');}});}}catch(e){}
+    // Notes
+    try{const notes=document.getElementById('notepad')?.value||SafeStorage.get('dh-notes','');if(notes&&notes.toLowerCase().includes(q.toLowerCase())){const idx=notes.toLowerCase().indexOf(q.toLowerCase());const snip=notes.slice(Math.max(0,idx-20),idx+60).replace(/
+/g,' ');results.push({type:'note',score:0.6,id:'note',title:'Notes match',sub:'…'+snip+'…',icon:'📝',action:()=>{App.ui.setTab('notes');Modal.hide('search-ov');}});}}catch(e){}
+    // History
+    try{for(const p of(App.hist?.getAll?.()||[])){const s=this._score(p.name,q);if(s>CFG.SEARCH_SCORE_THRESHOLD)results.push({type:'history',score:s*0.7,id:p.id,title:p.name,sub:'History · '+new Date(p.lastSeen).toLocaleDateString(),icon:p.av||'🕐',action:()=>{App.peer.connectTo(p.id);Modal.hide('search-ov');}});}}catch(e){}
+    // Commands
+    const cmds=[{t:'Open Chat',s:'Switch to chat tab',i:'💬',fn:()=>App.ui.setTab('chat')},{t:'Files',s:'Send or receive files',i:'📁',fn:()=>App.ui.setTab('files')},{t:'Voice Call',s:'Start a voice call',i:'📞',fn:()=>App.ui.setTab('call')},{t:'Whiteboard',s:'Collaborative drawing',i:'🎨',fn:()=>App.ui.setTab('whiteboard')},{t:'Code Editor',s:'Share code',i:'⌨️',fn:()=>App.ui.setTab('code')},{t:'Tasks',s:'Manage tasks',i:'✅',fn:()=>App.ui.setTab('tasks')},{t:'Notes',s:'Shared notes',i:'📝',fn:()=>App.ui.setTab('notes')},{t:'Vault',s:'Encrypted secrets',i:'🔒',fn:()=>App.ui.setTab('vault')},{t:'Group Video',s:'Multi-peer video',i:'📹',fn:()=>App.ui.setTab('group-video')},{t:'Notifications',s:'View all notifications',i:'🔔',fn:()=>App.ui.setTab('notifications')},{t:'History',s:'Peer connection history',i:'📖',fn:()=>App.ui.setTab('history')},{t:'Settings',s:'App configuration',i:'⚙️',fn:()=>App.ui.setTab('settings')},{t:'QR Connect',s:'Show or scan QR code',i:'📷',fn:()=>App.qr.showQR()},{t:'Copy Invite Link',s:'Share peer ID as URL',i:'🔗',fn:()=>App.room.copyInvite()},{t:'Toggle Theme',s:'Dark / light mode',i:'🌙',fn:()=>document.getElementById('btn-theme')?.click()},{t:'Reconnect',s:'Force PeerJS reconnect',i:'🔌',fn:()=>App.peer.tryReconnect()},{t:'Flip Camera',s:'Switch front/rear camera',i:'🔄',fn:()=>App.qr.flipCamera()},];
+    for(const c of cmds){const s=Math.max(this._score(c.t,q),this._score(c.s,q)*0.7);if(s>CFG.SEARCH_SCORE_THRESHOLD)results.push({type:'command',score:s*0.85,title:c.t,sub:c.s,icon:c.i,action:()=>{c.fn();Modal.hide('search-ov');}});}
+    return results.sort((a,b)=>b.score-a.score).slice(0,20);
+  }
+}
 /* ══════════════════════════════════════════════════════════
    UI MANAGER
 ══════════════════════════════════════════════════════════ */
@@ -3373,19 +3703,30 @@ class UIManager{
     this._renderDeviceInfo();
   }
   _bindTabs(){
-    document.querySelectorAll('.tn').forEach(btn=>{
+    const tabs=document.querySelectorAll('.tn');
+    tabs.forEach((btn,idx)=>{
       btn.addEventListener('click',()=>{
         this.setTab(btn.dataset.tab);
-        document.querySelectorAll('.tn').forEach(b=>{b.classList.remove('on');b.setAttribute('aria-selected','false');});
-        btn.classList.add('on');btn.setAttribute('aria-selected','true');
+        tabs.forEach(b=>{b.classList.remove('on');b.setAttribute('aria-selected','false');b.setAttribute('tabindex','-1');});
+        btn.classList.add('on');btn.setAttribute('aria-selected','true');btn.setAttribute('tabindex','0');
+      });
+      btn.addEventListener('keydown',e=>{
+        const arr=[...tabs];
+        const cur=arr.indexOf(btn);
+        if(e.key==='ArrowRight'||e.key==='ArrowDown'){e.preventDefault();arr[(cur+1)%arr.length]?.focus();}
+        else if(e.key==='ArrowLeft'||e.key==='ArrowUp'){e.preventDefault();arr[(cur-1+arr.length)%arr.length]?.focus();}
+        else if(e.key==='Home'){e.preventDefault();arr[0]?.focus();}
+        else if(e.key==='End'){e.preventDefault();arr[arr.length-1]?.focus();}
       });
     });
+    // Set initial tabindices
+    tabs.forEach((b,i)=>{b.setAttribute('tabindex',b.classList.contains('on')?'0':'-1');});
   }
   setTab(tab){
     document.querySelectorAll('.tabview').forEach(el=>{el.classList.remove('on');el.style.display='';});
     const tv=document.getElementById('tab-'+tab);
     if(tv){tv.classList.add('on');tv.style.display='flex';}
-    if(tab==='whiteboard')Timers.timeout('wb-init',()=>App.board.init(),100);
+    if(tab==='whiteboard'){Timers.timeout('wb-init',()=>{if(App.board&&!App.board._wbReady){App.board.init();App.board._wbReady=true;}},100);}
     if(tab==='notifications')App.notifCenter.markAllRead();
     if(tab==='history')this._renderHistory();
     if(tab==='settings'){this._renderDeviceInfo();App.trust?.renderTrustedList();}
@@ -3436,6 +3777,8 @@ class UIManager{
     this._updPeerCount();
   }
   _createPeerEl(pid){
+    // Add slide-in class for new peer cards
+    const _pceNew=()=>{const e=document.createElement('div');e.id='pc-'+pid;e.className='peer-card peer-card-new';e.setAttribute('role','listitem');setTimeout(()=>e.classList.remove('peer-card-new'),300);return e;}
     let el=document.getElementById('pc-'+pid);
     if(!el){
       el=document.createElement('div');el.id='pc-'+pid;el.className='pc';
@@ -3461,6 +3804,10 @@ class UIManager{
     el.setAttribute('role','listitem');
   }
   selectPeer(pid){
+    // Restore draft for this peer
+    const mi=document.getElementById('mi');
+    if(mi&&pid){const draft=SafeStorage.get('dh-draft-'+pid,'');if(draft){mi.value=draft;mi.style.height='auto';mi.style.height=Math.min(mi.scrollHeight,90)+'px';}else{mi.value='';mi.style.height='auto';}}
+
     this.activePeer=pid;
     this._unread.delete(pid);
     // Update selection
@@ -3507,7 +3854,8 @@ class UIManager{
     const empty=document.getElementById('chat-empty');
     if(empty)empty.classList.add('hidden');
     const row=document.createElement('div');row.className='mr'+(self?' me':'');row.id='mr-'+id;
-    const safeText=esc(text);const safeId=esc(id);
+    const safeText=(()=>{const e=esc(text);return e.replace(/(https?:\/\/[^\s<>"']+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer" class="msg-link">$1</a>');})();
+    const safeId=esc(id);
     const timeStr=fmtTs(ts||Date.now());
     row.innerHTML=`<div class="mb${self?' me':''}" id="mb-${safeId}">
       <div>${safeText}</div>
@@ -3583,7 +3931,23 @@ class UIManager{
     const count=App.peer.dconns.size;
     setEl('pc-pill',`<span style="background:var(--primary);color:#fff;border-radius:99px;padding:1px 6px;font-size:10px">${count}</span>`);
   }
+
+  _bindPeerListKeyNav(){
+    const list=document.getElementById('peer-cards');
+    if(!list)return;
+    list.addEventListener('keydown',e=>{
+      const cards=[...list.querySelectorAll('[role="listitem"]')];
+      if(!cards.length)return;
+      const cur=document.activeElement;
+      const idx=cards.indexOf(cur.closest('[role="listitem"]'));
+      if(e.key==='ArrowDown'){e.preventDefault();const next=cards[(idx+1)%cards.length];next?.querySelector('button')?.focus()||next?.focus();}
+      else if(e.key==='ArrowUp'){e.preventDefault();const prev=cards[(idx-1+cards.length)%cards.length];prev?.querySelector('button')?.focus()||prev?.focus();}
+      else if(e.key==='Home'){e.preventDefault();cards[0]?.querySelector('button')?.focus()||cards[0]?.focus();}
+      else if(e.key==='End'){e.preventDefault();cards[cards.length-1]?.querySelector('button')?.focus()||cards[cards.length-1]?.focus();}
+    });
+  }
   _bindSidebar(){
+    this._bindPeerListKeyNav();
     document.getElementById('btn-join')?.addEventListener('click',()=>{
       const v=document.getElementById('jin')?.value||'';
       if(v)App.peer.connectTo(v);
@@ -3600,6 +3964,8 @@ class UIManager{
       // Auto-resize
       mi.addEventListener('input',()=>{
         mi.style.height='auto';mi.style.height=Math.min(mi.scrollHeight,90)+'px';
+        // Auto-save draft
+        if(this.activePeer)SafeStorage.set('dh-draft-'+this.activePeer,mi.value);
       },{passive:true});
       mi.addEventListener('keydown',e=>{
         if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();this._sendMsg();}
@@ -3611,7 +3977,7 @@ class UIManager{
         }
       });
     }
-    sendBtn?.addEventListener('click',()=>this._sendMsg());
+    sendBtn?.addEventListener('click',()=>{this._sendMsg();if(!window.matchMedia('(prefers-reduced-motion:reduce)').matches){sendBtn.style.animation='none';void sendBtn.offsetWidth;sendBtn.style.animation='btn-tap .15s ease';}});
     document.getElementById('btn-clip')?.addEventListener('click',()=>App.clipboard.read());
     document.getElementById('btn-cancel-reply')?.addEventListener('click',()=>this._cancelReply());
     document.getElementById('chat-btn-voice')?.addEventListener('click',()=>{if(this.activePeer)App.media.voice(this.activePeer);else App.toast.show('Select a peer first','warning');});
@@ -3634,7 +4000,7 @@ class UIManager{
     const sent=App.peer.sendMsg(this.activePeer,text,id);
     if(sent!==false){
       this.appendMsg({id,text,self:true,ts:Date.now(),peer:this.activePeer});
-      if(mi){mi.value='';mi.style.height='auto';}
+      if(mi){mi.value='';mi.style.height='auto';if(this.activePeer)SafeStorage.del('dh-draft-'+this.activePeer);}
       this._cancelReply();
       App.store.put('messages',{id,pid:this.activePeer,text,ts:Date.now(),self:true}).catch(()=>{});
     }
@@ -3786,6 +4152,10 @@ class UIManager{
     // Global Ctrl+K / Cmd+K shortcut
     document.addEventListener('keydown',e=>{
       if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();overlay?.classList.toggle('on');if(overlay?.classList.contains('on')){inp?.focus();sel=0;render('');}}
+      if((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.key==='F'){e.preventDefault();Modal.show('search-ov');document.getElementById('search-inp')?.focus();}
+      if((e.ctrlKey||e.metaKey)&&e.shiftKey&&(e.key==='Q'||e.key==='q')){e.preventDefault();App.qr?.showQR();}
+      if((e.ctrlKey||e.metaKey)&&e.shiftKey&&e.key==='F'){e.preventDefault();Modal.show('search-ov');document.getElementById('search-inp')?.focus();}
+      if((e.ctrlKey||e.metaKey)&&e.shiftKey&&(e.key==='Q'||e.key==='q')){e.preventDefault();App.qr?.showQR();}
     });
   }
   _bindEmoji(){
@@ -3849,16 +4219,30 @@ class UIManager{
   }
   _bindSearch(){
     const inp=document.getElementById('search-inp');const results=document.getElementById('search-results');
+    const cntEl=document.getElementById('search-count');
     if(!inp||!results)return;
-    inp.addEventListener('input',debounce(()=>{
-      const q=inp.value.toLowerCase().trim();if(!q){results.innerHTML='';return;}
-      const peers=[...App.peer.peerMap.entries()].filter(([pid,info])=>{
-        const nm=(info?.name||pid).toLowerCase();return nm.includes(q);
+    const engine=App.search||new GlobalSearch();
+    let selIdx=0;
+    const renderR=(q)=>{
+      if(!q||q.length<2){results.innerHTML='<div style="color:var(--muted);font-size:12px;padding:8px 0">Type to search peers, tasks, notes, commands…</div>';if(cntEl)cntEl.textContent='';return;}
+      const items=engine.search(q);
+      if(cntEl)cntEl.textContent=items.length?items.length+' result'+(items.length!==1?'s':''):'';
+      if(!items.length){results.innerHTML='<div style="color:var(--muted);font-size:12px;padding:8px">No results for "'+esc(q)+'"</div>';return;}
+      results.innerHTML=items.map((r,i)=>`<div class="dev-row search-result${i===selIdx?' sel':''}" role="option" aria-selected="${i===selIdx}" tabindex="-1" data-idx="${i}" style="cursor:pointer;gap:10px;padding:8px 6px;"><span style="font-size:18px;min-width:24px;text-align:center" aria-hidden="true">${esc(r.icon||'🔍')}</span><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.title)}</div><div style="font-size:11px;color:var(--muted)">${esc(r.sub||'')}</div></div><span style="font-size:10px;color:var(--muted);background:var(--bg3);padding:1px 5px;border-radius:4px">${esc(r.type)}</span></div>`).join('');
+      results.querySelectorAll('.search-result').forEach((el,i)=>{
+        el.addEventListener('click',()=>{items[i]?.action?.();selIdx=0;});
+        el.addEventListener('mouseenter',()=>{selIdx=i;renderR(inp.value.trim());});
       });
-      results.innerHTML=peers.length
-        ?peers.map(([pid,info])=>`<div class="dev-row" role="option" style="cursor:pointer" onclick="App.ui.selectPeer('${esc(pid)}');Modal.hide('search-ov')"><span style="font-size:16px">${esc(info?.fp?.av||'👤')}</span><span>${esc(info?.name||pid.substring(0,12))}</span></div>`).join('')
-        :`<div style="color:var(--muted);font-size:12px;padding:8px">No results</div>`;
-    },200));
+    };
+    inp.addEventListener('input',debounce(()=>{selIdx=0;renderR(inp.value.trim());},150));
+    inp.addEventListener('keydown',e=>{
+      const items=results.querySelectorAll('.search-result');
+      if(e.key==='ArrowDown'){e.preventDefault();selIdx=Math.min(selIdx+1,items.length-1);renderR(inp.value.trim());}
+      else if(e.key==='ArrowUp'){e.preventDefault();selIdx=Math.max(selIdx-1,0);renderR(inp.value.trim());}
+      else if(e.key==='Enter'){e.preventDefault();const cur=results.querySelector('.search-result.sel');if(cur)cur.click();}
+      else if(e.key==='Escape'){Modal.hide('search-ov');}
+    });
+    results.innerHTML='<div style="color:var(--muted);font-size:12px;padding:8px 0">Type to search peers, tasks, notes, commands…</div>';
   }
   _initSidebarDrag(){
     const drag=document.getElementById('sidebar-drag');const sb=document.getElementById('sidebar');
@@ -3924,6 +4308,7 @@ const App={
   perms:null,rateLimiter:null,broadcastDisc:null,room:null,
   heal:null,stateStore:null,memMon:null,errMgr:null,connReg:null,
   rtcReg:null,streamReg:null,cleanup:null,netRecovery:null,bootRec:null,
+  search:null,
 };
 
 async function bootApp(){
@@ -3986,6 +4371,7 @@ async function bootApp(){
   App.media=new MediaManager();
   App.peer=new PeerManager();
 
+  App.search=new GlobalSearch();
   App.ui=new UIManager();App.ui.init();
   App.presence.init();
 
@@ -4005,21 +4391,9 @@ async function bootApp(){
     setBootMsg('Ready — need name',95);
     await sleep(400);
     document.getElementById('boot-overlay')?.classList.add('gone');
+    OB.init();
     Modal.show('ob-modal');
     document.getElementById('ob-name')?.focus();
-    const startBtn=document.getElementById('btn-ob-start');
-    if(startBtn){
-      startBtn.addEventListener('click',()=>{
-        const n=(document.getElementById('ob-name')?.value||'').trim();
-        if(!n){App.toast.show('Enter a name','warning');return;}
-        SafeStorage.set('dh-name',n);SafeStorage.set('dh-avatar','👤');
-        Modal.hide('ob-modal');
-        setEl('my-name-btn',esc(n));
-        const sn=document.getElementById('set-name');if(sn)sn.value=n;
-        App.toast.show('Welcome, '+esc(n)+'!','success');
-      },{once:true});
-      document.getElementById('ob-name')?.addEventListener('keydown',e=>{if(e.key==='Enter')startBtn.click();});
-    }
   }else{
     setBootMsg('Ready!',100);
     await sleep(300);
@@ -4044,6 +4418,70 @@ async function bootApp(){
     const notes=document.getElementById('notepad')?.value||'';
     SafeStorage.setJSON('dh-boot-snapshot',{ts:Date.now(),notes,name:SafeStorage.get('dh-name','')});
   },60000);
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   DEV / TEST HOOKS (only loaded when dh-devmode=1)
+══════════════════════════════════════════════════════════ */
+if(localStorage.getItem('dh-devmode')==='1'){
+  window.__devhub_test={
+    sendMockMessage(peerId,text){
+      if(!App.ui||!App.peer)return console.warn('App not ready');
+      const id=uid(8);
+      App.ui.appendMsg({id,text,self:false,ts:Date.now(),peer:peerId});
+      App.log?.info?.('[TEST] sendMockMessage to '+peerId+': '+text);
+    },
+    simulateIncomingCall(peerId){
+      if(!App.media)return console.warn('App not ready');
+      const mockCall={peer:peerId,close:()=>{},on:(evt,fn)=>{if(evt==='stream')setTimeout(()=>fn(new MediaStream()),500);}};
+      App.media._handleIncoming(mockCall);
+      App.log?.info?.('[TEST] simulateIncomingCall from '+peerId);
+    },
+    triggerDisconnect(){
+      for(const[pid,conn]of(App.peer?.dconns||[])){try{conn.close();}catch(e){}}
+      App.log?.info?.('[TEST] triggerDisconnect called');
+    },
+    getAppState(){
+      return{
+        myId:App.peer?.myId,
+        peers:[...((App.peer?.peerMap)||[])].map(([k,v])=>({id:k,status:v?.status})),
+        activePeer:App.ui?.activePeer,
+        connected:App.peer?.dconns?.size||0,
+        calls:App.callHist?.getAll?.()?.length||0,
+        tasks:App.tasks?._tasks?.length||0,
+        notes:(document.getElementById('notepad')?.value||'').length,
+        version:CFG.VERSION,
+        deviceProfile:window.DeviceProfile,
+        deviceIdentity:window.DeviceIdentity,
+      };
+    },
+    runAllTests(){
+      const results=[];
+      const t=(name,fn)=>{try{fn();results.push({name,ok:true});}catch(e){results.push({name,ok:false,err:e.message});}};
+      t('CFG.VERSION',()=>{if(!CFG.VERSION)throw new Error('No version');});
+      t('App.toast',()=>{if(!App.toast?.show)throw new Error('No toast');});
+      t('App.peer',()=>{if(!App.peer)throw new Error('No peer');});
+      t('App.ui',()=>{if(!App.ui)throw new Error('No UI');});
+      t('App.files',()=>{if(!App.files)throw new Error('No files');});
+      t('App.media',()=>{if(!App.media)throw new Error('No media');});
+      t('App.board',()=>{if(!App.board)throw new Error('No whiteboard');});
+      t('App.tasks',()=>{if(!App.tasks)throw new Error('No tasks');});
+      t('App.vault',()=>{if(!App.vault)throw new Error('No vault');});
+      t('App.search',()=>{if(!App.search)throw new Error('No search');});
+      t('DeviceProfile',()=>{if(!window.DeviceProfile)throw new Error('No DeviceProfile');});
+      t('DeviceIdentity',()=>{if(!window.DeviceIdentity)throw new Error('No DeviceIdentity');});
+      t('GlobalSearch',()=>{const r=App.search.search('chat');if(!Array.isArray(r))throw new Error('search not array');});
+      t('SafeStorage',()=>{SafeStorage.set('__test','1');if(SafeStorage.get('__test')!=='1')throw new Error('set/get failed');SafeStorage.del('__test');});
+      t('LazyModule',()=>{const m=new LazyModule();if(m._initialized)throw new Error('should be false');});
+      const pass=results.filter(r=>r.ok).length;
+      const fail=results.filter(r=>!r.ok);
+      console.log('[DevHub Test] '+pass+'/'+results.length+' passed');
+      if(fail.length)console.error('[DevHub Test] FAILURES:',fail);
+      return{total:results.length,passed:pass,failed:fail};
+    }
+  };
+  console.log('%c[DevHub DevMode] window.__devhub_test available. Run __devhub_test.runAllTests() to test.','color:#6366f1;font-weight:bold');
 }
 
 // Wait for DOM + PeerJS ready
