@@ -114,11 +114,12 @@
 <meta name="theme-color" content="#0f0f17">
 <!-- HOW TO RECOMPUTE CSP HASHES: window.__devhub_recomputeCSPHash() in devmode, or node transform script -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://mozilla.github.io; connect-src *; media-src *; img-src * data: blob:; style-src 'self' 'unsafe-inline'; worker-src blob:; frame-ancestors 'none'; form-action 'none'; base-uri 'self'; upgrade-insecure-requests;">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="description" content="DevHub — Secure P2P Communication Hub">
 <meta name="format-detection" content="telephone=no">
-<link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;DevHub&quot;,&quot;short_name&quot;:&quot;DevHub&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#0f0f17&quot;,&quot;theme_color&quot;:&quot;#6366f1&quot;}">
+<link rel="manifest" href="data:application/json,%7B%22name%22%3A%22DevHub%22%2C%22short_name%22%3A%22DevHub%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230f0f17%22%2C%22theme_color%22%3A%22%236366f1%22%7D">
 <title>DevHub v12.0 — P2P Communication Suite</title>
 <style>
 /* ═══════════════════════════════════════════════
@@ -2709,10 +2710,19 @@ class ModuleHealthEngine{
 class GlobalErrorManager{
   constructor(){this._errors=[];}
   init(){
-    window.addEventListener('error',e=>{this._errors.push({msg:e.message,src:e.filename,line:e.lineno,ts:Date.now()});if(this._errors.length>50)this._errors.shift();});
-    window.addEventListener('unhandledrejection',e=>{this._errors.push({msg:String(e.reason),src:'promise',ts:Date.now()});if(this._errors.length>50)this._errors.shift();});
+    window.addEventListener('error',e=>{this.capture(e.error||e.message,{src:e.filename,line:e.lineno,colno:e.colno,type:'error'});});
+    window.addEventListener('unhandledrejection',e=>{this.capture(e.reason,{src:'promise',type:'unhandledrejection'});});
+  }
+  capture(err,ctx){
+    try{
+      const rec={msg:(err&&err.message)?err.message:String(err),stack:(err&&err.stack)?String(err.stack):null,ctx:ctx||null,ts:Date.now()};
+      this._errors.push(rec);
+      if(this._errors.length>50)this._errors.shift();
+      if(typeof console!=='undefined'&&console.warn)console.warn('[GlobalErrorManager]',rec.msg,ctx||'');
+    }catch(_){/* swallow — error reporter must never throw */}
   }
   getErrors(){return[...this._errors];}
+  clear(){this._errors.length=0;}
 }
 
 /* ══════════════════════════════════════════════════════════
