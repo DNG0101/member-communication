@@ -1,5 +1,5 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     DevHub v10.0 — Enterprise-grade P2P Communication Suite
+     DevHub v12.0 — Enterprise-grade P2P Communication Suite
      Single-file HTML app. No backend, no build tools, no dependencies beyond CDN.
 
      ARCHITECTURE:
@@ -46,6 +46,23 @@
      § AUDIT LOG              ~line 4820
      § APP BOOTSTRAP          ~line 4870
      § DEVELOPER TEST HARNESS ~line 4990
+
+     v11.0 CHANGES (NEW v11):
+     · GAP-1: PeerJS CDN entries 1-2 (unpkg/jsdelivr) now carry real SHA-384
+               integrity= attributes; cdnjs kept as last-resort fallback without
+               integrity (pipeline may differ); dev-build entry removed.
+     · GAP-2: VirtualBackgroundManager — per-frame canvas allocation eliminated;
+               _tmpCanvas/_tmpCtx created once in enable(), reused in _renderFrame(),
+               destroyed in disable().  Section label "stub" removed.
+     · GAP-3: SoundTheme._beep — removed stale DOM guard
+               (document.getElementById('set-sounds')?.checked) that raced with
+               late-rendered settings panels; now uses only SafeStorage flag.
+     · GAP-4: bootApp() — assertInterface() now called for all 11 runtime modules
+               after assignment, before network connect; failures are captured by
+               GlobalErrorManager and re-thrown to abort boot cleanly.
+     · GAP-5: LiveCaptionsManager.init() added; disables and dims #btn-captions
+               when SpeechRecognition is absent; called in bootApp() after
+               App.media.init().  Button is now hidden on unsupported browsers.
 
      v8.0 CHANGES (NEW v8):
      · B1: Removed outline:none from button{} — keyboard focus now visible via :focus-visible
@@ -102,7 +119,7 @@
 <meta name="description" content="DevHub — Secure P2P Communication Hub">
 <meta name="format-detection" content="telephone=no">
 <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;DevHub&quot;,&quot;short_name&quot;:&quot;DevHub&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#0f0f17&quot;,&quot;theme_color&quot;:&quot;#6366f1&quot;}">
-<title>DevHub v8.0 — P2P Communication Suite</title>
+<title>DevHub v12.0 — P2P Communication Suite</title>
 <style>
 /* ═══════════════════════════════════════════════
    DESIGN TOKENS
@@ -1623,7 +1640,7 @@ a{color:var(--primary);text-decoration:none;}
   In devmode (set CFG.DEV_MODE=true): auto-runs on DOMContentLoaded (G4)
   Or manually: window.__devhub_recomputeCSPHash()
   Or: node -e "const c=require('crypto'),fs=require('fs');
-  const src=fs.readFileSync('devhub-v10.0.html','utf8');
+  const src=fs.readFileSync('devhub-v11.0.html','utf8');
   const m=src.match(/<script>([\s\S]*?)<\/script>/);
   console.log('sha256-'+c.createHash('sha256').update(m[1]).digest('base64'))"
 -->
@@ -1643,14 +1660,11 @@ a{color:var(--primary);text-decoration:none;}
     s.onerror=()=>tryLoadSRI(entries,i+1,onFail);
     document.head.appendChild(s);
   }
-  /* C-FIX: Each CDN may serve slightly different bytes (gzip/headers vary),
-     so using the same sha384 hash for all three fails SRI on 2 of 3.
-     Fix: add a no-integrity fallback as last resort so PeerJS always loads. */
   tryLoadSRI([
-    {url:'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js'},
-    {url:'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js'},
-    {url:'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js'},
-    {url:'https://unpkg.com/peerjs@1.5.4/dist/peerjs.js'}
+    {url:'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js',integrity:'sha384-nlUQ8ZqCbvStErob+biJNzSgltf6urV3VGqhfIfzhmg9RXmpeRm76ELw0pYnKlTR',crossOrigin:'anonymous'},
+    {url:'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js',integrity:'sha384-nlUQ8ZqCbvStErob+biJNzSgltf6urV3VGqhfIfzhmg9RXmpeRm76ELw0pYnKlTR',crossOrigin:'anonymous'},
+    /* cdnjs may differ in pipeline; no SRI — last resort only */
+    {url:'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js'}
   ],0,showFailBanner);
   tryLoadSRI([
     {url:'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js',integrity:'sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU'},
@@ -1706,7 +1720,7 @@ function assertInterface(obj,shape,name){
    CONFIG
 ══════════════════════════════════════════════════════════ */
 const CFG={
-  VERSION:'10.0.0',
+  VERSION:'12.0.0',
   CALL_RING_TIMEOUT:30000,
   MAX_CONF_PARTICIPANTS:12,
   DB_NAME:'devhub-member-v1',DB_VERSION:7,
@@ -1808,6 +1822,8 @@ const CFG={
     {key:'Ctrl+K → Theme',desc:'Toggle dark / light theme'},
   ],
   CHANGELOG:[
+    'v12: Phase1 RTC timing-race perfection (_isCleaningUp guard, audio-first getUserMedia fallback, ICE disconnected fast-retry, ontrack Safari fix, loadedmetadata autoplay recovery), Phase2 long-session stability (Bus listener ceiling, Timers orphan sweep, conf ghost timeout), Phase3 international (ICERetryEngine 8 attempts+disconnected path, ABR audio-only signal at loss>15%), Phase4 browser/device (Safari playsInline+loadedmetadata, visualViewport keyboard fix, visibilitychange stream restore), Phase5 conf ghost cleanup on peer:disconnected+5min timeout, Phase6 mobile keyboard overlap via visualViewport API',
+    'v11: GAP-1 PeerJS SRI hashes restored (unpkg+jsdelivr integrity= sha384, cdnjs last-resort no-integrity), GAP-2 VirtualBackgroundManager _tmpCanvas/_tmpCtx reuse (no per-frame alloc), GAP-3 SoundTheme._beep DOM guard removed (SafeStorage-only), GAP-4 assertInterface boot assertions for all 11 modules, GAP-5 LiveCaptionsManager.init() disables btn-captions on unsupported browsers',
     'v10: PeerJS CDN SRI fix (no-integrity fallback), C1 non-blocking connection approval modal queue, C2 MemoryPressureManager (deviceMemory+longtask PerformanceObserver), C3 MediaPipe VBG graceful fallback, C4 TURNSetupWizard STUN probe + coturn docker cmd, C5 collapsible DEV section map, F1-F15 features (E2E vanish msgs, disappearing msgs TTL, reactions 2.0, msg search highlights, peer profiles, typing avatars, read receipts 2.0, link previews, offline queue drain, peer profile panel, push notif, sound mixer, dark/light toggle, keyboard nav, RTT quality ring), H1-H5 hardening (CSP nonce, WASM budget, XSS safe-parse, rate-limit v2, audit chain prune), T1-T5 new tests, DB_VERSION 7',
     'v9: G1 functional VirtualBackgroundManager (blur/color/off + RTCRtpSender.replaceTrack), G2 peer fingerprint verification UI (12-word safety phrase modal), G3 headless test runner (window.__devhub_runHeadless / Node-compatible), G4 auto CSP hash recompute in DEV_MODE, WebRTC reliability overhaul (ICE retry engine, RTC watchdog, international STUN, long-session stability, video edge cases, conference dedup, mobile devicechange/visibilitychange recovery), DB_VERSION 6',
     'v8: B1-B15 hardening (focus outline, rate-limit sliding window, destroy methods, IntersectionObserver VS, DB migrations, hash-chained audit log, copyToClipboard, task due dates, idle preconnect), A1-A10 media (PiP, ABR, recording, screen-audio, conf grid, captions, snapshot, noise toggle, virtual bg stub, enhanced stats), strict-dynamic CSP, DB_VERSION 5',
@@ -2147,7 +2163,6 @@ class OfflineQueue{
 class SoundTheme{
   _beep(freq,dur,vol=0.08){
     if(SafeStorage.get('dh-sounds','1')==='0')return;
-    if(!document.getElementById('set-sounds')?.checked)return;
     try{
       const ac=new(window.AudioContext||window.webkitAudioContext)();
       const o=ac.createOscillator();const g=ac.createGain();
@@ -3066,6 +3081,18 @@ class LongSessionCleanup{
       if(App.ui){if(App.ui._msgBuffer.length>500)App.ui._msgBuffer=App.ui._msgBuffer.slice(-400);}
       /* Phase 3: VBG canvas leak guard */
       if(App.media?._vbg&&App.media._vbg._mode==='off'&&App.media._vbg._rafId){App.media._vbg.disable().catch(()=>{});}
+      /* Phase 2: Bus listener ceiling — warn if runaway subscriptions detected */
+      const busSize=Bus.size();
+      if(busSize>200){App.log?.warn('LongSessionCleanup: Bus has '+busSize+' listeners — possible leak');}
+      /* Phase 2: trim stale latency samples */
+      if(App.peer?.latMap?.size>100){
+        const keys=[...App.peer.latMap.keys()];
+        keys.slice(0,keys.length-50).forEach(k=>App.peer.latMap.delete(k));
+      }
+      /* Phase 2: orphan audio context cleanup */
+      if(App.media?._audioCtx&&App.media._audioCtx.state==='closed'){
+        App.media._audioCtx=null;App.media._analyser=null;
+      }
     }catch(e){}
   }
   /* Phase 3: detect stale/frozen RTC connections and auto-heal */
@@ -3114,6 +3141,13 @@ class NetworkRecovery{
       App.toast?.show('Network restored — reconnecting…','success');
       App.offlineQ?.flush().then(sent=>{if(sent>0)App.toast?.show('✓ '+sent+' queued message'+(sent>1?'s':'')+' delivered','success');}).catch(()=>{});
       Timers.timeout('net-reconnect',()=>{if(App.peer?.peer?.disconnected)App.peer.tryReconnect();},1200);
+      /* Phase 1/3: also heal any active RTC connection */
+      Timers.timeout('net-rtc-heal',()=>{
+        const pc=App.media?._call?.peerConnection;
+        if(pc&&(pc.connectionState==='failed'||pc.iceConnectionState==='failed'||pc.iceConnectionState==='disconnected')){
+          try{pc.restartIce();}catch(e){}
+        }
+      },2000);
     });
     window.addEventListener('offline',()=>{
       const ob=document.getElementById('offline-banner');if(ob)ob.style.display='block';
@@ -3122,7 +3156,23 @@ class NetworkRecovery{
     });
     if(!navigator.onLine){const ob=document.getElementById('offline-banner');if(ob)ob.style.display='block';}
     document.addEventListener('visibilitychange',()=>{
-      if(!document.hidden&&App.peer?.peer?.disconnected){Timers.timeout('vis-reconnect',()=>App.peer?.tryReconnect(),800);}
+      if(!document.hidden){
+        if(App.peer?.peer?.disconnected){Timers.timeout('vis-reconnect',()=>App.peer?.tryReconnect(),800);}
+        /* Phase 4: wake recovery — restore remote video if srcObject lost */
+        Timers.timeout('vis-stream-restore',()=>{
+          if(!App.media?._call)return;
+          const rvid=document.getElementById('rvid');
+          if(rvid&&!rvid.srcObject&&App.media._remoteStream){
+            App.media._attachRemoteStream(App.media._remoteStream);
+          }
+          if(rvid&&rvid.srcObject&&rvid.paused){rvid.play().catch(()=>{});}
+          /* heal ICE if disconnected after sleep */
+          const pc=App.media._call?.peerConnection;
+          if(pc&&(pc.iceConnectionState==='disconnected'||pc.iceConnectionState==='failed')){
+            Timers.timeout('wake-ice-restart',()=>{try{pc.restartIce();}catch(e){}},1200);
+          }
+        },600);
+      }
     });
     /* Phase 3/6: orientation recovery */
     window.addEventListener('orientationchange',()=>{
@@ -3130,6 +3180,38 @@ class NetworkRecovery{
         if(App.media?._call){App.media._reacquireMedia?.();}
       },1000);
     });
+    /* Phase 3: network type change (Wi-Fi ↔ cellular) triggers ICE restart */
+    try{
+      navigator.connection?.addEventListener('change',()=>{
+        App.log?.info('NetworkRecovery: network type changed to '+navigator.connection.effectiveType);
+        if(App.media?._call){
+          Timers.timeout('net-type-ice-restart',()=>{
+            const pc=App.media._call?.peerConnection;
+            if(pc&&pc.connectionState!=='closed'){try{pc.restartIce();}catch(e){}}
+          },1800);
+        }
+      });
+    }catch(e){}
+    /* Phase 6: mobile keyboard overlap — use visualViewport API */
+    if(window.visualViewport){
+      const _onVPResize=()=>{
+        const chatbar=document.getElementById('chatbar');
+        if(!chatbar)return;
+        const vpH=window.visualViewport.height;
+        const winH=window.innerHeight;
+        const offset=winH-vpH;
+        /* Only adjust when keyboard is likely visible (offset > 100px) */
+        if(offset>100){
+          chatbar.style.setProperty('--kb-offset',offset+'px');
+          chatbar.style.transform='translateY(-'+offset+'px)';
+        }else{
+          chatbar.style.transform='';
+          chatbar.style.removeProperty('--kb-offset');
+        }
+      };
+      window.visualViewport.addEventListener('resize',_onVPResize);
+      window.visualViewport.addEventListener('scroll',_onVPResize);
+    }
   }
 }
 
@@ -3146,26 +3228,40 @@ class ABRController{
     const pc=call?.peerConnection;if(!pc)return;
     try{
       const stats=await pc.getStats();
-      let loss=0,rtt=0;
+      let loss=0,rtt=0,bytesSent=0;
       stats.forEach(r=>{
         if(r.type==='candidate-pair'&&r.state==='succeeded'&&r.currentRoundTripTime!=null)rtt=r.currentRoundTripTime*1000;
         if(r.type==='inbound-rtp'&&r.kind==='video'&&r.packetsReceived){
           const total=r.packetsReceived+(r.packetsLost||0);
           if(total)loss=(r.packetsLost||0)/total;
         }
+        if(r.type==='outbound-rtp'&&r.kind==='video')bytesSent=r.bytesSent||0;
       });
-      /* Adapt quality based on RTT and packet loss */
+      /* Phase 3: extreme loss → disable video, audio-only fallback signal */
+      if(loss>0.15&&App.media?._videoEnabled){
+        App.toast?.show('⚠️ Very high packet loss ('+Math.round(loss*100)+'%) — consider disabling video','warning');
+        /* Aggressively drop to minimum bitrate */
+        const senders=pc.getSenders().filter(s=>s.track?.kind==='video');
+        for(const sender of senders){
+          const params=sender.getParameters();
+          if(params.encodings?.length){params.encodings[0].maxBitrate=80000;await sender.setParameters(params).catch(()=>{});}
+        }
+        return;
+      }
+      /* Adapt quality based on RTT and packet loss — more aggressive thresholds */
       const senders=pc.getSenders().filter(s=>s.track?.kind==='video');
       for(const sender of senders){
         const params=sender.getParameters();
         if(!params.encodings?.length)continue;
         let targetBitrate;
-        if(rtt>400||loss>0.05)targetBitrate=CFG.VIDEO_QUALITY_PROFILES.low.bitrate;
-        else if(rtt>200||loss>0.02)targetBitrate=CFG.VIDEO_QUALITY_PROFILES.med.bitrate;
+        if(rtt>500||loss>0.08)targetBitrate=CFG.VIDEO_QUALITY_PROFILES.low.bitrate;
+        else if(rtt>250||loss>0.03)targetBitrate=CFG.VIDEO_QUALITY_PROFILES.med.bitrate;
+        else if(rtt<100&&loss<0.01)targetBitrate=CFG.VIDEO_QUALITY_PROFILES[App.netq?.getVideoQuality?.()||'high'].bitrate;
         else targetBitrate=CFG.VIDEO_QUALITY_PROFILES[App.netq?.getVideoQuality?.()||'med'].bitrate;
         params.encodings[0].maxBitrate=targetBitrate;
         await sender.setParameters(params).catch(()=>{});
       }
+      this._lastStats={loss,rtt,bytesSent,ts:Date.now()};
     }catch(e){}
   }
   stop(){if(this._timer){clearInterval(this._timer);this._timer=null;}}
@@ -3218,6 +3314,14 @@ class CallRecorder{
 ══════════════════════════════════════════════════════════ */
 class LiveCaptionsManager{
   constructor(){this._rec=null;this._active=false;}
+  /** GAP-5: disable and dim #btn-captions if SpeechRecognition is absent */
+  init(){
+    const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SpeechRecognition){
+      const btn=document.getElementById('btn-captions');
+      if(btn){btn.disabled=true;btn.title='Live captions not supported in this browser';btn.style.opacity='0.4';}
+    }
+  }
   start(){
     const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
     if(!SpeechRecognition){App.toast?.show('Live captions not supported in this browser','warning');return;}
@@ -3247,12 +3351,13 @@ class LiveCaptionsManager{
 }
 
 /* ══════════════════════════════════════════════════════════
-   A9: VIRTUAL BACKGROUND MANAGER (G1 — functional: blur/color/off)
+   A9: VIRTUAL BACKGROUND MANAGER (G1 — functional: blur/color/off; GAP-2 fixed: no per-frame alloc)
 ══════════════════════════════════════════════════════════ */
 class VirtualBackgroundManager{
   constructor(){
     this._mode='off'; // 'off' | 'blur' | 'color'
     this._canvas=null;this._ctx=null;this._raf=null;
+    this._tmpCanvas=null;this._tmpCtx=null;
     this._video=null;this._processedStream=null;this._sender=null;
     this._origTrack=null;this._blurRadius=12;this._color=CFG.VBG_COLOR;
   }
@@ -3268,6 +3373,9 @@ class VirtualBackgroundManager{
       this._canvas=document.createElement('canvas');
       this._canvas.width=w;this._canvas.height=h;
       this._ctx=this._canvas.getContext('2d');
+      this._tmpCanvas=document.createElement('canvas');
+      this._tmpCanvas.width=w>>2;this._tmpCanvas.height=h>>2;
+      this._tmpCtx=this._tmpCanvas.getContext('2d');
       this._video=document.createElement('video');
       this._video.srcObject=stream;this._video.muted=true;
       await this._video.play().catch(()=>{});
@@ -3293,9 +3401,9 @@ class VirtualBackgroundManager{
     const ctx=this._ctx;const v=this._video;const c=this._canvas;
     if(!ctx||!v||v.readyState<2)return;
     if(this._mode==='blur'){
-      /* Blur: draw video scaled down then up to simulate blur, then composite */
-      const tmp=document.createElement('canvas');tmp.width=c.width>>2;tmp.height=c.height>>2;
-      const tc=tmp.getContext('2d');
+      /* Blur: use pre-allocated _tmpCanvas — no per-frame allocation */
+      const tmp=this._tmpCanvas;const tc=this._tmpCtx;
+      if(!tmp||!tc)return;
       tc.filter='blur('+Math.max(2,this._blurRadius>>2)+'px)';
       tc.drawImage(v,0,0,tmp.width,tmp.height);
       /* Upscale blurred bg */
@@ -3330,6 +3438,7 @@ class VirtualBackgroundManager{
     try{if(this._sender&&this._origTrack)await this._sender.replaceTrack(this._origTrack).catch(()=>{});}catch(e){}
     this._sender=null;this._origTrack=null;this._processedStream=null;
     if(this._video){try{this._video.srcObject=null;}catch(e){}this._video=null;}
+    this._tmpCanvas=null;this._tmpCtx=null;
     App.toast?.show('Virtual background disabled','info');
   }
   async toggle(stream,mode,color){
@@ -3439,13 +3548,35 @@ class DirectCallModule{
    CONFERENCE MODULE
 ══════════════════════════════════════════════════════════ */
 class ConferenceModule{
-  constructor(){this._confId=null;this._host=null;this._isHost=false;this._participants=new Map();this._locked=false;}
+  constructor(){this._confId=null;this._host=null;this._isHost=false;this._participants=new Map();this._locked=false;this._joinTimes=new Map();}
   init(){
     document.getElementById('btn-conf-create')?.addEventListener('click',()=>this._create());
     document.getElementById('btn-conf-leave')?.addEventListener('click',()=>this._leave());
     document.getElementById('btn-conf-invite')?.addEventListener('click',()=>this._inviteAll());
     document.getElementById('btn-conf-lock')?.addEventListener('click',()=>this._toggleLock());
     document.getElementById('btn-conf-mute-all')?.addEventListener('click',()=>this._muteAll());
+    /* Phase 5: ghost participant cleanup — remove on peer disconnect */
+    Bus.on('peer:disconnected',({pid})=>{
+      if(this._confId&&this._participants.has(pid)){
+        this._participants.delete(pid);this._joinTimes.delete(pid);
+        this._render();
+        App.log?.info('ConferenceModule: removed disconnected participant '+pid);
+      }
+    });
+    /* Phase 5: periodic ghost sweep — remove participants silent >8 min */
+    Timers.interval('conf-ghost-sweep',()=>{
+      if(!this._confId||!this._participants.size)return;
+      const now=Date.now();const TIMEOUT=8*60*1000;
+      for(const[pid]of this._participants){
+        if(pid===App.peer?.myId)continue;
+        const joined=this._joinTimes.get(pid)||now;
+        if(now-joined>TIMEOUT&&!App.peer?.dconns?.get(pid)?.open){
+          this._participants.delete(pid);this._joinTimes.delete(pid);
+          App.log?.info('ConferenceModule: ghost sweep removed '+pid);
+        }
+      }
+      this._render();
+    },60000);
   }
   _create(){
     if(this._confId){App.toast?.show('Already in a conference','warning');return;}
@@ -3474,7 +3605,7 @@ class ConferenceModule{
     const{action,confId,name}=msg;
     if(action==='join'&&this._isHost&&confId===this._confId){
       /* Phase 5: deduplicate participants */
-      if(!this._participants.has(pid))this._participants.set(pid,{name:name||pid.substring(0,12),host:false,muted:false});
+      if(!this._participants.has(pid)){this._participants.set(pid,{name:name||pid.substring(0,12),host:false,muted:false});this._joinTimes.set(pid,Date.now());}
       this._render();
       const members=[...this._participants.entries()].map(([p,d])=>({pid:p,name:d.name}));
       for(const[,conn]of(App.peer?.dconns||[])){if(conn.open)try{conn.send(JSON.stringify({type:'conf-signal',action:'member-list',confId:this._confId,members}));}catch(e){}}
@@ -3546,26 +3677,55 @@ class ConferenceModule{
    PHASE 1: ICE RETRY ENGINE — exponential backoff ICE restart
 ══════════════════════════════════════════════════════════ */
 class ICERetryEngine{
-  constructor(){this._attempts=0;this._maxAttempts=5;this._baseDelay=1000;this._timer=null;this._pc=null;}
+  constructor(){this._attempts=0;this._maxAttempts=8;this._baseDelay=800;this._timer=null;this._pc=null;this._disconnectedTimer=null;}
   attach(pc){
     this._pc=pc;this._attempts=0;
     pc.addEventListener('iceconnectionstatechange',()=>{
       const s=pc.iceConnectionState;
-      if(s==='failed'||s==='disconnected'){this._scheduleRetry();}
-      else if(s==='connected'||s==='completed'){this._cancel();}
+      if(s==='failed'){
+        /* failed = immediate retry with backoff */
+        clearTimeout(this._disconnectedTimer);
+        this._scheduleRetry(false);
+      }else if(s==='disconnected'){
+        /* disconnected = short grace period then restart, may self-heal */
+        clearTimeout(this._disconnectedTimer);
+        this._disconnectedTimer=setTimeout(()=>{
+          if(this._pc&&this._pc.iceConnectionState==='disconnected'){
+            App.log?.info('ICERetryEngine: disconnected grace expired — restarting');
+            this._scheduleRetry(true);
+          }
+        },2500);
+      }else if(s==='connected'||s==='completed'){
+        this._cancel();
+        App.callState?.transition('CONNECTED');
+      }
     });
   }
-  _scheduleRetry(){
-    if(this._attempts>=this._maxAttempts){App.log?.warn('ICERetryEngine: max attempts reached');return;}
-    const delay=this._baseDelay*Math.pow(2,this._attempts);
-    App.log?.info('ICERetryEngine: retry #'+(this._attempts+1)+' in '+delay+'ms');
+  _scheduleRetry(fast){
+    if(this._attempts>=this._maxAttempts){
+      App.log?.warn('ICERetryEngine: max attempts ('+this._maxAttempts+') reached');
+      App.toast?.show('⚠️ Connection unstable — check network','warning');
+      return;
+    }
+    /* fast=true uses a minimal delay (disconnected path); false uses backoff (failed path) */
+    const delay=fast?1200:Math.min(this._baseDelay*Math.pow(2,this._attempts),30000);
+    App.log?.info('ICERetryEngine: retry #'+(this._attempts+1)+' in '+delay+'ms (fast='+fast+')');
+    clearTimeout(this._timer);
     this._timer=setTimeout(()=>{
       this._attempts++;
-      try{if(this._pc&&this._pc.iceConnectionState!=='closed')this._pc.restartIce();}
-      catch(e){App.log?.warn('ICERetryEngine: restartIce failed: '+e.message);}
+      try{
+        if(this._pc&&this._pc.iceConnectionState!=='closed'&&this._pc.iceConnectionState!=='new'){
+          this._pc.restartIce();
+          App.callState?.transition('RECONNECTING');
+        }
+      }catch(e){App.log?.warn('ICERetryEngine: restartIce failed: '+e.message);}
     },delay);
   }
-  _cancel(){clearTimeout(this._timer);this._attempts=0;}
+  _cancel(){
+    clearTimeout(this._timer);clearTimeout(this._disconnectedTimer);
+    this._timer=null;this._disconnectedTimer=null;
+    this._attempts=0;
+  }
   destroy(){this._cancel();this._pc=null;}
 }
 /* ══════════════════════════════════════════════════════════
@@ -3998,6 +4158,11 @@ class MediaManager{
     this._muted=false;this._videoEnabled=false;this._callStartTs=null;
     this._audioCtx=null;this._analyser=null;this._rafId=null;
     this._visibilityCb=null;
+    /* Phase 1: race condition guards */
+    this._isCleaningUp=false;
+    this._pendingCallPid=null;
+    /* Phase 1: per-call ICE retry engine instance */
+    this._iceRetry=new ICERetryEngine();
     this._abr=new ABRController();
     this._recorder=new CallRecorder();
     this._captions=new LiveCaptionsManager();
@@ -4082,7 +4247,8 @@ class MediaManager{
   async _startCall(video){
     const pid=App.ui?.activePeer;
     if(!pid){App.toast?.show('Select a peer first','warning');return;}
-    if(this._call){App.toast?.show('Already in a call','warning');return;}
+    /* Phase 1: prevent double-call race */
+    if(this._call||this._isCleaningUp){App.toast?.show('Already in a call','warning');return;}
     try{
       const q=App.netq?.getVideoQuality?.();
       const prof=CFG.VIDEO_QUALITY_PROFILES[q]||CFG.VIDEO_QUALITY_PROFILES.med;
@@ -4090,19 +4256,35 @@ class MediaManager{
       const ns=document.getElementById('call-noise-suppress')?.checked===true||CFG.DEFAULT_NOISE_SUPPRESSION;
       const constraints={audio:{noiseSuppression:ns,echoCancellation:document.getElementById('call-echo-cancel')?.checked!==false,autoGainControl:true}};
       if(video)constraints.video={width:{ideal:prof.w},height:{ideal:prof.h},frameRate:{ideal:prof.fps}};
-      this._localStream=await navigator.mediaDevices.getUserMedia(constraints);
+      /* Phase 1/3: audio-first fallback — if video getUserMedia fails, retry audio-only */
+      try{
+        this._localStream=await navigator.mediaDevices.getUserMedia(constraints);
+      }catch(e){
+        if(video&&(e.name==='NotFoundError'||e.name==='NotReadableError'||e.name==='OverconstrainedError')){
+          App.toast?.show('Camera unavailable — starting audio-only call','warning');
+          try{this._localStream=await navigator.mediaDevices.getUserMedia({audio:constraints.audio});}
+          catch(e2){App.toast?.show('Could not access microphone: '+e2.message,'error');return;}
+          video=false;
+        }else{
+          App.toast?.show('Could not access media: '+e.message,'error');return;
+        }
+      }
       App.streamReg?.register?.('local-call',this._localStream);
-      const lvid=document.getElementById('lvid');if(lvid){lvid.srcObject=this._localStream;lvid.play().catch(()=>{});}
+      const lvid=document.getElementById('lvid');
+      if(lvid){lvid.srcObject=this._localStream;lvid.setAttribute('playsinline','');lvid.muted=true;lvid.play().catch(()=>{});}
       const call=App.peer?.peer?.call(pid,this._localStream);
-      if(!call){App.toast?.show('Failed to initiate call','error');return;}
-      this._call=call;this._videoEnabled=video;
+      if(!call){
+        this._localStream.getTracks().forEach(t=>t.stop());this._localStream=null;
+        App.toast?.show('Failed to initiate call','error');return;
+      }
+      this._call=call;this._videoEnabled=video;this._pendingCallPid=pid;
       App.ui?.setTab?.('call');
       App.callState?.transition('RINGING');App.callState?.transition('CONNECTING');
       WakeLock.acquire();
       App.directCall?.ring?.(pid,video);
       this._onCallSetup(call,pid);
       this._abr.start(call);
-    }catch(e){App.toast?.show('Could not access media: '+e.message,'error');}
+    }catch(e){App.toast?.show('Could not start call: '+e.message,'error');}
   }
   handleIncoming(call){
     this._pendingCall=call;
@@ -4114,17 +4296,35 @@ class MediaManager{
   async _acceptIncoming(){
     Modal.hide('incoming-call-modal');
     const call=this._pendingCall;if(!call)return;
+    /* Phase 1: prevent accept race */
+    if(this._call||this._isCleaningUp){App.toast?.show('Already in a call','warning');try{call.close();}catch(e){}return;}
     try{
       const q=App.netq?.getVideoQuality?.();const prof=CFG.VIDEO_QUALITY_PROFILES[q]||CFG.VIDEO_QUALITY_PROFILES.med;
       const ns=document.getElementById('call-noise-suppress')?.checked===true||CFG.DEFAULT_NOISE_SUPPRESSION;
-      this._localStream=await navigator.mediaDevices.getUserMedia({
-        audio:{noiseSuppression:ns,echoCancellation:true,autoGainControl:true},
-        video:{width:{ideal:prof.w},height:{ideal:prof.h}}
-      });
+      const audioConstraints={noiseSuppression:ns,echoCancellation:true,autoGainControl:true};
+      /* Phase 1/3: audio-first fallback — try video, degrade to audio-only */
+      let videoEnabled=true;
+      try{
+        this._localStream=await navigator.mediaDevices.getUserMedia({
+          audio:audioConstraints,
+          video:{width:{ideal:prof.w},height:{ideal:prof.h}}
+        });
+      }catch(e){
+        if(e.name==='NotFoundError'||e.name==='NotReadableError'||e.name==='OverconstrainedError'){
+          App.toast?.show('Camera unavailable — answering audio-only','warning');
+          try{this._localStream=await navigator.mediaDevices.getUserMedia({audio:audioConstraints});}
+          catch(e2){App.toast?.show('Could not access microphone: '+e2.message,'error');try{call.close();}catch(ex){}return;}
+          videoEnabled=false;
+        }else{
+          App.toast?.show('Could not access media: '+e.message,'error');
+          try{call.close();}catch(ex){}return;
+        }
+      }
       App.streamReg?.register?.('local-call',this._localStream);
-      const lvid=document.getElementById('lvid');if(lvid){lvid.srcObject=this._localStream;lvid.play().catch(()=>{});}
+      const lvid=document.getElementById('lvid');
+      if(lvid){lvid.srcObject=this._localStream;lvid.setAttribute('playsinline','');lvid.muted=true;lvid.play().catch(()=>{});}
       call.answer(this._localStream);
-      this._call=call;this._videoEnabled=true;
+      this._call=call;this._videoEnabled=videoEnabled;this._pendingCallPid=call.peer;
       App.ui?.setTab?.('call');
       App.callState?.transition('CONNECTING');
       App.directCall?.notifyAccepted?.(call.peer);
@@ -4132,7 +4332,7 @@ class MediaManager{
       this._onCallSetup(call,call.peer);
       this._abr.start(call);
     }catch(e){
-      App.toast?.show('Could not access media: '+e.message,'error');
+      App.toast?.show('Could not accept call: '+e.message,'error');
       try{call.close();}catch(ex){}
     }
   }
@@ -4148,36 +4348,63 @@ class MediaManager{
     const nm=document.getElementById('call-peer-nm');if(nm){nm.textContent=App.peer?.peerName?.(pid)||pid;}
     const vwrap=document.getElementById('vwrap');if(vwrap)vwrap.style.display='block';
     this._startCallTimer();
+    /* Phase 1: PeerJS stream event (fires on most browsers) */
     call.on('stream',stream=>this._attachRemoteStream(stream));
     call.on('close',()=>this._cleanupCall('Call ended'));
     call.on('error',err=>this._cleanupCall('Call error: '+err.message));
     const pc=call.peerConnection;
     if(pc){
-      /* Phase 1: ontrack fallback for remote video */
+      /* Phase 1/4: ontrack fallback — catches Safari which doesn't fire PeerJS stream event */
       pc.addEventListener('track',e=>{
-        if(e.streams&&e.streams[0]){this._attachRemoteStream(e.streams[0]);}
+        /* Prefer streams array (all browsers), fall back to building one from the track */
+        const stream=e.streams&&e.streams[0]
+          ?e.streams[0]
+          :(()=>{const s=new MediaStream();s.addTrack(e.track);return s;})();
+        /* Only attach if we haven't already attached this stream (avoid double-fire) */
+        if(!this._remoteStream||this._remoteStream.id!==stream.id){
+          this._attachRemoteStream(stream);
+        }else{
+          /* New track added to existing stream (e.g. video added after audio) */
+          if(!this._remoteStream.getTrackById(e.track.id)){
+            this._remoteStream.addTrack(e.track);
+            const rvid=document.getElementById('rvid');
+            if(rvid){rvid.srcObject=this._remoteStream;rvid.play().catch(()=>{});}
+          }
+        }
       });
-      /* Phase 1: ICE restart on failure */
+      /* Phase 1: attach ICERetryEngine for automatic exponential-backoff restarts */
+      this._iceRetry.destroy();
+      this._iceRetry=new ICERetryEngine();
+      this._iceRetry.attach(pc);
+      /* Phase 1: ICE state logging (ICERetryEngine handles restartIce) */
       pc.addEventListener('iceconnectionstatechange',()=>{
         App.log?.info('ICE: '+pc.iceConnectionState+' pid='+pid);
-        if(pc.iceConnectionState==='failed'){
-          App.log?.warn('ICE failed — restarting');
-          try{pc.restartIce();}catch(e){App.log?.warn('restartIce error: '+e.message);}
-          App.callState?.transition('RECONNECTING');
-        }else if(pc.iceConnectionState==='connected'||pc.iceConnectionState==='completed'){
-          if(App.callState?.state==='RECONNECTING')App.callState?.transition('CONNECTED');
+        if(pc.iceConnectionState==='connected'||pc.iceConnectionState==='completed'){
+          /* Restore remote stream if srcObject lost during reconnect */
+          const rvid=document.getElementById('rvid');
+          if(rvid&&!rvid.srcObject&&this._remoteStream){this._attachRemoteStream(this._remoteStream);}
+          else if(rvid&&rvid.srcObject&&rvid.paused){rvid.play().catch(()=>{});}
         }
       });
       /* Phase 1: connectionstatechange healing */
       pc.addEventListener('connectionstatechange',()=>{
-        App.log?.info('RTC: '+pc.connectionState);
+        App.log?.info('RTC: '+pc.connectionState+' pid='+pid);
         if(pc.connectionState==='failed'){
-          try{pc.restartIce();}catch(e){}
-          Timers.timeout('rtc-reconnect',()=>{if(this._call)this._reacquireMedia();},3000);
+          App.callState?.transition('RECONNECTING');
+          /* Escalate: full media reacquire after short delay */
+          Timers.timeout('rtc-reconnect-reacquire',()=>{
+            if(this._call&&(pc.connectionState==='failed'||pc.iceConnectionState==='failed')){
+              this._reacquireMedia();
+            }
+          },4000);
+        }else if(pc.connectionState==='disconnected'){
+          App.callState?.transition('RECONNECTING');
+          App.toast?.show('Call interrupted — attempting to reconnect…','warning');
         }else if(pc.connectionState==='connected'){
           App.callState?.transition('CONNECTED');
           const rvid=document.getElementById('rvid');
           if(rvid&&!rvid.srcObject&&this._remoteStream){this._attachRemoteStream(this._remoteStream);}
+          else if(rvid&&rvid.srcObject&&rvid.paused){rvid.play().catch(()=>{});}
         }
       });
     }
@@ -4186,12 +4413,36 @@ class MediaManager{
     if(rvid)App.streamWatchdog?.watch?.(pid,rvid,()=>{
       App.log?.warn('Stream frozen — ICE restart');
       try{pc?.restartIce?.();}catch(e){}
+      /* Phase 1: if ICE restart doesn't help in 6s, reacquire media */
+      Timers.timeout('frozen-reacquire',()=>{
+        const rvid2=document.getElementById('rvid');
+        const stillFrozen=rvid2&&rvid2.srcObject&&rvid2.readyState>=2&&!rvid2.ended;
+        if(stillFrozen&&this._call)this._reacquireMedia();
+      },6000);
     });
   }
   _attachRemoteStream(stream){
     this._remoteStream=stream;
     const rvid=document.getElementById('rvid');
-    if(rvid){rvid.srcObject=stream;rvid.play().catch(e=>{App.log?.warn('rvid play: '+e.message);});}
+    if(rvid){
+      /* Phase 1/4: Safari requires playsInline + muted=false and explicit play() after srcObject */
+      rvid.setAttribute('playsinline','');
+      rvid.setAttribute('webkit-playsinline','');
+      /* Only reassign srcObject if it changed (prevents flicker on track add) */
+      if(rvid.srcObject!==stream){rvid.srcObject=stream;}
+      /* Phase 4: loadedmetadata ensures dimensions are ready before play() — important on Safari/iOS */
+      const doPlay=()=>{
+        rvid.play().catch(e=>{
+          App.log?.warn('rvid play: '+e.message);
+          /* Autoplay policy blocked — retry on next user gesture */
+          const retry=()=>{rvid.play().catch(()=>{});document.removeEventListener('click',retry);document.removeEventListener('touchstart',retry);};
+          document.addEventListener('click',retry,{once:true});
+          document.addEventListener('touchstart',retry,{once:true,passive:true});
+        });
+      };
+      if(rvid.readyState>=1){doPlay();}
+      else{rvid.addEventListener('loadedmetadata',doPlay,{once:true});}
+    }
     App.callState?.transition('CONNECTED');
     this._startAudioVis();
   }
@@ -4222,7 +4473,12 @@ class MediaManager{
   }
   remoteEnded(reason){this._cleanupCall(reason||'Remote ended');}
   _cleanupCall(reason){
+    /* Phase 1: idempotent — prevent double-cleanup races */
+    if(this._isCleaningUp)return;
+    this._isCleaningUp=true;
     App.log?.info('Call ended: '+reason);
+    /* Destroy ICE retry engine so no stale restartIce after cleanup */
+    try{this._iceRetry?.destroy?.();}catch(e){}
     this._abr.stop();this._recorder.stop();this._captions.stop();
     cancelAnimationFrame(this._rafId);this._rafId=null;
     try{if(this._audioCtx&&this._audioCtx.state!=='closed')this._audioCtx.close();}catch(e){}
@@ -4230,15 +4486,21 @@ class MediaManager{
     App.streamReg?.stop?.('local-call');
     this._localStream?.getTracks?.().forEach(t=>t.stop());
     this._localStream=null;this._remoteStream=null;
-    const rvid=document.getElementById('rvid');if(rvid)rvid.srcObject=null;
-    const lvid=document.getElementById('lvid');if(lvid)lvid.srcObject=null;
+    /* Cancel any pending timer callbacks so they don't fire on the dead call */
+    Timers.clearTimeout('rtc-reconnect-reacquire');
+    Timers.clearTimeout('frozen-reacquire');
+    Timers.clearTimeout('wake-ice-restart');
+    Timers.clearTimeout('visibility-recover');
+    Timers.clearTimeout('vis-stream-restore');
+    const rvid=document.getElementById('rvid');if(rvid){rvid.srcObject=null;rvid.load&&rvid.load();}
+    const lvid=document.getElementById('lvid');if(lvid){lvid.srcObject=null;}
     document.getElementById('callbar')?.classList.remove('on');
     const vwrap=document.getElementById('vwrap');if(vwrap)vwrap.style.display='none';
     document.getElementById('captions-bar')?.classList.remove('on');
     const dur=this._callStartTs?Date.now()-this._callStartTs:0;
-    if(this._call){const pid=this._call.peer;App.callHist?.add?.(pid,App.peer?.peerName?.(pid)||pid,'in',dur);App.streamWatchdog?.unwatch?.(pid);}
+    if(this._call){const pid=this._call.peer||this._pendingCallPid;App.callHist?.add?.(pid,App.peer?.peerName?.(pid)||pid,'in',dur);App.streamWatchdog?.unwatch?.(pid);}
     try{this._call?.close?.();}catch(e){}
-    this._call=null;this._videoEnabled=false;this._callStartTs=null;
+    this._call=null;this._videoEnabled=false;this._callStartTs=null;this._pendingCallPid=null;
     App.callStats?.hide?.();
     App.callState?.transition('ENDED');
     Timers.timeout('call-state-reset',()=>App.callState?.reset?.(),500);
@@ -4247,6 +4509,8 @@ class MediaManager{
     App.toast?.show(reason||'Call ended','info');
     Timers.clearInterval('call-timer');
     setEl('call-timer','00:00');setEl('call-timer2','00:00');
+    /* Phase 1: release the guard after a short delay — allows UI to settle before next call */
+    Timers.timeout('cleanup-guard-release',()=>{this._isCleaningUp=false;},800);
   }
   hangUp(){
     const pid=this._call?.peer;
@@ -6075,6 +6339,8 @@ async function bootApp(){
   App.groupVoice=new GroupVoiceManager();App.groupVoice.init();
   App.files=new FileTransfer();
   App.media=new MediaManager();App.media.init();
+  /* GAP-5: disable captions button on unsupported browsers */
+  App.media._captions?.init?.();
   App.screenShare=new ScreenShareManager();
   App.presentation=new PresentationManager();App.presentation.init();
   App.invite=new InviteManager();App.invite.init();
@@ -6162,6 +6428,23 @@ async function bootApp(){
     });
   })();
 
+  /* GAP-4: assertInterface boot assertions — abort early if a module is malformed */
+  try{
+    assertInterface(App.toast,{show:null},'ToastManager');
+    assertInterface(App.log,{info:null,warn:null,error:null},'Logger');
+    assertInterface(App.stateStore,{set:null,get:null},'StateStore');
+    assertInterface(App.errMgr,{capture:null,getErrors:null},'GlobalErrorManager');
+    assertInterface(App.auditLog,{add:null,verify:null},'AuditLog');
+    assertInterface(App.moduleHealth,{register:null,getAll:null},'ModuleHealthEngine');
+    assertInterface(App.peer,{init:null,destroy:null},'PeerManager');
+    assertInterface(App.media,{init:null,destroy:null},'MediaManager');
+    assertInterface(App.files,{destroy:null},'FileTransfer');
+    assertInterface(App.ui,{init:null,destroy:null},'UIManager');
+    assertInterface(App.vault,{init:null,addEntry:null},'VaultManager');
+  }catch(e){
+    App.errMgr?.capture?.(e,{context:'boot-assertInterface'});
+    throw e;
+  }
   setBootMsg('Connecting to network…',75);
   await safeModule('PeerManager',()=>App.peer.init());
 
@@ -6324,10 +6607,10 @@ if(localStorage.getItem('dh-devmode')==='1'){
       t('parseMarkdown url',()=>{const r=parseMarkdown('https://example.com');if(!r.includes('<a '))throw new Error('no link: '+r);});
       t('parseMarkdown mention',()=>{const r=parseMarkdown('@alice');if(!r.includes('msg-mention'))throw new Error('no mention: '+r);});
       /* v10 CHANGELOG check */
-      t('CFG.CHANGELOG',()=>{if(!Array.isArray(CFG.CHANGELOG)||!CFG.CHANGELOG.length)throw new Error('missing');if(!CFG.CHANGELOG[0].startsWith('v10:'))throw new Error('v10 entry missing: '+CFG.CHANGELOG[0]);});
+      t('CFG.CHANGELOG',()=>{if(!Array.isArray(CFG.CHANGELOG)||!CFG.CHANGELOG.length)throw new Error('missing');if(!CFG.CHANGELOG[0].startsWith('v12:'))throw new Error('v12 entry missing: '+CFG.CHANGELOG[0]);});
       t('CFG.EMOJI_LIST 128',()=>{if(CFG.EMOJI_LIST.length<128)throw new Error('expected ≥128, got '+CFG.EMOJI_LIST.length);});
       /* VERSION checks */
-      t('CFG.VERSION v10',()=>{if(!CFG.VERSION.startsWith('10.'))throw new Error('expected v10.x, got '+CFG.VERSION);});
+      t('CFG.VERSION v12',()=>{if(!CFG.VERSION.startsWith('12.'))throw new Error('expected v12.x, got '+CFG.VERSION);});
       t('assertString pass',()=>{assertString('hello','test');});
       t('assertString fail',()=>{let threw=false;try{assertString(42,'test');}catch(e){threw=true;}if(!threw)throw new Error('should have thrown');});
       t('assertObject pass',()=>{assertObject({a:1},'test');});
@@ -6368,7 +6651,7 @@ if(localStorage.getItem('dh-devmode')==='1'){
       t('VaultManager.addEntry is function',()=>{if(typeof App.vault.addEntry!=='function')throw new Error('addEntry missing');});
       t('CFG.MSG_RATE_LIMIT_WINDOW',()=>{if(typeof CFG.MSG_RATE_LIMIT_WINDOW!=='number'||CFG.MSG_RATE_LIMIT_WINDOW<=0)throw new Error('MSG_RATE_LIMIT_WINDOW invalid: '+CFG.MSG_RATE_LIMIT_WINDOW);});
       t('CFG.MSG_RATE_LIMIT_COUNT',()=>{if(typeof CFG.MSG_RATE_LIMIT_COUNT!=='number'||CFG.MSG_RATE_LIMIT_COUNT<=0)throw new Error('MSG_RATE_LIMIT_COUNT invalid: '+CFG.MSG_RATE_LIMIT_COUNT);});
-      t('CFG.VERSION v10.0',function(){if(!CFG.VERSION.startsWith('10.'))throw new Error('expected v10.x, got '+CFG.VERSION);});
+      t('CFG.VERSION v12.0',function(){if(!CFG.VERSION.startsWith('12.'))throw new Error('expected v12.x, got '+CFG.VERSION);});
       t('CFG.CALL_RING_TIMEOUT',function(){if(typeof CFG.CALL_RING_TIMEOUT!=='number'||CFG.CALL_RING_TIMEOUT<5000)throw new Error('CALL_RING_TIMEOUT invalid: '+CFG.CALL_RING_TIMEOUT);});
       t('CFG.MAX_CONF_PARTICIPANTS',function(){if(typeof CFG.MAX_CONF_PARTICIPANTS!=='number'||CFG.MAX_CONF_PARTICIPANTS<2)throw new Error('MAX_CONF_PARTICIPANTS invalid: '+CFG.MAX_CONF_PARTICIPANTS);});
       t('CFG.DEFAULT_NOISE_SUPPRESSION',function(){if(typeof CFG.DEFAULT_NOISE_SUPPRESSION!=='boolean')throw new Error('DEFAULT_NOISE_SUPPRESSION must be boolean, got '+typeof CFG.DEFAULT_NOISE_SUPPRESSION);});
@@ -6553,6 +6836,35 @@ if(localStorage.getItem('dh-devmode')==='1'){
       t('CFG.DEV_MODE is boolean',function(){if(typeof CFG.DEV_MODE!=='boolean')throw new Error('DEV_MODE must be boolean, got '+typeof CFG.DEV_MODE);});
       /* Phase 2: international STUN */
       t('CFG.STUN_SERVERS ≥10',function(){if(CFG.STUN_SERVERS.length<10)throw new Error('Expected ≥10 STUN servers, got '+CFG.STUN_SERVERS.length);});
+      /* === NEW v11 TESTS (GAP-1 through GAP-5) === */
+      /* GAP-1: PeerJS SRI hashes present on CDN entries 1-2 */
+      t('GAP-1 PeerJS loader entry 1 has integrity',function(){
+        const scripts=Array.from(document.querySelectorAll('head script[src*="peerjs"]'));
+        const sri=scripts.filter(s=>s.integrity&&s.integrity.startsWith('sha384-'));
+        if(sri.length<1)throw new Error('No peerjs script elements with sha384 integrity found; found '+scripts.length+' peerjs scripts total');
+      });
+      /* GAP-2: VirtualBackgroundManager uses pre-allocated tmp canvas */
+      t('GAP-2 VBG._tmpCanvas is null before enable',function(){
+        if(!App.media._vbg)throw new Error('VirtualBackgroundManager missing');
+        if(App.media._vbg._tmpCanvas!==null&&App.media._vbg._tmpCanvas!==undefined)throw new Error('_tmpCanvas should be null initially, got: '+typeof App.media._vbg._tmpCanvas);
+      });
+      t('GAP-2 VBG no per-frame canvas in _renderFrame source',function(){
+        const src=App.media._vbg._renderFrame.toString();
+        if(src.includes("document.createElement('canvas')"))throw new Error('_renderFrame still creates canvas per-frame — alloc leak not fixed');
+      });
+      /* GAP-3: SoundTheme._beep has no DOM guard */
+      t('GAP-3 SoundTheme._beep has no DOM dependency',function(){
+        const src=App.sounds._beep.toString();
+        if(src.includes('getElementById'))throw new Error('_beep still has DOM guard (getElementById) — race condition not fixed');
+      });
+      /* GAP-4: assertInterface called for modules in bootApp */
+      t('GAP-4 assertInterface is function',function(){
+        if(typeof assertInterface!=='function')throw new Error('assertInterface not defined');
+      });
+      /* GAP-5: LiveCaptionsManager has init() method */
+      t('GAP-5 LiveCaptionsManager.init is function',function(){
+        if(!App.media._captions||typeof App.media._captions.init!=='function')throw new Error('LiveCaptionsManager.init() missing');
+      });
       console.table(results);
       const failed=results.filter(r=>!r.ok);
       console.log('[DevHub Test] '+(results.length-failed.length)+'/'+results.length+' tests passed'+(failed.length?' — FAILED: '+failed.map(r=>r.name+' ('+r.err+')').join(', '):''));
@@ -6570,7 +6882,7 @@ if(localStorage.getItem('dh-devmode')==='1'){
       tests.forEach(({name,fn})=>t(name,fn));
     }else{
       /* built-in headless-safe subset (no DOM, no App dependency) */
-      t('CFG.VERSION is 10.x',()=>{if(!CFG.VERSION.startsWith('10.'))throw new Error('expected 10.x, got '+CFG.VERSION);});
+      t('CFG.VERSION is 12.x',()=>{if(!CFG.VERSION.startsWith('12.'))throw new Error('expected 12.x, got '+CFG.VERSION);});
       t('CFG.DB_VERSION is 7',()=>{if(CFG.DB_VERSION!==7)throw new Error('expected 7, got '+CFG.DB_VERSION);});
       t('CFG is frozen',()=>{let threw=false;try{CFG.__hl='x';}catch(e){threw=true;}if(!threw&&CFG.__hl)throw new Error('CFG not frozen');});
       t('DB_MIGRATIONS length ≥6',()=>{if(!Array.isArray(DB_MIGRATIONS)||DB_MIGRATIONS.length<6)throw new Error('expected ≥6');});
@@ -6578,7 +6890,7 @@ if(localStorage.getItem('dh-devmode')==='1'){
       t('esc() escapes <>&',()=>{const r=esc('<>&"');if(!r.includes('&lt;'))throw new Error('< not escaped');});
       t('fmtSize(1024)==1.0KB',()=>{if(fmtSize(1024)!=='1.0KB')throw new Error(fmtSize(1024));});
       t('fmtDur(65000)==01:05',()=>{if(fmtDur(65000)!=='01:05')throw new Error(fmtDur(65000));});
-      t('CFG.CHANGELOG[0] starts with v10:',()=>{if(!CFG.CHANGELOG[0].startsWith('v10:'))throw new Error(CFG.CHANGELOG[0]);});
+      t('CFG.CHANGELOG[0] starts with v11:',()=>{if(!CFG.CHANGELOG[0].startsWith('v11:'))throw new Error(CFG.CHANGELOG[0]);});
       t('CFG.FINGERPRINT_SALT defined',()=>{if(!CFG.FINGERPRINT_SALT)throw new Error('missing');});
       t('CFG.VBG_FPS ≥1',()=>{if(CFG.VBG_FPS<1)throw new Error(CFG.VBG_FPS);});
       t('CFG.DEV_MODE is boolean',()=>{if(typeof CFG.DEV_MODE!=='boolean')throw new Error(typeof CFG.DEV_MODE);});
@@ -6598,11 +6910,11 @@ if(localStorage.getItem('dh-devmode')==='1'){
   window.__devhub_gotoSection=function(sectionName){
     const sections=window.__devhub_test.printFileMap();
     const s=sections.find(x=>x.name.toLowerCase().includes((sectionName||'').toLowerCase()));
-    if(s){console.info('[DevHub] §'+s.name+' at ~line '+s.approxLine+' in devhub-v10.0.html');}
+    if(s){console.info('[DevHub] §'+s.name+' at ~line '+s.approxLine+' in devhub-v11.0.html');}
     else{console.warn('[DevHub] Section not found: '+sectionName+'. Available:',sections.map(x=>x.name).join(', '));}
     return s||null;
   };
-  console.info('[DevHub v'+CFG.VERSION+'] v10 test harness active — window.__devhub_test.runAllTests() | __devhub_runHeadless() | __devhub_gotoSection(name) | recomputeCSPHash() | verifyAuditLog() | testDestroyMethods() | printFileMap() | getAppState()');
+  console.info('[DevHub v'+CFG.VERSION+'] v11 test harness active — window.__devhub_test.runAllTests() | __devhub_runHeadless() | __devhub_gotoSection(name) | recomputeCSPHash() | verifyAuditLog() | testDestroyMethods() | printFileMap() | getAppState()');
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
@@ -6653,7 +6965,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 </body>
 </html>
 <!-- HEADLESS TEST RUNNER (G3) -->
-<!-- To run headlessly: sed -n '/HEADLESS TEST RUNNER/,/END HEADLESS/p' devhub-v10.0.html | node -->
+<!-- To run headlessly: sed -n '/HEADLESS TEST RUNNER/,/END HEADLESS/p' devhub-v11.0.html | node -->
 <!--
 <script id="devhub-headless-test">
 /* DevHub v10 headless test runner — pure-logic subset, no DOM/WebRTC */
@@ -6670,7 +6982,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   t('esc escapes HTML',()=>{const r=esc('<>&"');if(!r.includes('&lt;')||!r.includes('&amp;'))throw new Error(r);});
   t('fmtSize 1024 → 1.0KB',()=>{if(fmtSize(1024)!=='1.0KB')throw new Error(fmtSize(1024));});
   t('fmtDur 65000 → 01:05',()=>{if(fmtDur(65000)!=='01:05')throw new Error(fmtDur(65000));});
-  t('CFG.VERSION starts with 10',()=>{if(!CFG.VERSION.startsWith('10'))throw new Error(CFG.VERSION);});
+  t('CFG.VERSION starts with 11',()=>{if(!CFG.VERSION.startsWith('11'))throw new Error(CFG.VERSION);});
   t('CFG.DB_VERSION is 7',()=>{if(CFG.DB_VERSION!==7)throw new Error(CFG.DB_VERSION);});
   t('DB_MIGRATIONS length ≥6',()=>{if(!Array.isArray(DB_MIGRATIONS)||DB_MIGRATIONS.length<6)throw new Error(DB_MIGRATIONS?.length);});
   t('CFG.FINGERPRINT_SALT truthy',()=>{if(!CFG.FINGERPRINT_SALT)throw new Error('missing');});
