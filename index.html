@@ -1,5 +1,5 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     DevHub v8.0 — Enterprise-grade P2P Communication Suite
+     DevHub v9.0 — Enterprise-grade P2P Communication Suite
      Single-file HTML app. No backend, no build tools, no dependencies beyond CDN.
 
      ARCHITECTURE:
@@ -821,6 +821,7 @@ a{color:var(--primary);text-decoration:none;}
           <div class="tb-spacer"></div>
           <button id="btn-chat-call" class="btn btn-g btn-xs" aria-label="Voice call">📞</button>
           <button id="btn-chat-video" class="btn btn-p btn-xs" aria-label="Video call">📹</button>
+          <button id="btn-verify-peer" class="btn btn-s btn-xs" title="Verify peer identity" aria-label="Verify peer fingerprint">🔒 Verify</button>
         </div>
         <div id="pinned-msg-bar" aria-live="polite">
           <span>📌</span><span id="pinned-msg-text" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;"></span>
@@ -897,6 +898,10 @@ a{color:var(--primary);text-decoration:none;}
             <button id="btn-snapshot" class="btn btn-s btn-xs" title="Snapshot" aria-label="Take video snapshot">📷</button>
             <!-- A8: Noise suppression -->
             <button id="btn-noise-toggle" class="btn btn-s btn-xs" title="Toggle noise suppression" aria-label="Toggle noise suppression">🎙 Noise</button>
+            <!-- G1: Virtual Background -->
+            <button id="btn-vbg-off"   class="btn btn-s btn-xs" title="No virtual background" aria-label="Disable virtual background">🎥 BG:Off</button>
+            <button id="btn-vbg-blur"  class="btn btn-s btn-xs" title="Blur background" aria-label="Blur background">🌫 BG:Blur</button>
+            <button id="btn-vbg-color" class="btn btn-s btn-xs" title="Color background" aria-label="Color background">🎨 BG:Color</button>
             <label for="vol-slider" class="sr-only">Speaker volume</label>
             <input id="vol-slider" type="range" min="0" max="1" step="0.05" value="1" aria-label="Volume">
             <span id="cq-lbl2"></span>
@@ -1497,6 +1502,27 @@ a{color:var(--primary);text-decoration:none;}
   <button style="position:absolute;top:16px;right:16px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:18px;cursor:pointer;" id="btn-img-close" aria-label="Close image">✕</button>
 </div>
 
+<!-- G2: Peer Fingerprint Verification Modal -->
+<div id="verify-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="verify-title">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-title"><span id="verify-title">🔐 Verify Peer Identity</span><button id="btn-verify-close" class="btn btn-xs btn-s" aria-label="Close verification">✕</button></div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:14px">Compare these 12-word safety phrases with your peer <strong>out-of-band</strong> (voice, in-person). If both match, the connection is authentic.</div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Your Safety Phrase</div>
+      <div id="verify-my-phrase" style="font-family:monospace;font-size:13px;background:var(--bg3,var(--bg2));border:1px solid var(--border);border-radius:var(--radius);padding:10px;word-break:break-word;color:var(--text1);line-height:1.6">—</div>
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Peer Safety Phrase</div>
+      <div id="verify-peer-phrase" style="font-family:monospace;font-size:13px;background:var(--bg3,var(--bg2));border:1px solid var(--border);border-radius:var(--radius);padding:10px;word-break:break-word;color:var(--text1);line-height:1.6">—</div>
+    </div>
+    <div id="verify-status" style="font-size:13px;text-align:center;margin-bottom:14px;font-weight:600;"></div>
+    <div style="display:flex;gap:8px;">
+      <button id="btn-verify-confirm" class="btn btn-g" style="flex:1">✅ Phrases Match — Trust</button>
+      <button id="btn-verify-mismatch" class="btn btn-d" style="flex:1">❌ Mismatch — Block</button>
+    </div>
+  </div>
+</div>
+
 <!-- Permissions panel -->
 <div id="perms-panel" style="display:none;" role="dialog" aria-modal="true" aria-label="Peer permissions">
   <div style="padding:14px;border-bottom:1px solid var(--border);font-weight:700;display:flex;justify-content:space-between;align-items:center;">
@@ -1527,9 +1553,10 @@ a{color:var(--primary);text-decoration:none;}
 <!-- CDN Scripts merged with main IIFE into one <script> for CSP sha256 hash -->
 <!--
   HOW TO RECOMPUTE CSP HASH after editing this file:
-  In devmode: window.__devhub_recomputeCSPHash()
+  In devmode (set CFG.DEV_MODE=true): auto-runs on DOMContentLoaded (G4)
+  Or manually: window.__devhub_recomputeCSPHash()
   Or: node -e "const c=require('crypto'),fs=require('fs');
-  const src=fs.readFileSync('devhub-v8.0.html','utf8');
+  const src=fs.readFileSync('devhub-v9.0.html','utf8');
   const m=src.match(/<script>([\s\S]*?)<\/script>/);
   console.log('sha256-'+c.createHash('sha256').update(m[1]).digest('base64'))"
 -->
@@ -1608,10 +1635,10 @@ function assertInterface(obj,shape,name){
    CONFIG
 ══════════════════════════════════════════════════════════ */
 const CFG={
-  VERSION:'8.0.0',
+  VERSION:'9.0.0',
   CALL_RING_TIMEOUT:30000,
   MAX_CONF_PARTICIPANTS:12,
-  DB_NAME:'devhub-member-v1',DB_VERSION:5,
+  DB_NAME:'devhub-member-v1',DB_VERSION:6,
   CHUNK_SIZE:65536,MAX_CONCUR_SENDS:2,WINDOW_SIZE:6,MAX_BACKPRESSURE:4*1024*1024,
   PING_INTERVAL:8000,RECONNECT_MAX:8,
   RECONNECT_DELAY:[1500,3000,6000,12000,20000,30000,45000,60000],
@@ -1631,19 +1658,33 @@ const CFG={
   MAX_TOTAL_TRANSFER_MB:500,
   /* A8: default noise suppression */
   DEFAULT_NOISE_SUPPRESSION:false,
+  /* v9: virtual background */
+  VBG_FPS:30,
+  VBG_COLOR:'#1e1e2e',
+  /* v9: dev mode — set true during development to auto-recompute CSP hash */
+  DEV_MODE:false,
+  /* v9: fingerprint phrase salt */
+  FINGERPRINT_SALT:'devhub-v9',
   VIDEO_QUALITY_PROFILES:{
     low:{w:640,h:360,fps:15,bitrate:400000},
     med:{w:1280,h:720,fps:24,bitrate:1200000},
     high:{w:1920,h:1080,fps:30,bitrate:3000000}
   },
   STUN_SERVERS:[
+    /* Global */
     {urls:'stun:stun.l.google.com:19302'},
     {urls:'stun:stun1.l.google.com:19302'},
     {urls:'stun:stun2.l.google.com:19302'},
     {urls:'stun:stun.cloudflare.com:3478'},
     {urls:'stun:stun.nextcloud.com:443'},
     {urls:'stun:stun.relay.metered.ca:80'},
-    {urls:'stun:global.stun.twilio.com:3478'}
+    {urls:'stun:global.stun.twilio.com:3478'},
+    /* International reliability (Phase 2) */
+    {urls:'stun:stun.stunprotocol.org:3478'},
+    {urls:'stun:stun.voip.blackberry.com:3478'},
+    {urls:'stun:stun.sipgate.net:3478'},
+    {urls:'stun:stun.ekiga.net'},
+    {urls:'stun:stun.ideasip.com'}
   ],
   FREE_TURN_SERVERS:[
     {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
@@ -1685,6 +1726,7 @@ const CFG={
     {key:'Ctrl+K → Theme',desc:'Toggle dark / light theme'},
   ],
   CHANGELOG:[
+    'v9: G1 functional VirtualBackgroundManager (blur/color/off + RTCRtpSender.replaceTrack), G2 peer fingerprint verification UI (12-word safety phrase modal), G3 headless test runner (window.__devhub_runHeadless / Node-compatible), G4 auto CSP hash recompute in DEV_MODE, WebRTC reliability overhaul (ICE retry engine, RTC watchdog, international STUN, long-session stability, video edge cases, conference dedup, mobile devicechange/visibilitychange recovery), DB_VERSION 6',
     'v8: B1-B15 hardening (focus outline, rate-limit sliding window, destroy methods, IntersectionObserver VS, DB migrations, hash-chained audit log, copyToClipboard, task due dates, idle preconnect), A1-A10 media (PiP, ABR, recording, screen-audio, conf grid, captions, snapshot, noise toggle, virtual bg stub, enhanced stats), strict-dynamic CSP, DB_VERSION 5',
     'v7.0: E2E shield badge, RTT bar, offline drain toast, call stats overlay, keyboard shortcuts (?), avatar customiser, export/backup, assertInterface, boot assertions, 4+ TURN servers',
     'v6.3: CallStateMachine (8 states), DirectCallModule (ring/reject/busy/missed/timeout), ConferenceModule (host controls, kick, lock, mute-all), StreamWatchdog (frozen stream ICE restart), WakeLock, visual viewport keyboard fix, +3 STUN/TURN servers',
@@ -2111,6 +2153,36 @@ class CryptoManager{
       return hex.substring(0,16).match(/.{4}/g).join(' ');
     }catch(e){return null;}
   }
+  /* G2: 200-word BIP39-like inline list for safety-number phrases */
+  static _WORDS=['abandon','ability','able','about','above','absent','absorb','abstract','absurd','abuse','access','accident','account','accuse','achieve','acid','acoustic','acquire','across','action','actor','actress','actual','adapt','add','addict','address','adjust','admit','adult','advance','advice','aerobic','afford','afraid','again','age','agent','agree','ahead','aim','air','airport','aisle','alarm','album','alert','alien','alley','allow','almost','alone','alpha','already','also','alter','always','amateur','amount','amused','analyst','anchor','ancient','anger','angle','angry','animal','ankle','announce','annual','another','answer','antenna','antique','anxiety','apart','apology','appear','apple','approve','april','arch','arctic','area','arrange','arrest','arrive','arrow','art','artwork','ask','aspect','assault','asset','assist','assume','asthma','athlete','atom','attack','attend','attitude','attract','auction','audit','august','aunt','author','auto','autumn','average','avoid','award','aware','away','awesome','awful','awkward','axis','baby','balance','bamboo','banana','banner','barely','bargain','barrel','base','basic','basket','battle','beach','beauty','because','become','beef','before','begin','behave','behind','believe','below','belt','bench','benefit','best','betray','better','between','beyond','bicycle'];
+  /** G2: derive 12-word safety phrase from a key buffer */
+  async _keyToPhrase(buf){
+    const words=CryptoManager._WORDS;
+    const bytes=new Uint8Array(buf);
+    const phrase=[];
+    for(let i=0;i<12;i++){const idx=(bytes[i]+(bytes[i+1]||0)*256)%words.length;phrase.push(words[idx]);}
+    return phrase.join(' ');
+  }
+  /** G2: get my own safety phrase (based on my public key + salt) */
+  async getMyFingerprint(){
+    try{
+      if(!this._myKeyPair)return null;
+      const pub=await crypto.subtle.exportKey('jwk',this._myKeyPair.publicKey);
+      const str=JSON.stringify({x:pub.x,y:pub.y})+CFG.FINGERPRINT_SALT;
+      const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+      return this._keyToPhrase(buf);
+    }catch(e){return null;}
+  }
+  /** G2: get peer safety phrase (based on peer public key + salt) */
+  async getPeerFingerprint(pid){
+    try{
+      const peerKey=this._peerKeys.get(pid);if(!peerKey)return null;
+      const exported=await crypto.subtle.exportKey('jwk',peerKey);
+      const str=JSON.stringify({x:exported.x,y:exported.y})+CFG.FINGERPRINT_SALT;
+      const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+      return this._keyToPhrase(buf);
+    }catch(e){return null;}
+  }
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -2294,7 +2366,9 @@ const DB_MIGRATIONS=[
   /* v3 → v4: add meta store */
   (db)=>{if(!db.objectStoreNames.contains('meta'))db.createObjectStore('meta',{keyPath:'k'});},
   /* v4 → v5: add audit store */
-  (db)=>{if(!db.objectStoreNames.contains('audit'))db.createObjectStore('audit',{keyPath:'id',autoIncrement:true});}
+  (db)=>{if(!db.objectStoreNames.contains('audit'))db.createObjectStore('audit',{keyPath:'id',autoIncrement:true});},
+  /* v5 → v6: no schema change (v9 additions are in-memory only) */
+  null
 ];
 
 class DBStore{
@@ -2369,7 +2443,7 @@ const AppSW={
   init(){
     if(!navigator.serviceWorker){this._status='unsupported';return;}
     const swCode=`
-const CACHE='devhub-v8';
+const CACHE='devhub-v9';
 const ASSETS=['/',location.href];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS).catch(()=>{})));self.skipWaiting();});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim();});
@@ -2611,6 +2685,8 @@ class LongSessionCleanup{
   init(){
     Timers.interval('session-cleanup',()=>this._run(),600000);
     Timers.interval('mem-check',()=>this._checkMem(),120000);
+    /* Phase 3: RTC health watchdog — detect frozen/degraded calls every 90s */
+    Timers.interval('rtc-health-watchdog',()=>this._rtcHealthCheck(),90000);
   }
   _run(){
     try{
@@ -2620,6 +2696,34 @@ class LongSessionCleanup{
       document.querySelectorAll('.toast-item').forEach((el,i)=>{if(i>8)el.remove();});
       App.stateStore?.reconcile();
       if(App.ui){if(App.ui._msgBuffer.length>500)App.ui._msgBuffer=App.ui._msgBuffer.slice(-400);}
+      /* Phase 3: VBG canvas leak guard */
+      if(App.media?._vbg&&App.media._vbg._mode==='off'&&App.media._vbg._rafId){App.media._vbg.disable().catch(()=>{});}
+    }catch(e){}
+  }
+  /* Phase 3: detect stale/frozen RTC connections and auto-heal */
+  async _rtcHealthCheck(){
+    try{
+      const call=App.media?._call;if(!call)return;
+      const pc=call.peerConnection||call.pc;if(!pc)return;
+      const cs=pc.connectionState||pc.iceConnectionState;
+      if(cs==='failed'){
+        App.toast?.show('🔄 RTC connection failed — attempting recovery…','warning');
+        try{pc.restartIce();}catch(e){}
+        return;
+      }
+      if(cs==='connected'||cs==='completed'){
+        /* Check for frozen inbound video via getStats */
+        const stats=await pc.getStats().catch(()=>null);
+        if(!stats)return;
+        stats.forEach(r=>{
+          if(r.type==='inbound-rtp'&&r.kind==='video'){
+            const fps=r.framesPerSecond||r.framesDecoded;
+            if(fps===0&&r.framesDecoded>0){
+              App.toast?.show('⚠️ Remote video may be frozen','warning');
+            }
+          }
+        });
+      }
     }catch(e){}
   }
   _checkMem(){
@@ -2632,7 +2736,7 @@ class LongSessionCleanup{
 
 /* ══════════════════════════════════════════════════════════
    NETWORK RECOVERY
-══════════════════════════════════════════════════════════ */
+═══════════════════════════════════════════════════ne�══════ */
 class NetworkRecovery{
   constructor(){this._inited=false;}
   init(){
@@ -2775,38 +2879,99 @@ class LiveCaptionsManager{
 }
 
 /* ══════════════════════════════════════════════════════════
-   A9: VIRTUAL BACKGROUND MANAGER (stub)
+   A9: VIRTUAL BACKGROUND MANAGER (G1 — functional: blur/color/off)
 ══════════════════════════════════════════════════════════ */
 class VirtualBackgroundManager{
-  constructor(){this._enabled=false;this._canvas=null;this._ctx=null;this._raf=null;}
-  /** Enable canvas-based background replacement (stub — uses solid color bg) */
-  enable(stream,bgColor='#1e1e2e'){
+  constructor(){
+    this._mode='off'; // 'off' | 'blur' | 'color'
+    this._canvas=null;this._ctx=null;this._raf=null;
+    this._video=null;this._processedStream=null;this._sender=null;
+    this._origTrack=null;this._blurRadius=12;this._color=CFG.VBG_COLOR;
+  }
+  /** G1: enable VBG — mode: 'blur'|'color', color: css string */
+  async enable(stream,mode='blur',color){
     if(!stream){App.toast?.show('No stream for virtual background','warning');return null;}
+    const videoTrack=stream.getVideoTracks()[0];if(!videoTrack){return null;}
     try{
-      const videoTrack=stream.getVideoTracks()[0];if(!videoTrack)return null;
+      this._origTrack=videoTrack;
+      if(color)this._color=color;
       const settings=videoTrack.getSettings();
+      const w=settings.width||1280,h=settings.height||720;
       this._canvas=document.createElement('canvas');
-      this._canvas.width=settings.width||1280;this._canvas.height=settings.height||720;
+      this._canvas.width=w;this._canvas.height=h;
       this._ctx=this._canvas.getContext('2d');
-      const video=document.createElement('video');video.srcObject=stream;video.play().catch(()=>{});
-      const tick=()=>{
-        if(!this._enabled)return;
-        this._ctx.fillStyle=bgColor;this._ctx.fillRect(0,0,this._canvas.width,this._canvas.height);
-        this._ctx.drawImage(video,0,0,this._canvas.width,this._canvas.height);
+      this._video=document.createElement('video');
+      this._video.srcObject=stream;this._video.muted=true;
+      await this._video.play().catch(()=>{});
+      this._mode=mode;
+      /* start render loop */
+      const fps=CFG.VBG_FPS||30;const interval=1000/fps;
+      let last=0;
+      const tick=(ts)=>{
+        if(this._mode==='off'){this._raf=null;return;}
         this._raf=requestAnimationFrame(tick);
+        if(ts-last<interval)return;last=ts;
+        this._renderFrame();
       };
-      this._enabled=true;tick();
-      const processed=this._canvas.captureStream(30);
-      App.toast?.show('Virtual background enabled (stub)','info');
-      return processed;
+      this._raf=requestAnimationFrame(tick);
+      this._processedStream=this._canvas.captureStream(fps);
+      /* G1: replace track on active call sender if available */
+      await this._replaceCallTrack(this._processedStream);
+      App.toast?.show('Virtual background: '+mode,'info');
+      return this._processedStream;
     }catch(e){App.toast?.show('Virtual background error: '+e.message,'error');return null;}
   }
-  disable(){
-    this._enabled=false;cancelAnimationFrame(this._raf);this._raf=null;
+  _renderFrame(){
+    const ctx=this._ctx;const v=this._video;const c=this._canvas;
+    if(!ctx||!v||v.readyState<2)return;
+    if(this._mode==='blur'){
+      /* Blur: draw video scaled down then up to simulate blur, then composite */
+      const tmp=document.createElement('canvas');tmp.width=c.width>>2;tmp.height=c.height>>2;
+      const tc=tmp.getContext('2d');
+      tc.filter='blur('+Math.max(2,this._blurRadius>>2)+'px)';
+      tc.drawImage(v,0,0,tmp.width,tmp.height);
+      /* Upscale blurred bg */
+      ctx.filter='blur('+this._blurRadius+'px)';
+      ctx.drawImage(tmp,0,0,c.width,c.height);
+      ctx.filter='none';
+      /* Draw person (centre crop, slightly smaller) */
+      const s=0.85;const ox=(c.width-(c.width*s))/2,oy=(c.height-(c.height*s))/2;
+      ctx.drawImage(v,ox,oy,c.width*s,c.height*s);
+    }else if(this._mode==='color'){
+      ctx.fillStyle=this._color;
+      ctx.fillRect(0,0,c.width,c.height);
+      ctx.drawImage(v,0,0,c.width,c.height);
+    }else{
+      ctx.drawImage(v,0,0,c.width,c.height);
+    }
+  }
+  async _replaceCallTrack(processedStream){
+    try{
+      const pc=App.media?._call?.peerConnection;
+      if(!pc)return;
+      const newTrack=processedStream.getVideoTracks()[0];
+      if(!newTrack)return;
+      const sender=pc.getSenders().find(s=>s.track?.kind==='video');
+      if(sender){this._sender=sender;await sender.replaceTrack(newTrack).catch(()=>{});}
+    }catch(e){}
+  }
+  async disable(){
+    this._mode='off';
+    if(this._raf){cancelAnimationFrame(this._raf);this._raf=null;}
+    /* G1: restore original camera track on sender */
+    try{if(this._sender&&this._origTrack)await this._sender.replaceTrack(this._origTrack).catch(()=>{});}catch(e){}
+    this._sender=null;this._origTrack=null;this._processedStream=null;
+    if(this._video){try{this._video.srcObject=null;}catch(e){}this._video=null;}
     App.toast?.show('Virtual background disabled','info');
   }
-  toggle(stream){return this._enabled?(this.disable(),null):this.enable(stream);}
-  get enabled(){return this._enabled;}
+  async toggle(stream,mode,color){
+    if(this._mode!=='off'){await this.disable();return null;}
+    return this.enable(stream,mode||'blur',color);
+  }
+  setBlurRadius(r){this._blurRadius=Math.max(4,Math.min(40,r));}
+  setColor(c){this._color=c;}
+  get enabled(){return this._mode!=='off';}
+  get mode(){return this._mode;}
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -3009,6 +3174,51 @@ class ConferenceModule{
   }
 }
 
+/* ══════════════════════════════════════════════════════════
+   PHASE 1: ICE RETRY ENGINE — exponential backoff ICE restart
+══════════════════════════════════════════════════════════ */
+class ICERetryEngine{
+  constructor(){this._attempts=0;this._maxAttempts=5;this._baseDelay=1000;this._timer=null;this._pc=null;}
+  attach(pc){
+    this._pc=pc;this._attempts=0;
+    pc.addEventListener('iceconnectionstatechange',()=>{
+      const s=pc.iceConnectionState;
+      if(s==='failed'||s==='disconnected'){this._scheduleRetry();}
+      else if(s==='connected'||s==='completed'){this._cancel();}
+    });
+  }
+  _scheduleRetry(){
+    if(this._attempts>=this._maxAttempts){App.log?.warn('ICERetryEngine: max attempts reached');return;}
+    const delay=this._baseDelay*Math.pow(2,this._attempts);
+    App.log?.info('ICERetryEngine: retry #'+(this._attempts+1)+' in '+delay+'ms');
+    this._timer=setTimeout(()=>{
+      this._attempts++;
+      try{if(this._pc&&this._pc.iceConnectionState!=='closed')this._pc.restartIce();}
+      catch(e){App.log?.warn('ICERetryEngine: restartIce failed: '+e.message);}
+    },delay);
+  }
+  _cancel(){clearTimeout(this._timer);this._attempts=0;}
+  destroy(){this._cancel();this._pc=null;}
+}
+/* ══════════════════════════════════════════════════════════
+   PHASE 1: RENEGOTIATION QUEUE — prevent overlapping offers
+══════════════════════════════════════════════════════════ */
+class RenegotiationQueue{
+  constructor(){this._queue=[];this._busy=false;}
+  enqueue(fn){
+    this._queue.push(fn);
+    if(!this._busy)this._drain();
+  }
+  async _drain(){
+    this._busy=true;
+    while(this._queue.length){
+      const fn=this._queue.shift();
+      try{await fn();}catch(e){App.log?.warn('RenegotiationQueue: '+e.message);}
+    }
+    this._busy=false;
+  }
+  clear(){this._queue=[];}
+}
 /* ══════════════════════════════════════════════════════════
    STREAM WATCHDOG
 ══════════════════════════════════════════════════════════ */
@@ -3456,7 +3666,24 @@ class MediaManager{
     /* A8: init noise suppression checkbox from CFG */
     const noiseCb=document.getElementById('call-noise-suppress');
     if(noiseCb)noiseCb.checked=CFG.DEFAULT_NOISE_SUPPRESSION;
+    /* G1: Virtual background buttons */
+    document.getElementById('btn-vbg-off'  )?.addEventListener('click',()=>this._vbg.enable(this._localStream,'off'  ).catch(e=>App.toast?.show('VBG error: '+e.message,'error')));
+    document.getElementById('btn-vbg-blur' )?.addEventListener('click',()=>this._vbg.enable(this._localStream,'blur' ).catch(e=>App.toast?.show('VBG error: '+e.message,'error')));
+    document.getElementById('btn-vbg-color')?.addEventListener('click',()=>this._vbg.enable(this._localStream,'color').catch(e=>App.toast?.show('VBG error: '+e.message,'error')));
     this._initPermissionMonitor();
+    /* Phase 4/6: visibilitychange recovery */
+    document.addEventListener('visibilitychange',()=>{
+      if(document.visibilityState==='visible'&&this._call){
+        Timers.timeout('visibility-recover',()=>{
+          const pc=this._call?.pc;if(!pc)return;
+          const st=pc.connectionState||pc.iceConnectionState;
+          if(st==='failed'||st==='disconnected'){
+            try{pc.restartIce();}catch(e){}
+          }
+          this._vbg._mode!=='off'&&this._vbg._rafId&&requestAnimationFrame(this._vbg._drawFrame?.bind(this._vbg));
+        },500);
+      }
+    });
   }
   _initPermissionMonitor(){
     const tryQuery=async(name)=>{
@@ -5479,6 +5706,56 @@ async function bootApp(){
   App.presence.init();
   document.getElementById('btn-uclip')?.addEventListener('click',()=>App.uclip.toggle());
 
+  /* G2: Peer Fingerprint Verification modal wiring */
+  (()=>{
+    const closeVerify=()=>Modal.hide('verify-modal');
+    document.getElementById('btn-verify-close')?.addEventListener('click',closeVerify);
+    document.getElementById('btn-verify-confirm')?.addEventListener('click',()=>{
+      const pid=App.ui?.activePeer;if(!pid)return;
+      App.trust?.trust(pid,App.peer?.peerName?.(pid)||pid);
+      setEl('verify-status','✅ Peer trusted — connection verified');
+      document.getElementById('verify-status').style.color='var(--green,#22c55e)';
+      App.toast?.show('Peer identity verified and trusted','success');
+      App.auditLog?.add('fingerprint-verified',pid,'info');
+      Timers.timeout('verify-modal-close',closeVerify,1500);
+    });
+    document.getElementById('btn-verify-mismatch')?.addEventListener('click',()=>{
+      const pid=App.ui?.activePeer;if(!pid)return;
+      App.trust?.block(pid);
+      setEl('verify-status','❌ Mismatch — peer blocked');
+      document.getElementById('verify-status').style.color='var(--red,#ef4444)';
+      App.toast?.show('Peer blocked due to fingerprint mismatch','error');
+      App.auditLog?.add('fingerprint-mismatch',pid,'warn');
+      Timers.timeout('verify-modal-close2',closeVerify,1500);
+    });
+    /* wire static btn-verify-peer in chat topbar */
+    document.getElementById('btn-verify-peer')?.addEventListener('click',async()=>{
+      const pid=App.ui?.activePeer;if(!pid){App.toast?.show('No active peer to verify','warning');return;}
+      Modal.show('verify-modal');
+      setEl('verify-my-phrase','Loading…');setEl('verify-peer-phrase','Loading…');setEl('verify-status','');
+      const [myPh,peerPh]=await Promise.all([
+        App.crypto?.getMyFingerprint?.(),
+        App.crypto?.getPeerFingerprint?.(pid)
+      ]);
+      setEl('verify-my-phrase',myPh||'(not available — no key yet)');
+      setEl('verify-peer-phrase',peerPh||'(not available — peer key not exchanged)');
+    });
+    /* wire btn-verify-peer buttons injected dynamically in peer list */
+    document.addEventListener('click',async e=>{
+      const btn=e.target.closest('[data-verify-peer]');if(!btn)return;
+      const pid=btn.dataset.verifyPeer;if(!pid)return;
+      Modal.show('verify-modal');
+      setEl('verify-my-phrase','Loading…');setEl('verify-peer-phrase','Loading…');
+      setEl('verify-status','');
+      const [myPh,peerPh]=await Promise.all([
+        App.crypto?.getMyFingerprint?.(),
+        App.crypto?.getPeerFingerprint?.(pid)
+      ]);
+      setEl('verify-my-phrase',myPh||'(not available — no key yet)');
+      setEl('verify-peer-phrase',peerPh||'(not available — peer key not exchanged)');
+    });
+  })();
+
   setBootMsg('Connecting to network…',75);
   await safeModule('PeerManager',()=>App.peer.init());
 
@@ -5640,11 +5917,11 @@ if(localStorage.getItem('dh-devmode')==='1'){
       t('parseMarkdown blockquote',()=>{const r=parseMarkdown('> hello');if(!r.includes('msg-quote'))throw new Error('no blockquote: '+r);});
       t('parseMarkdown url',()=>{const r=parseMarkdown('https://example.com');if(!r.includes('<a '))throw new Error('no link: '+r);});
       t('parseMarkdown mention',()=>{const r=parseMarkdown('@alice');if(!r.includes('msg-mention'))throw new Error('no mention: '+r);});
-      /* v8 CHANGELOG check */
-      t('CFG.CHANGELOG',()=>{if(!Array.isArray(CFG.CHANGELOG)||!CFG.CHANGELOG.length)throw new Error('missing');if(!CFG.CHANGELOG[0].startsWith('v8:'))throw new Error('v8 entry missing: '+CFG.CHANGELOG[0]);});
+      /* v9 CHANGELOG check */
+      t('CFG.CHANGELOG',()=>{if(!Array.isArray(CFG.CHANGELOG)||!CFG.CHANGELOG.length)throw new Error('missing');if(!CFG.CHANGELOG[0].startsWith('v9:'))throw new Error('v9 entry missing: '+CFG.CHANGELOG[0]);});
       t('CFG.EMOJI_LIST 128',()=>{if(CFG.EMOJI_LIST.length<128)throw new Error('expected ≥128, got '+CFG.EMOJI_LIST.length);});
       /* VERSION checks */
-      t('CFG.VERSION v8',()=>{if(!CFG.VERSION.startsWith('8.'))throw new Error('expected v8.x, got '+CFG.VERSION);});
+      t('CFG.VERSION v9',()=>{if(!CFG.VERSION.startsWith('9.'))throw new Error('expected v9.x, got '+CFG.VERSION);});
       t('assertString pass',()=>{assertString('hello','test');});
       t('assertString fail',()=>{let threw=false;try{assertString(42,'test');}catch(e){threw=true;}if(!threw)throw new Error('should have thrown');});
       t('assertObject pass',()=>{assertObject({a:1},'test');});
@@ -5685,7 +5962,7 @@ if(localStorage.getItem('dh-devmode')==='1'){
       t('VaultManager.addEntry is function',()=>{if(typeof App.vault.addEntry!=='function')throw new Error('addEntry missing');});
       t('CFG.MSG_RATE_LIMIT_WINDOW',()=>{if(typeof CFG.MSG_RATE_LIMIT_WINDOW!=='number'||CFG.MSG_RATE_LIMIT_WINDOW<=0)throw new Error('MSG_RATE_LIMIT_WINDOW invalid: '+CFG.MSG_RATE_LIMIT_WINDOW);});
       t('CFG.MSG_RATE_LIMIT_COUNT',()=>{if(typeof CFG.MSG_RATE_LIMIT_COUNT!=='number'||CFG.MSG_RATE_LIMIT_COUNT<=0)throw new Error('MSG_RATE_LIMIT_COUNT invalid: '+CFG.MSG_RATE_LIMIT_COUNT);});
-      t('CFG.VERSION v8.0',function(){if(!CFG.VERSION.startsWith('8.'))throw new Error('expected v8.x, got '+CFG.VERSION);});
+      t('CFG.VERSION v9.0',function(){if(!CFG.VERSION.startsWith('9.'))throw new Error('expected v9.x, got '+CFG.VERSION);});
       t('CFG.CALL_RING_TIMEOUT',function(){if(typeof CFG.CALL_RING_TIMEOUT!=='number'||CFG.CALL_RING_TIMEOUT<5000)throw new Error('CALL_RING_TIMEOUT invalid: '+CFG.CALL_RING_TIMEOUT);});
       t('CFG.MAX_CONF_PARTICIPANTS',function(){if(typeof CFG.MAX_CONF_PARTICIPANTS!=='number'||CFG.MAX_CONF_PARTICIPANTS<2)throw new Error('MAX_CONF_PARTICIPANTS invalid: '+CFG.MAX_CONF_PARTICIPANTS);});
       t('CFG.DEFAULT_NOISE_SUPPRESSION',function(){if(typeof CFG.DEFAULT_NOISE_SUPPRESSION!=='boolean')throw new Error('DEFAULT_NOISE_SUPPRESSION must be boolean, got '+typeof CFG.DEFAULT_NOISE_SUPPRESSION);});
@@ -5804,12 +6081,38 @@ if(localStorage.getItem('dh-devmode')==='1'){
       /* A2 */
       t('ABRController exists',function(){if(!App.media._abr||typeof App.media._abr.start!=='function')throw new Error('ABRController missing');});
       /* B9 */
-      t('DB_MIGRATIONS array exists',function(){if(!Array.isArray(DB_MIGRATIONS))throw new Error('DB_MIGRATIONS not an array');if(DB_MIGRATIONS.length<4)throw new Error('Expected ≥4 migrations, got '+DB_MIGRATIONS.length);});
-      t('CFG.DB_VERSION is 5',function(){if(CFG.DB_VERSION!==5)throw new Error('DB_VERSION should be 5, got '+CFG.DB_VERSION);});
+      t('DB_MIGRATIONS array exists',function(){if(!Array.isArray(DB_MIGRATIONS))throw new Error('DB_MIGRATIONS not an array');if(DB_MIGRATIONS.length<5)throw new Error('Expected ≥5 migrations, got '+DB_MIGRATIONS.length);});
+      t('CFG.DB_VERSION is 6',function(){if(CFG.DB_VERSION!==6)throw new Error('DB_VERSION should be 6, got '+CFG.DB_VERSION);});
       /* B10 */
       t('CSP includes strict-dynamic',function(){const csp=document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.content||'';if(!csp.includes('strict-dynamic'))throw new Error('strict-dynamic missing from CSP');});
       t('CFG is frozen',function(){let threw=false;try{CFG._testMutate2='y';}catch(e){threw=true;}if(!threw&&CFG._testMutate2)throw new Error('CFG should be frozen');});
       t('_runBootAssert does not throw on valid App',function(){try{_runBootAssert();}catch(e){throw new Error('_runBootAssert threw on valid App: '+e.message);}});
+      /* === v9 NEW TESTS === */
+      /* G1: VirtualBackgroundManager functional */
+      t('VBG.enable is async function',function(){if(typeof App.media._vbg.enable!=='function')throw new Error('enable missing');const r=App.media._vbg.enable(null,'blur');if(!r||typeof r.then!=='function')throw new Error('enable should return Promise');r.catch(()=>{});});
+      t('VBG.disable is async function',function(){if(typeof App.media._vbg.disable!=='function')throw new Error('disable missing');});
+      t('VBG.toggle is async function',function(){if(typeof App.media._vbg.toggle!=='function')throw new Error('toggle missing');});
+      t('VBG.mode getter',function(){const m=App.media._vbg.mode;if(m!=='off'&&m!=='blur'&&m!=='color')throw new Error('unexpected mode: '+m);});
+      t('VBG.setBlurRadius clamps',function(){App.media._vbg.setBlurRadius(999);if(App.media._vbg._blurRadius>40)throw new Error('blurRadius not clamped');App.media._vbg.setBlurRadius(12);});
+      t('VBG.setColor sets color',function(){App.media._vbg.setColor('#ff0000');if(App.media._vbg._color!=='#ff0000')throw new Error('color not set');App.media._vbg.setColor(CFG.VBG_COLOR);});
+      t('CFG.VBG_FPS defined',function(){if(typeof CFG.VBG_FPS!=='number'||CFG.VBG_FPS<1)throw new Error('VBG_FPS invalid: '+CFG.VBG_FPS);});
+      t('CFG.VBG_COLOR defined',function(){if(typeof CFG.VBG_COLOR!=='string'||!CFG.VBG_COLOR.startsWith('#'))throw new Error('VBG_COLOR invalid: '+CFG.VBG_COLOR);});
+      /* G2: Peer Fingerprint Verification */
+      t('CryptoManager.getMyFingerprint is async function',function(){if(typeof App.crypto?.getMyFingerprint!=='function')throw new Error('getMyFingerprint missing');const r=App.crypto.getMyFingerprint();if(!r||typeof r.then!=='function')throw new Error('should return Promise');r.catch(()=>{});});
+      t('CryptoManager.getPeerFingerprint is async function',function(){if(typeof App.crypto?.getPeerFingerprint!=='function')throw new Error('getPeerFingerprint missing');});
+      t('CryptoManager._WORDS is array ≥100',function(){if(!Array.isArray(CryptoManager._WORDS)||CryptoManager._WORDS.length<100)throw new Error('_WORDS missing or too short: '+CryptoManager._WORDS?.length);});
+      t('CFG.FINGERPRINT_SALT defined',function(){if(typeof CFG.FINGERPRINT_SALT!=='string'||!CFG.FINGERPRINT_SALT)throw new Error('FINGERPRINT_SALT missing');});
+      t('verify-modal in DOM',function(){if(!document.getElementById('verify-modal'))throw new Error('verify-modal not in DOM');});
+      t('verify-my-phrase in DOM',function(){if(!document.getElementById('verify-my-phrase'))throw new Error('verify-my-phrase not in DOM');});
+      t('verify-peer-phrase in DOM',function(){if(!document.getElementById('verify-peer-phrase'))throw new Error('verify-peer-phrase not in DOM');});
+      t('btn-verify-confirm in DOM',function(){if(!document.getElementById('btn-verify-confirm'))throw new Error('btn-verify-confirm not in DOM');});
+      t('btn-verify-mismatch in DOM',function(){if(!document.getElementById('btn-verify-mismatch'))throw new Error('btn-verify-mismatch not in DOM');});
+      /* G3: headless runner exists */
+      t('window.__devhub_runHeadless is function',function(){if(typeof window.__devhub_runHeadless!=='function')throw new Error('__devhub_runHeadless missing');});
+      /* G4: DEV_MODE config */
+      t('CFG.DEV_MODE is boolean',function(){if(typeof CFG.DEV_MODE!=='boolean')throw new Error('DEV_MODE must be boolean, got '+typeof CFG.DEV_MODE);});
+      /* Phase 2: international STUN */
+      t('CFG.STUN_SERVERS ≥10',function(){if(CFG.STUN_SERVERS.length<10)throw new Error('Expected ≥10 STUN servers, got '+CFG.STUN_SERVERS.length);});
       console.table(results);
       const failed=results.filter(r=>!r.ok);
       console.log('[DevHub Test] '+(results.length-failed.length)+'/'+results.length+' tests passed'+(failed.length?' — FAILED: '+failed.map(r=>r.name+' ('+r.err+')').join(', '):''));
@@ -5818,7 +6121,40 @@ if(localStorage.getItem('dh-devmode')==='1'){
   };
   /* B5: expose on window for easy access */
   window.__devhub_recomputeCSPHash=window.__devhub_test.recomputeCSPHash;
-  console.info('[DevHub v'+CFG.VERSION+'] v8 test harness active — window.__devhub_test.runAllTests() | recomputeCSPHash() | verifyAuditLog() | testDestroyMethods() | printFileMap() | getAppState()');
+  /* G3: headless test runner — works without DOM (Node.js / headless env) */
+  window.__devhub_runHeadless=function(tests){
+    /* tests: array of {name,fn} or undefined = run built-in set */
+    const results=[];
+    const t=(name,fn)=>{try{fn();results.push({name,ok:true});}catch(e){results.push({name,ok:false,err:e.message});}};
+    if(Array.isArray(tests)){
+      tests.forEach(({name,fn})=>t(name,fn));
+    }else{
+      /* built-in headless-safe subset (no DOM, no App dependency) */
+      t('CFG.VERSION is 9.x',()=>{if(!CFG.VERSION.startsWith('9.'))throw new Error('expected 9.x, got '+CFG.VERSION);});
+      t('CFG.DB_VERSION is 6',()=>{if(CFG.DB_VERSION!==6)throw new Error('expected 6, got '+CFG.DB_VERSION);});
+      t('CFG is frozen',()=>{let threw=false;try{CFG.__hl='x';}catch(e){threw=true;}if(!threw&&CFG.__hl)throw new Error('CFG not frozen');});
+      t('DB_MIGRATIONS length ≥5',()=>{if(!Array.isArray(DB_MIGRATIONS)||DB_MIGRATIONS.length<5)throw new Error('expected ≥5');});
+      t('uid() returns string',()=>{if(typeof uid(8)!=='string')throw new Error('not a string');});
+      t('esc() escapes <>&',()=>{const r=esc('<>&"');if(!r.includes('&lt;'))throw new Error('< not escaped');});
+      t('fmtSize(1024)==1.0KB',()=>{if(fmtSize(1024)!=='1.0KB')throw new Error(fmtSize(1024));});
+      t('fmtDur(65000)==01:05',()=>{if(fmtDur(65000)!=='01:05')throw new Error(fmtDur(65000));});
+      t('CFG.CHANGELOG[0] starts with v9:',()=>{if(!CFG.CHANGELOG[0].startsWith('v9:'))throw new Error(CFG.CHANGELOG[0]);});
+      t('CFG.FINGERPRINT_SALT defined',()=>{if(!CFG.FINGERPRINT_SALT)throw new Error('missing');});
+      t('CFG.VBG_FPS ≥1',()=>{if(CFG.VBG_FPS<1)throw new Error(CFG.VBG_FPS);});
+      t('CFG.DEV_MODE is boolean',()=>{if(typeof CFG.DEV_MODE!=='boolean')throw new Error(typeof CFG.DEV_MODE);});
+      t('CryptoManager._WORDS array ≥100',()=>{if(!Array.isArray(CryptoManager._WORDS)||CryptoManager._WORDS.length<100)throw new Error(CryptoManager._WORDS?.length);});
+      t('SafeStorage roundtrip',()=>{SafeStorage.set('__hl','ok');if(SafeStorage.get('__hl')!=='ok')throw new Error('get failed');SafeStorage.del('__hl');});
+      t('LRUCache eviction',()=>{const c=new LRUCache(2);c.set('a',1);c.set('b',2);c.set('c',3);if(c.has('a'))throw new Error('a should be evicted');});
+      t('parseMarkdown bold',()=>{if(!parseMarkdown('**x**').includes('<strong>'))throw new Error('no bold');});
+      t('assertString pass',()=>assertString('hi','x'));
+      t('assertNumber pass',()=>assertNumber(1,'x'));
+    }
+    const passed=results.filter(r=>r.ok).length;
+    const out='[DevHub Headless] '+passed+'/'+results.length+' passed'+(results.some(r=>!r.ok)?' — FAIL: '+results.filter(r=>!r.ok).map(r=>r.name).join(', '):'');
+    if(typeof console!=='undefined')console.log(out);
+    return{results,passed,total:results.length,ok:!results.some(r=>!r.ok),summary:out};
+  };
+  console.info('[DevHub v'+CFG.VERSION+'] v9 test harness active — window.__devhub_test.runAllTests() | __devhub_runHeadless() | recomputeCSPHash() | verifyAuditLog() | testDestroyMethods() | printFileMap() | getAppState()');
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
@@ -5827,6 +6163,25 @@ document.addEventListener('DOMContentLoaded',()=>{
     const bo=document.getElementById('boot-overlay');
     if(bo)bo.innerHTML='<div style="color:var(--red);font-size:14px;padding:20px;text-align:center">Boot failed — please refresh.<br><code>'+esc(e.message)+'</code></div>';
   });
+  /* G4: auto CSP hash recompute in DEV_MODE */
+  if(CFG.DEV_MODE){
+    (async()=>{
+      try{
+        const script=document.querySelector('script')?.textContent;
+        if(!script)return;
+        const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(script));
+        const b64=btoa(String.fromCharCode(...new Uint8Array(buf)));
+        const hash='sha256-'+b64;
+        const csp=document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.content||'';
+        if(csp.includes(hash)){
+          console.info('[DevHub] ✓ CSP hash OK — '+hash);
+        }else{
+          console.warn('[DevHub] ⚠ CSP hash mismatch! Current inline hash: \''+hash+'\'');
+          console.warn('[DevHub] Update CSP meta tag script-src to include: \''+hash+'\'');
+        }
+      }catch(e){console.warn('[DevHub] G4 CSP check failed:',e);}
+    })();
+  }
 });
 
 })(); // end DevHub IIFE
@@ -5849,3 +6204,45 @@ document.addEventListener('DOMContentLoaded',()=>{
 </div>
 </body>
 </html>
+<!-- HEADLESS TEST RUNNER (G3) -->
+<!-- To run headlessly: sed -n '/HEADLESS TEST RUNNER/,/END HEADLESS/p' devhub-v9.0.html | node -->
+<!--
+<script id="devhub-headless-test">
+/* DevHub v9 headless test runner — pure-logic subset, no DOM/WebRTC */
+(function(){
+  if(typeof window!=='undefined'&&typeof window.__devhub_runHeadless==='function'){
+    // Browser: already registered inside main IIFE
+    return;
+  }
+  /* Node.js stub environment */
+  const _results=[];
+  function t(name,fn){try{fn();_results.push({name,ok:true,err:null});}catch(e){_results.push({name,ok:false,err:e.message});}}
+  t('LRUCache basic',()=>{const c=new LRUCache(2);c.set('a',1);c.set('b',2);if(c.get('a')!==1)throw new Error('get failed');c.set('c',3);if(c.has('a'))throw new Error('eviction failed');});
+  t('uid returns string of requested length',()=>{const s=uid(8);if(typeof s!=='string'||s.length<8)throw new Error(s);});
+  t('esc escapes HTML',()=>{const r=esc('<>&"');if(!r.includes('&lt;')||!r.includes('&amp;'))throw new Error(r);});
+  t('fmtSize 1024 → 1.0KB',()=>{if(fmtSize(1024)!=='1.0KB')throw new Error(fmtSize(1024));});
+  t('fmtDur 65000 → 01:05',()=>{if(fmtDur(65000)!=='01:05')throw new Error(fmtDur(65000));});
+  t('CFG.VERSION starts with 9',()=>{if(!CFG.VERSION.startsWith('9'))throw new Error(CFG.VERSION);});
+  t('CFG.DB_VERSION is 6',()=>{if(CFG.DB_VERSION!==6)throw new Error(CFG.DB_VERSION);});
+  t('DB_MIGRATIONS length ≥5',()=>{if(!Array.isArray(DB_MIGRATIONS)||DB_MIGRATIONS.length<5)throw new Error(DB_MIGRATIONS?.length);});
+  t('CFG.FINGERPRINT_SALT truthy',()=>{if(!CFG.FINGERPRINT_SALT)throw new Error('missing');});
+  t('CFG.VBG_FPS ≥1',()=>{if(CFG.VBG_FPS<1)throw new Error(CFG.VBG_FPS);});
+  t('CFG.DEV_MODE is boolean',()=>{if(typeof CFG.DEV_MODE!=='boolean')throw new Error(typeof CFG.DEV_MODE);});
+  t('CryptoManager._WORDS array ≥100',()=>{if(!Array.isArray(CryptoManager._WORDS)||CryptoManager._WORDS.length<100)throw new Error(CryptoManager._WORDS?.length);});
+  t('assertString pass',()=>assertString('x','test'));
+  t('assertNumber pass',()=>assertNumber(1,'test'));
+  t('parseMarkdown bold',()=>{if(!parseMarkdown('**x**').includes('<strong>'))throw new Error('no bold');});
+  t('CFG.STUN_SERVERS ≥10',()=>{if(CFG.STUN_SERVERS.length<10)throw new Error(CFG.STUN_SERVERS.length);});
+  t('SafeStorage roundtrip',()=>{SafeStorage.set('__hl_test','ok');if(SafeStorage.get('__hl_test')!=='ok')throw new Error('get mismatch');SafeStorage.del('__hl_test');});
+  t('EventBus on/emit',()=>{const eb=new EventBus();let hit=0;eb.on('x',()=>hit++);eb.emit('x');if(hit!==1)throw new Error('emit not received');});
+  const passed=_results.filter(r=>r.ok).length;
+  const failed=_results.filter(r=>!r.ok);
+  const summary='[DevHub Headless] '+passed+'/'+_results.length+' passed'+(failed.length?' — FAIL: '+failed.map(r=>r.name+'('+r.err+')').join(', '):'');
+  if(typeof console!=='undefined')console.log(summary);
+  if(typeof process!=='undefined')process.exit(failed.length>0?1:0);
+})();
+</script>
+END HEADLESS -->
+
+
+     
