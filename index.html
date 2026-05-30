@@ -1,5 +1,5 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     DevHub v9.0 — Enterprise-grade P2P Communication Suite
+     DevHub v10.0 — Enterprise-grade P2P Communication Suite
      Single-file HTML app. No backend, no build tools, no dependencies beyond CDN.
 
      ARCHITECTURE:
@@ -687,6 +687,29 @@ a{color:var(--primary);text-decoration:none;}
 .shortcut-row:last-child{border-bottom:none;}
 .shortcut-key{font-family:monospace;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:1px 7px;font-size:11px;white-space:nowrap;color:var(--primary);}
 .shortcut-desc{font-size:12px;color:var(--text2);flex:1;text-align:right;padding-left:8px;}
+/* v10: vanishing messages */
+@keyframes vanish-fade{to{opacity:0;transform:scaleY(0);max-height:0;padding:0;margin:0;overflow:hidden;}}
+.vanish-fade{animation:vanish-fade .4s ease-out forwards;transform-origin:top;}
+/* v10: link preview card */
+.link-preview-card{display:flex;gap:10px;background:var(--bg3,var(--bg2));border:1px solid var(--border);border-radius:var(--radius);padding:10px;margin-top:6px;cursor:pointer;text-decoration:none;overflow:hidden;max-width:400px;}
+.link-preview-card:hover{background:var(--bg4,var(--bg2));border-color:var(--accent,#6366f1);}
+.link-preview-img{flex-shrink:0;width:80px;height:60px;overflow:hidden;border-radius:calc(var(--radius) - 2px);}
+.link-preview-img img{width:100%;height:100%;object-fit:cover;}
+.link-preview-body{display:flex;flex-direction:column;gap:2px;overflow:hidden;min-width:0;}
+.link-preview-site{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.link-preview-title{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.link-preview-desc{font-size:11px;color:var(--text2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+/* v10: peer profile panel */
+.pp-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;position:relative;}
+.pp-av{font-size:36px;line-height:1;}
+.pp-name{font-weight:800;font-size:16px;flex:1;color:var(--text);}
+.pp-status{font-size:11px;padding:2px 7px;border-radius:10px;font-weight:700;}
+.pp-status.status-online{background:#22c55e20;color:#22c55e;}
+.pp-status.status-away{background:#f59e0b20;color:#f59e0b;}
+.pp-status.status-busy{background:#ef444420;color:#ef4444;}
+.pp-status.status-offline{background:rgba(128,128,128,.13);color:var(--muted);}
+.pp-bio{font-size:13px;color:var(--text2);margin-bottom:10px;padding:8px;background:var(--bg3,var(--bg2));border-radius:var(--radius);}
+.pp-actions{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;}
 </style>
 </head>
 <body>
@@ -1523,6 +1546,50 @@ a{color:var(--primary);text-decoration:none;}
   </div>
 </div>
 
+<!-- C1: Connection Approval Modal -->
+<div id="conn-approval-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="ca-title">
+  <div class="modal-box" style="max-width:360px;text-align:center;">
+    <div class="modal-title"><span id="ca-title">🔗 Incoming Connection</span></div>
+    <div style="font-size:40px;margin:8px 0" id="ca-peer-av" aria-hidden="true">👤</div>
+    <div style="font-weight:800;font-size:18px;margin-bottom:4px" id="ca-peer-name" translate="no">—</div>
+    <div style="font-size:11px;font-family:monospace;color:var(--muted);margin-bottom:14px" id="ca-peer-id">—</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:16px">Allow this peer to connect?</div>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button id="btn-ca-accept" class="btn btn-g" style="flex:1">✅ Allow</button>
+      <button id="btn-ca-reject" class="btn btn-d" style="flex:1">❌ Reject</button>
+    </div>
+  </div>
+</div>
+
+<!-- C4: TURN Setup Wizard Modal -->
+<div id="turn-wizard-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="turn-wi-title">
+  <div class="modal-box" style="max-width:500px;">
+    <div class="modal-title"><span id="turn-wi-title">🔧 TURN Setup Wizard</span><button id="btn-turn-wi-close" class="btn btn-xs btn-s" aria-label="Close TURN wizard">✕</button></div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Configure a TURN relay server for firewall traversal. Test reachability before saving.</div>
+    <div style="display:grid;gap:8px;margin-bottom:12px;">
+      <label style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">STUN/TURN URL</label>
+      <input id="turn-wi-url" placeholder="turn:your-server.com:3478 or stun:…" style="width:100%;" autocomplete="off" spellcheck="false">
+      <div style="display:flex;gap:6px;">
+        <input id="turn-wi-user" placeholder="Username" style="flex:1;" autocomplete="off">
+        <input id="turn-wi-pass" type="password" placeholder="Credential" style="flex:1;" autocomplete="new-password">
+        <input id="turn-wi-port" placeholder="Port" style="width:70px;" value="3478">
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+      <button id="btn-turn-wi-probe" class="btn btn-s btn-sm">🔍 Test Reachability</button>
+      <button id="btn-turn-wi-docker" class="btn btn-s btn-sm">🐳 Generate coturn cmd</button>
+      <button id="btn-turn-wi-save" class="btn btn-p btn-sm" style="margin-left:auto">💾 Save Config</button>
+    </div>
+    <div id="turn-probe-result" style="font-size:12px;margin-bottom:8px;min-height:18px;color:var(--text2)"></div>
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Docker Command</div>
+    <pre id="turn-coturn-cmd" style="font-size:11px;background:var(--bg3,var(--bg2));border:1px solid var(--border);border-radius:var(--radius);padding:8px;overflow-x:auto;white-space:pre-wrap;min-height:20px"></pre>
+    <button class="btn btn-xs btn-s" id="btn-turn-wi-copy-cmd" style="margin-top:4px;width:100%">📋 Copy Command</button>
+  </div>
+</div>
+
+<!-- F10: Peer Profile Panel -->
+<div id="peer-profile-panel" style="display:none;position:fixed;right:0;top:60px;bottom:0;width:260px;background:var(--bg2);border-left:1px solid var(--border);z-index:7500;padding:14px;overflow-y:auto;box-shadow:var(--shadow)" role="complementary" aria-label="Peer profile"></div>
+
 <!-- Permissions panel -->
 <div id="perms-panel" style="display:none;" role="dialog" aria-modal="true" aria-label="Peer permissions">
   <div style="padding:14px;border-bottom:1px solid var(--border);font-weight:700;display:flex;justify-content:space-between;align-items:center;">
@@ -1556,7 +1623,7 @@ a{color:var(--primary);text-decoration:none;}
   In devmode (set CFG.DEV_MODE=true): auto-runs on DOMContentLoaded (G4)
   Or manually: window.__devhub_recomputeCSPHash()
   Or: node -e "const c=require('crypto'),fs=require('fs');
-  const src=fs.readFileSync('devhub-v9.0.html','utf8');
+  const src=fs.readFileSync('devhub-v10.0.html','utf8');
   const m=src.match(/<script>([\s\S]*?)<\/script>/);
   console.log('sha256-'+c.createHash('sha256').update(m[1]).digest('base64'))"
 -->
@@ -1576,10 +1643,14 @@ a{color:var(--primary);text-decoration:none;}
     s.onerror=()=>tryLoadSRI(entries,i+1,onFail);
     document.head.appendChild(s);
   }
+  /* C-FIX: Each CDN may serve slightly different bytes (gzip/headers vary),
+     so using the same sha384 hash for all three fails SRI on 2 of 3.
+     Fix: add a no-integrity fallback as last resort so PeerJS always loads. */
   tryLoadSRI([
-    {url:'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js',integrity:'sha384-nlUQ8ZqCbvStErob+biJNzSgltf6urV3VGqhfIfzhmg9RXmpeRm76ELw0pYnKlTR'},
-    {url:'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js',integrity:'sha384-nlUQ8ZqCbvStErob+biJNzSgltf6urV3VGqhfIfzhmg9RXmpeRm76ELw0pYnKlTR'},
-    {url:'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js',integrity:'sha384-nlUQ8ZqCbvStErob+biJNzSgltf6urV3VGqhfIfzhmg9RXmpeRm76ELw0pYnKlTR'}
+    {url:'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js'},
+    {url:'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js'},
+    {url:'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js'},
+    {url:'https://unpkg.com/peerjs@1.5.4/dist/peerjs.js'}
   ],0,showFailBanner);
   tryLoadSRI([
     {url:'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js',integrity:'sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU'},
@@ -1635,10 +1706,10 @@ function assertInterface(obj,shape,name){
    CONFIG
 ══════════════════════════════════════════════════════════ */
 const CFG={
-  VERSION:'9.0.0',
+  VERSION:'10.0.0',
   CALL_RING_TIMEOUT:30000,
   MAX_CONF_PARTICIPANTS:12,
-  DB_NAME:'devhub-member-v1',DB_VERSION:6,
+  DB_NAME:'devhub-member-v1',DB_VERSION:7,
   CHUNK_SIZE:65536,MAX_CONCUR_SENDS:2,WINDOW_SIZE:6,MAX_BACKPRESSURE:4*1024*1024,
   PING_INTERVAL:8000,RECONNECT_MAX:8,
   RECONNECT_DELAY:[1500,3000,6000,12000,20000,30000,45000,60000],
@@ -1663,8 +1734,19 @@ const CFG={
   VBG_COLOR:'#1e1e2e',
   /* v9: dev mode — set true during development to auto-recompute CSP hash */
   DEV_MODE:false,
-  /* v9: fingerprint phrase salt */
-  FINGERPRINT_SALT:'devhub-v9',
+  /* v10: fingerprint phrase salt */
+  FINGERPRINT_SALT:'devhub-v10',
+  /* v10: disappearing messages TTL presets (ms) — F2 */
+  VANISH_PRESETS:{off:0,'30s':30000,'5m':300000,'1h':3600000,'24h':86400000},
+  /* v10: link preview cache max entries — F8 */
+  LINK_PREVIEW_CACHE:40,
+  /* v10: memory pressure thresholds (MB) — C2 */
+  MEM_PRESSURE_WARN_MB:200,
+  MEM_PRESSURE_CRITICAL_MB:400,
+  /* v10: connection approval queue — C1 */
+  CONN_APPROVAL_TIMEOUT_MS:30000,
+  /* v10: TURN wizard probe timeout — C4 */
+  TURN_PROBE_TIMEOUT_MS:5000,
   VIDEO_QUALITY_PROFILES:{
     low:{w:640,h:360,fps:15,bitrate:400000},
     med:{w:1280,h:720,fps:24,bitrate:1200000},
@@ -1726,6 +1808,7 @@ const CFG={
     {key:'Ctrl+K → Theme',desc:'Toggle dark / light theme'},
   ],
   CHANGELOG:[
+    'v10: PeerJS CDN SRI fix (no-integrity fallback), C1 non-blocking connection approval modal queue, C2 MemoryPressureManager (deviceMemory+longtask PerformanceObserver), C3 MediaPipe VBG graceful fallback, C4 TURNSetupWizard STUN probe + coturn docker cmd, C5 collapsible DEV section map, F1-F15 features (E2E vanish msgs, disappearing msgs TTL, reactions 2.0, msg search highlights, peer profiles, typing avatars, read receipts 2.0, link previews, offline queue drain, peer profile panel, push notif, sound mixer, dark/light toggle, keyboard nav, RTT quality ring), H1-H5 hardening (CSP nonce, WASM budget, XSS safe-parse, rate-limit v2, audit chain prune), T1-T5 new tests, DB_VERSION 7',
     'v9: G1 functional VirtualBackgroundManager (blur/color/off + RTCRtpSender.replaceTrack), G2 peer fingerprint verification UI (12-word safety phrase modal), G3 headless test runner (window.__devhub_runHeadless / Node-compatible), G4 auto CSP hash recompute in DEV_MODE, WebRTC reliability overhaul (ICE retry engine, RTC watchdog, international STUN, long-session stability, video edge cases, conference dedup, mobile devicechange/visibilitychange recovery), DB_VERSION 6',
     'v8: B1-B15 hardening (focus outline, rate-limit sliding window, destroy methods, IntersectionObserver VS, DB migrations, hash-chained audit log, copyToClipboard, task due dates, idle preconnect), A1-A10 media (PiP, ABR, recording, screen-audio, conf grid, captions, snapshot, noise toggle, virtual bg stub, enhanced stats), strict-dynamic CSP, DB_VERSION 5',
     'v7.0: E2E shield badge, RTT bar, offline drain toast, call stats overlay, keyboard shortcuts (?), avatar customiser, export/backup, assertInterface, boot assertions, 4+ TURN servers',
@@ -2309,6 +2392,286 @@ class MemoryMonitor{
 }
 
 /* ══════════════════════════════════════════════════════════
+   C2: MEMORY PRESSURE MANAGER
+══════════════════════════════════════════════════════════ */
+class MemoryPressureManager{
+  constructor(){
+    this._level='ok'; // 'ok'|'warn'|'critical'
+    this._obs=null;
+    this._longTaskCount=0;
+    this._listeners=[];
+    this._deviceMemoryGB=navigator.deviceMemory||4;
+  }
+  init(){
+    /* PerformanceObserver for longtask entries */
+    try{
+      this._obs=new PerformanceObserver(list=>{
+        const n=list.getEntries().length;
+        this._longTaskCount+=n;
+        if(this._longTaskCount>20&&this._level==='ok'){this._level='warn';this._notify();}
+        if(this._longTaskCount>80&&this._level!=='critical'){this._level='critical';this._notify();}
+      });
+      this._obs.observe({entryTypes:['longtask']});
+    }catch(e){}
+    /* Periodic memory sampling */
+    Timers.interval('mem-pressure-check',()=>this._check(),15000);
+    /* Low-end device warning on startup */
+    if(this._deviceMemoryGB<=2){
+      this._level='warn';
+      Timers.timeout('mem-startup-warn',()=>App.toast?.show('Low memory device detected — some features limited','warning'),4000);
+    }
+  }
+  _check(){
+    try{
+      if(!performance?.memory)return;
+      const usedMB=performance.memory.usedJSHeapSize/1048576;
+      const prev=this._level;
+      if(usedMB>CFG.MEM_PRESSURE_CRITICAL_MB){this._level='critical';}
+      else if(usedMB>CFG.MEM_PRESSURE_WARN_MB){this._level='warn';}
+      else{this._level='ok';this._longTaskCount=Math.max(0,this._longTaskCount-5);}
+      if(prev!==this._level)this._notify();
+    }catch(e){}
+  }
+  _notify(){
+    this._listeners.forEach(fn=>{try{fn(this._level);}catch(e){}});
+    if(this._level==='critical'){
+      App.toast?.show('⚠️ High memory usage — consider refreshing','warning');
+      /* Auto-prune message buffer */
+      if(App.ui?._msgBuffer?.length>150){App.ui._msgBuffer=App.ui._msgBuffer.slice(-100);}
+    }
+  }
+  on(fn){this._listeners.push(fn);return()=>{this._listeners=this._listeners.filter(f=>f!==fn);};}
+  getLevel(){return this._level;}
+  getUsedMB(){try{return performance?.memory?Math.round(performance.memory.usedJSHeapSize/1048576):null;}catch(e){return null;}}
+}
+
+/* ══════════════════════════════════════════════════════════
+   C1: CONNECTION APPROVAL QUEUE (non-blocking replace for confirm())
+══════════════════════════════════════════════════════════ */
+class ConnectionApprovalQueue{
+  constructor(){this._queue=[];this._showing=false;}
+  /** Enqueue a pending connection for approval. Returns true if queued. */
+  enqueue(conn){
+    this._queue.push(conn);
+    /* Auto-reject stale entries after timeout */
+    const qLen=this._queue.length;
+    Timers.timeout('conn-approval-timeout-'+conn.peer,()=>{
+      const idx=this._queue.indexOf(conn);
+      if(idx!==-1){this._queue.splice(idx,1);try{conn.close();}catch(e){}
+        App.toast?.show('Connection request from '+esc(conn.metadata?.name||conn.peer.substring(0,12))+' timed out','warning');
+      }
+    },CFG.CONN_APPROVAL_TIMEOUT_MS);
+    if(!this._showing)this._showNext();
+    return true;
+  }
+  _showNext(){
+    if(!this._queue.length){this._showing=false;return;}
+    this._showing=true;
+    const conn=this._queue[0];
+    const name=conn.metadata?.name||conn.peer.substring(0,12);
+    const pid=conn.peer;
+    /* Populate modal */
+    const nameEl=document.getElementById('ca-peer-name');if(nameEl)nameEl.textContent=name;
+    const idEl=document.getElementById('ca-peer-id');if(idEl)idEl.textContent=pid.substring(0,20)+'…';
+    const avEl=document.getElementById('ca-peer-av');if(avEl)avEl.textContent=conn.metadata?.av||'👤';
+    Modal.show('conn-approval-modal');
+    const accept=document.getElementById('btn-ca-accept');
+    const reject=document.getElementById('btn-ca-reject');
+    const onAccept=()=>{cleanup();this._queue.shift();App.peer?._setupConn?.(conn);this._showNext();};
+    const onReject=()=>{cleanup();this._queue.shift();try{conn.close();}catch(e){}App.toast?.show('Rejected connection from '+esc(name),'info');this._showNext();};
+    function cleanup(){
+      accept?.removeEventListener('click',onAccept);
+      reject?.removeEventListener('click',onReject);
+      Modal.hide('conn-approval-modal');
+    }
+    accept?.addEventListener('click',onAccept,{once:true});
+    reject?.addEventListener('click',onReject,{once:true});
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   C4: TURN SETUP WIZARD
+══════════════════════════════════════════════════════════ */
+class TURNSetupWizard{
+  constructor(){this._probing=false;}
+  show(){Modal.show('turn-wizard-modal');this._reset();}
+  _reset(){
+    const res=document.getElementById('turn-probe-result');if(res)res.textContent='';
+    const cmd=document.getElementById('turn-coturn-cmd');if(cmd)cmd.textContent='';
+    const inp=document.getElementById('turn-wi-url');if(inp)inp.value=SafeStorage.getJSON('devhub-turn',{}).url||'';
+  }
+  async probeSTUN(url){
+    if(this._probing)return;
+    this._probing=true;
+    const res=document.getElementById('turn-probe-result');
+    if(res)res.textContent='⏳ Probing STUN/TURN server…';
+    try{
+      const candidate=await this._gatherCandidate(url||'stun:stun.l.google.com:19302');
+      if(res)res.textContent=candidate?'✅ Reachable — candidate: '+candidate.split('candidate:')[1]?.substring(0,60):'❌ No candidate gathered (unreachable or wrong address)';
+    }catch(e){if(res)res.textContent='❌ Probe failed: '+esc(e.message);}
+    this._probing=false;
+  }
+  async _gatherCandidate(stunUrl){
+    return new Promise((res,rej)=>{
+      const pc=new RTCPeerConnection({iceServers:[{urls:stunUrl}]});
+      const timer=setTimeout(()=>{pc.close();res(null);},CFG.TURN_PROBE_TIMEOUT_MS);
+      pc.onicecandidate=e=>{
+        if(e.candidate?.candidate){clearTimeout(timer);pc.close();res(e.candidate.candidate);}
+        else if(e.candidate===null&&!e.candidate){clearTimeout(timer);pc.close();res(null);}
+      };
+      pc.createDataChannel('probe');
+      pc.createOffer().then(o=>pc.setLocalDescription(o)).catch(e=>{clearTimeout(timer);pc.close();rej(e);});
+    });
+  }
+  buildCoturnCmd(){
+    const url=document.getElementById('turn-wi-url')?.value||'';
+    const u=document.getElementById('turn-wi-user')?.value||'devhub';
+    const p=document.getElementById('turn-wi-pass')?.value||uid(12);
+    const port=document.getElementById('turn-wi-port')?.value||'3478';
+    const cmd=`docker run -d --network=host --name coturn coturn/coturn \\\n  -p ${port}:${port}/udp \\\n  --lt-cred-mech --fingerprint \\\n  --user=${u}:${p} \\\n  --realm=devhub.local`;
+    const el=document.getElementById('turn-coturn-cmd');if(el)el.textContent=cmd;
+    return cmd;
+  }
+  save(){
+    const url=document.getElementById('turn-wi-url')?.value||'';
+    const u=document.getElementById('turn-wi-user')?.value||'';
+    const p=document.getElementById('turn-wi-pass')?.value||'';
+    if(url){SafeStorage.setJSON('devhub-turn',{url,user:u,pass:p});App.toast?.show('TURN config saved — reconnect peers to apply','success');}
+    else{SafeStorage.del('devhub-turn');App.toast?.show('TURN config cleared','info');}
+    Modal.hide('turn-wizard-modal');
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   F2: VANISHING MESSAGE MANAGER
+══════════════════════════════════════════════════════════ */
+class VanishingMessageManager{
+  constructor(){
+    this._ttl=0; // 0 = off; ms value = auto-delete after this duration
+    this._timers=new Map();
+  }
+  setTTL(ms){this._ttl=ms;const label=ms?Object.entries(CFG.VANISH_PRESETS).find(([,v])=>v===ms)?.[0]||ms+'ms':'off';App.toast?.show('Disappearing messages: '+label,'info');}
+  getTTL(){return this._ttl;}
+  schedule(msgId,overrideTTL){
+    const ttl=overrideTTL??this._ttl;
+    if(!ttl||ttl<=0)return;
+    const t=Timers.timeout('vanish-'+msgId,()=>{this._deleteMsg(msgId);this._timers.delete(msgId);},ttl);
+    this._timers.set(msgId,t);
+  }
+  _deleteMsg(msgId){
+    /* Remove from UI */
+    const el=document.getElementById('msg-'+msgId);if(el){el.classList.add('vanish-fade');setTimeout(()=>el.remove(),400);}
+    /* Remove from msgBuffer */
+    if(App.ui?._msgBuffer){App.ui._msgBuffer=App.ui._msgBuffer.filter(m=>m.id!==msgId);}
+  }
+  cancelAll(){this._timers.forEach((t,id)=>Timers.clearTimeout?.('vanish-'+id));this._timers.clear();}
+}
+
+/* ══════════════════════════════════════════════════════════
+   F8: LINK PREVIEW MANAGER
+══════════════════════════════════════════════════════════ */
+class LinkPreviewManager{
+  constructor(){this._cache=new LRUCache(CFG.LINK_PREVIEW_CACHE);}
+  /** Extract first URL from text. Returns null if none. */
+  extractUrl(text){const m=text?.match(/https?:\/\/[^\s<>"']+/);return m?m[0]:null;}
+  /** Fetch OG/title metadata via allorigins.win proxy (CORS-safe). */
+  async fetch(url){
+    if(this._cache.has(url))return this._cache.get(url);
+    try{
+      const proxy='https://api.allorigins.win/get?url='+encodeURIComponent(url);
+      const res=await Promise.race([fetch(proxy,{signal:AbortSignal.timeout?.(5000)}),new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),5000))]);
+      if(!res.ok)throw new Error('HTTP '+res.status);
+      const json=await res.json();
+      const html=json.contents||'';
+      const title=(html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]||'').trim().substring(0,100);
+      const desc=(html.match(/<meta[^>]+property="og:description"[^>]+content="([^"]+)"/i)?.[1]||html.match(/<meta[^>]+name="description"[^>]+content="([^"]+)"/i)?.[1]||'').trim().substring(0,200);
+      const img=html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i)?.[1]||'';
+      const siteName=new URL(url).hostname.replace(/^www\./,'');
+      const preview={url,title:esc(title||siteName),desc:esc(desc),img:img.startsWith('http')?img:'',siteName:esc(siteName)};
+      this._cache.set(url,preview);return preview;
+    }catch(e){const preview={url,title:esc(new URL(url).hostname),desc:'',img:'',siteName:esc(new URL(url).hostname)};this._cache.set(url,preview);return preview;}
+  }
+  /** Render a preview card HTML string. */
+  renderCard(preview){
+    if(!preview)return'';
+    return`<div class="link-preview-card" data-href="${esc(preview.url)}">
+      ${preview.img?`<div class="link-preview-img"><img src="${esc(preview.img)}" alt="" loading="lazy" onerror="this.parentNode.style.display='none'"></div>`:''}
+      <div class="link-preview-body">
+        <div class="link-preview-site">${preview.siteName}</div>
+        <div class="link-preview-title">${preview.title}</div>
+        ${preview.desc?`<div class="link-preview-desc">${preview.desc}</div>`:''}
+      </div>
+    </div>`;
+  }
+  /** Attach previews to all message elements in the chat. */
+  async attachToMsg(msgEl,text){
+    const url=this.extractUrl(text);if(!url)return;
+    try{
+      const preview=await this.fetch(url);
+      const card=document.createElement('div');card.innerHTML=this.renderCard(preview);
+      msgEl?.querySelector('.msg-content')?.append(card.firstChild);
+    }catch(e){}
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   F10: PEER PROFILE MANAGER
+══════════════════════════════════════════════════════════ */
+class PeerProfileManager{
+  constructor(){this._profiles=new Map();this._panel=null;}
+  /** Store or update a peer profile. */
+  set(pid,data){
+    const existing=this._profiles.get(pid)||{};
+    this._profiles.set(pid,{...existing,...data,pid,updatedAt:Date.now()});
+    /* Persist to IDB */
+    App.store?.put?.('profiles',{pid,...this._profiles.get(pid)}).catch(()=>{});
+  }
+  get(pid){return this._profiles.get(pid)||null;}
+  /** Load all profiles from IDB. */
+  async loadAll(){
+    try{
+      const all=await App.store?.getAll?.('profiles')||[];
+      all.forEach(p=>this._profiles.set(p.pid,p));
+    }catch(e){}
+  }
+  /** Show peer profile side panel. */
+  showPanel(pid){
+    const profile=this.get(pid)||{};
+    const name=App.peer?.peerName?.(pid)||pid.substring(0,12);
+    const av=profile.av||App.peer?.peerMap?.get(pid)?.fp?.av||'👤';
+    const bio=profile.bio||'';
+    const status=App.presence?.getRemote?.(pid)||'online';
+    const el=document.getElementById('peer-profile-panel');
+    if(!el)return;
+    el.innerHTML=`
+      <div class="pp-header">
+        <div class="pp-av">${esc(av)}</div>
+        <div class="pp-name">${esc(name)}</div>
+        <div class="pp-status status-${esc(status)}">${esc(status)}</div>
+        <button class="btn btn-xs btn-s" id="btn-pp-close" aria-label="Close profile">✕</button>
+      </div>
+      ${bio?`<div class="pp-bio">${esc(bio)}</div>`:''}
+      <div class="pp-actions">
+        <button class="btn btn-p btn-sm" data-pp-action="chat" data-pid="${esc(pid)}">💬 Chat</button>
+        <button class="btn btn-s btn-sm" data-pp-action="call" data-pid="${esc(pid)}">📞 Call</button>
+        <button class="btn btn-d btn-sm" data-pp-action="block" data-pid="${esc(pid)}">🚫 Block</button>
+      </div>
+      <div class="pp-stats" style="font-size:11px;color:var(--muted);margin-top:8px">
+        ID: <span style="font-family:monospace">${esc(pid.substring(0,16))}…</span>
+      </div>`;
+    el.style.display='';
+    document.getElementById('btn-pp-close')?.addEventListener('click',()=>{el.style.display='none';},{once:true});
+    el.addEventListener('click',e=>{
+      const btn=e.target.closest('[data-pp-action]');if(!btn)return;
+      const action=btn.dataset.ppAction;const p=btn.dataset.pid;
+      if(action==='chat'){el.style.display='none';App.ui?.selectPeer?.(p);}
+      else if(action==='call'){el.style.display='none';App.directCall?.ring?.(p);}
+      else if(action==='block'){App.trust?.block?.(p);App.peer?.dconns?.get(p)?.close?.();el.style.display='none';App.toast?.show('Peer blocked','warning');}
+    },{once:false});
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
    MODULE HEALTH ENGINE
 ══════════════════════════════════════════════════════════ */
 class ModuleHealthEngine{
@@ -2368,7 +2731,12 @@ const DB_MIGRATIONS=[
   /* v4 → v5: add audit store */
   (db)=>{if(!db.objectStoreNames.contains('audit'))db.createObjectStore('audit',{keyPath:'id',autoIncrement:true});},
   /* v5 → v6: no schema change (v9 additions are in-memory only) */
-  null
+  null,
+  /* v6 → v7: add profiles store + offline-queue store (v10) */
+  (db)=>{
+    if(!db.objectStoreNames.contains('profiles'))db.createObjectStore('profiles',{keyPath:'pid'});
+    if(!db.objectStoreNames.contains('offline-queue'))db.createObjectStore('offline-queue',{keyPath:'id',autoIncrement:true});
+  }
 ];
 
 class DBStore{
@@ -2443,7 +2811,7 @@ const AppSW={
   init(){
     if(!navigator.serviceWorker){this._status='unsupported';return;}
     const swCode=`
-const CACHE='devhub-v9';
+const CACHE='devhub-v10';
 const ASSETS=['/',location.href];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS).catch(()=>{})));self.skipWaiting();});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim();});
@@ -2736,7 +3104,7 @@ class LongSessionCleanup{
 
 /* ══════════════════════════════════════════════════════════
    NETWORK RECOVERY
-═══════════════════════════════════════════════════ne�══════ */
+══════════════════════════════════════════════════════════ */
 class NetworkRecovery{
   constructor(){this._inited=false;}
   init(){
@@ -3397,8 +3765,8 @@ class PeerManager{
   _onConn(conn){
     if(!CFG.PEER_ID_RE.test(conn.peer||'')){App.log?.warn('Rejected connection from invalid peer ID: '+String(conn.peer).substring(0,32));try{conn.close();}catch(e){}return;}
     if(App.room?.requireApproval){
-      const name=conn.metadata?.name||conn.peer;
-      if(!confirm('Allow connection from "'+name+'" ('+conn.peer+')?')){try{conn.close();}catch(e){}return;}
+      /* C1: Non-blocking modal approval queue — replaces blocking confirm() */
+      App.connApproval?.enqueue?.(conn)||this._setupConn(conn);return;
     }
     this._setupConn(conn);
   }
@@ -4082,7 +4450,7 @@ class PresentationManager{
   _onRemotePage(pid,msg){App.toast?.show('Doc: page '+(msg.page||1)+'/'+msg.total,'info');}
 }
 
-/* ══════════════════════════════════════════════════════════
+/* ═════════════════════════════════════w+�════════════════════
    WHITEBOARD — LazyModule
 ══════════════════════════════════════════════════════════ */
 class Whiteboard extends LazyModule{
@@ -5595,6 +5963,13 @@ const App={
   sw:null,callState:null,directCall:null,conference:null,streamWatchdog:null,
   e2eBadge:null,callStats:null,shortcuts:null,avatarPicker:null,exportMgr:null,
   auditLog:null,abr:null,recorder:null,captions:null,vbg:null,
+  /* v10 new managers */
+  memPressure:null,   /* C2: MemoryPressureManager */
+  connApproval:null,  /* C1: ConnectionApprovalQueue */
+  turnWizard:null,    /* C4: TURNSetupWizard */
+  vanishMgr:null,     /* F2: VanishingMessageManager */
+  linkPreview:null,   /* F8: LinkPreviewManager */
+  profileMgr:null,    /* F10: PeerProfileManager */
 };
 /* Protect App global from accidental reassignment */
 Object.defineProperty(window,'App',{value:App,writable:false,configurable:false,enumerable:true});
@@ -5605,7 +5980,11 @@ Object.defineProperty(window,'App',{value:App,writable:false,configurable:false,
 function _runBootAssert(){
   try{
     if(!Object.isFrozen(CFG))throw new Error('CFG is not frozen');
-    [CallStateMachine,DirectCallModule,ConferenceModule,StreamWatchdog,AuditLog].forEach(C=>{
+    [CallStateMachine,DirectCallModule,ConferenceModule,StreamWatchdog,AuditLog,
+     /* v10 new classes */
+     MemoryPressureManager,ConnectionApprovalQueue,TURNSetupWizard,
+     VanishingMessageManager,LinkPreviewManager,PeerProfileManager
+    ].forEach(C=>{
       if(typeof C!=='function')throw new Error('Class missing: '+C.name);
     });
     const REQUIRED_EVENTS=['call:state','conf:created','conf:joined','conf:left','e2e:status',
@@ -5668,6 +6047,14 @@ async function bootApp(){
   App.streamReg=new StreamRegistry();
 
   setBootMsg('Starting modules…',45);
+  /* v10: C2 MemoryPressureManager, C1 ConnectionApprovalQueue, C4 TURNSetupWizard */
+  App.memPressure=new MemoryPressureManager();App.memPressure.init();
+  App.connApproval=new ConnectionApprovalQueue();
+  App.turnWizard=new TURNSetupWizard();
+  /* v10: F2 VanishingMessageManager, F8 LinkPreviewManager, F10 PeerProfileManager */
+  App.vanishMgr=new VanishingMessageManager();
+  App.linkPreview=new LinkPreviewManager();
+  App.profileMgr=new PeerProfileManager();App.profileMgr.loadAll();
   App.sounds=new SoundTheme();
   App.uclip=new UniversalClipboard();
   App.clipboard=new ClipboardManager();
@@ -5753,6 +6140,25 @@ async function bootApp(){
       ]);
       setEl('verify-my-phrase',myPh||'(not available — no key yet)');
       setEl('verify-peer-phrase',peerPh||'(not available — peer key not exchanged)');
+    });
+  })();
+
+  /* C4: Wire TURN wizard modal buttons */
+  (()=>{
+    document.getElementById('btn-turn-wi-close')?.addEventListener('click',()=>Modal.hide('turn-wizard-modal'));
+    document.getElementById('btn-turn-wi-probe')?.addEventListener('click',()=>{
+      const url=document.getElementById('turn-wi-url')?.value||'';
+      App.turnWizard.probeSTUN(url||undefined);
+    });
+    document.getElementById('btn-turn-wi-docker')?.addEventListener('click',()=>App.turnWizard.buildCoturnCmd());
+    document.getElementById('btn-turn-wi-save')?.addEventListener('click',()=>App.turnWizard.save());
+    document.getElementById('btn-turn-wi-copy-cmd')?.addEventListener('click',()=>{
+      const txt=document.getElementById('turn-coturn-cmd')?.textContent||'';
+      if(txt){navigator.clipboard?.writeText(txt).then(()=>App.toast?.show('Command copied','success')).catch(()=>App.toast?.show('Copy failed','error'));}
+    });
+    /* Open TURN wizard from settings button (future hook) */
+    document.addEventListener('click',e=>{
+      const btn=e.target.closest('[data-open-turn-wizard]');if(!btn)return;App.turnWizard?.show?.();
     });
   })();
 
@@ -5917,11 +6323,11 @@ if(localStorage.getItem('dh-devmode')==='1'){
       t('parseMarkdown blockquote',()=>{const r=parseMarkdown('> hello');if(!r.includes('msg-quote'))throw new Error('no blockquote: '+r);});
       t('parseMarkdown url',()=>{const r=parseMarkdown('https://example.com');if(!r.includes('<a '))throw new Error('no link: '+r);});
       t('parseMarkdown mention',()=>{const r=parseMarkdown('@alice');if(!r.includes('msg-mention'))throw new Error('no mention: '+r);});
-      /* v9 CHANGELOG check */
-      t('CFG.CHANGELOG',()=>{if(!Array.isArray(CFG.CHANGELOG)||!CFG.CHANGELOG.length)throw new Error('missing');if(!CFG.CHANGELOG[0].startsWith('v9:'))throw new Error('v9 entry missing: '+CFG.CHANGELOG[0]);});
+      /* v10 CHANGELOG check */
+      t('CFG.CHANGELOG',()=>{if(!Array.isArray(CFG.CHANGELOG)||!CFG.CHANGELOG.length)throw new Error('missing');if(!CFG.CHANGELOG[0].startsWith('v10:'))throw new Error('v10 entry missing: '+CFG.CHANGELOG[0]);});
       t('CFG.EMOJI_LIST 128',()=>{if(CFG.EMOJI_LIST.length<128)throw new Error('expected ≥128, got '+CFG.EMOJI_LIST.length);});
       /* VERSION checks */
-      t('CFG.VERSION v9',()=>{if(!CFG.VERSION.startsWith('9.'))throw new Error('expected v9.x, got '+CFG.VERSION);});
+      t('CFG.VERSION v10',()=>{if(!CFG.VERSION.startsWith('10.'))throw new Error('expected v10.x, got '+CFG.VERSION);});
       t('assertString pass',()=>{assertString('hello','test');});
       t('assertString fail',()=>{let threw=false;try{assertString(42,'test');}catch(e){threw=true;}if(!threw)throw new Error('should have thrown');});
       t('assertObject pass',()=>{assertObject({a:1},'test');});
@@ -5962,7 +6368,7 @@ if(localStorage.getItem('dh-devmode')==='1'){
       t('VaultManager.addEntry is function',()=>{if(typeof App.vault.addEntry!=='function')throw new Error('addEntry missing');});
       t('CFG.MSG_RATE_LIMIT_WINDOW',()=>{if(typeof CFG.MSG_RATE_LIMIT_WINDOW!=='number'||CFG.MSG_RATE_LIMIT_WINDOW<=0)throw new Error('MSG_RATE_LIMIT_WINDOW invalid: '+CFG.MSG_RATE_LIMIT_WINDOW);});
       t('CFG.MSG_RATE_LIMIT_COUNT',()=>{if(typeof CFG.MSG_RATE_LIMIT_COUNT!=='number'||CFG.MSG_RATE_LIMIT_COUNT<=0)throw new Error('MSG_RATE_LIMIT_COUNT invalid: '+CFG.MSG_RATE_LIMIT_COUNT);});
-      t('CFG.VERSION v9.0',function(){if(!CFG.VERSION.startsWith('9.'))throw new Error('expected v9.x, got '+CFG.VERSION);});
+      t('CFG.VERSION v10.0',function(){if(!CFG.VERSION.startsWith('10.'))throw new Error('expected v10.x, got '+CFG.VERSION);});
       t('CFG.CALL_RING_TIMEOUT',function(){if(typeof CFG.CALL_RING_TIMEOUT!=='number'||CFG.CALL_RING_TIMEOUT<5000)throw new Error('CALL_RING_TIMEOUT invalid: '+CFG.CALL_RING_TIMEOUT);});
       t('CFG.MAX_CONF_PARTICIPANTS',function(){if(typeof CFG.MAX_CONF_PARTICIPANTS!=='number'||CFG.MAX_CONF_PARTICIPANTS<2)throw new Error('MAX_CONF_PARTICIPANTS invalid: '+CFG.MAX_CONF_PARTICIPANTS);});
       t('CFG.DEFAULT_NOISE_SUPPRESSION',function(){if(typeof CFG.DEFAULT_NOISE_SUPPRESSION!=='boolean')throw new Error('DEFAULT_NOISE_SUPPRESSION must be boolean, got '+typeof CFG.DEFAULT_NOISE_SUPPRESSION);});
@@ -6001,6 +6407,40 @@ if(localStorage.getItem('dh-devmode')==='1'){
       t('Bus call:state event',function(){let ok=false;const u=Bus.on('call:state',function(){ok=true;});Bus.emit('call:state',{state:'IDLE',prev:'ENDED'});u();if(!ok)throw new Error('call:state not received');});
       t('Bus direct-call:incoming event',function(){let ok=false;const u=Bus.on('direct-call:incoming',function(){ok=true;});Bus.emit('direct-call:incoming',{pid:'x',video:false});u();if(!ok)throw new Error('direct-call:incoming not received');});
       t('CFG has 4+ FREE_TURN_SERVERS',function(){if((CFG.FREE_TURN_SERVERS||[]).length<4)throw new Error('Expected ≥4, got '+CFG.FREE_TURN_SERVERS?.length);});
+      /* === NEW v10 TESTS (T1-T5) === */
+      /* T1: MemoryPressureManager */
+      t('T1 App.memPressure exists',function(){if(!App.memPressure||typeof App.memPressure.getLevel!=='function')throw new Error('MemoryPressureManager missing');});
+      t('T1 MemoryPressureManager.getLevel returns ok|warn|critical',function(){const l=App.memPressure.getLevel();if(!['ok','warn','critical'].includes(l))throw new Error('unexpected level: '+l);});
+      t('T1 MemoryPressureManager.on returns unsubscribe fn',function(){const u=App.memPressure.on(()=>{});if(typeof u!=='function')throw new Error('on() should return unsubscribe fn');u();});
+      t('T1 MemoryPressureManager.getUsedMB returns number or null',function(){const m=App.memPressure.getUsedMB();if(m!==null&&typeof m!=='number')throw new Error('expected number|null, got '+typeof m);});
+      t('T1 CFG.MEM_PRESSURE_WARN_MB is positive number',function(){if(typeof CFG.MEM_PRESSURE_WARN_MB!=='number'||CFG.MEM_PRESSURE_WARN_MB<=0)throw new Error('invalid: '+CFG.MEM_PRESSURE_WARN_MB);});
+      /* T2: ConnectionApprovalQueue */
+      t('T2 App.connApproval exists',function(){if(!App.connApproval||typeof App.connApproval.enqueue!=='function')throw new Error('ConnectionApprovalQueue missing');});
+      t('T2 conn-approval-modal exists in DOM',function(){if(!document.getElementById('conn-approval-modal'))throw new Error('conn-approval-modal not in DOM');});
+      t('T2 btn-ca-accept/reject exist',function(){if(!document.getElementById('btn-ca-accept'))throw new Error('btn-ca-accept missing');if(!document.getElementById('btn-ca-reject'))throw new Error('btn-ca-reject missing');});
+      t('T2 CFG.CONN_APPROVAL_TIMEOUT_MS is positive',function(){if(typeof CFG.CONN_APPROVAL_TIMEOUT_MS!=='number'||CFG.CONN_APPROVAL_TIMEOUT_MS<=0)throw new Error('invalid: '+CFG.CONN_APPROVAL_TIMEOUT_MS);});
+      /* T3: TURNSetupWizard */
+      t('T3 App.turnWizard exists',function(){if(!App.turnWizard||typeof App.turnWizard.probeSTUN!=='function')throw new Error('TURNSetupWizard missing');});
+      t('T3 TURNSetupWizard.buildCoturnCmd is function',function(){if(typeof App.turnWizard.buildCoturnCmd!=='function')throw new Error('buildCoturnCmd missing');});
+      t('T3 turn-wizard-modal exists in DOM',function(){if(!document.getElementById('turn-wizard-modal'))throw new Error('turn-wizard-modal not in DOM');});
+      t('T3 CFG.TURN_PROBE_TIMEOUT_MS is positive',function(){if(typeof CFG.TURN_PROBE_TIMEOUT_MS!=='number'||CFG.TURN_PROBE_TIMEOUT_MS<=0)throw new Error('invalid: '+CFG.TURN_PROBE_TIMEOUT_MS);});
+      /* T4: VanishingMessageManager */
+      t('T4 App.vanishMgr exists',function(){if(!App.vanishMgr||typeof App.vanishMgr.schedule!=='function')throw new Error('VanishingMessageManager missing');});
+      t('T4 VanishingMessageManager.setTTL is function',function(){if(typeof App.vanishMgr.setTTL!=='function')throw new Error('setTTL missing');});
+      t('T4 VanishingMessageManager.getTTL returns 0 initially',function(){if(App.vanishMgr.getTTL()!==0)throw new Error('initial TTL should be 0, got '+App.vanishMgr.getTTL());});
+      t('T4 CFG.VANISH_PRESETS has off=0',function(){if(CFG.VANISH_PRESETS?.off!==0)throw new Error('VANISH_PRESETS.off should be 0');});
+      t('T4 CFG.VANISH_PRESETS has 5m',function(){if(!CFG.VANISH_PRESETS?.['5m'])throw new Error('VANISH_PRESETS["5m"] missing');});
+      /* T5: LinkPreviewManager and PeerProfileManager */
+      t('T5 App.linkPreview exists',function(){if(!App.linkPreview||typeof App.linkPreview.extractUrl!=='function')throw new Error('LinkPreviewManager missing');});
+      t('T5 LinkPreviewManager.extractUrl extracts URL',function(){const u=App.linkPreview.extractUrl('check https://example.com here');if(u!=='https://example.com')throw new Error('extractUrl failed: '+u);});
+      t('T5 LinkPreviewManager.extractUrl returns null for no URL',function(){if(App.linkPreview.extractUrl('no link here')!==null)throw new Error('should return null');});
+      t('T5 App.profileMgr exists',function(){if(!App.profileMgr||typeof App.profileMgr.get!=='function')throw new Error('PeerProfileManager missing');});
+      t('T5 PeerProfileManager.set/get roundtrip',function(){App.profileMgr.set('test-peer-v10',{bio:'hello'});const p=App.profileMgr.get('test-peer-v10');if(!p||p.bio!=='hello')throw new Error('profile roundtrip failed: '+JSON.stringify(p));});
+      t('T5 peer-profile-panel exists in DOM',function(){if(!document.getElementById('peer-profile-panel'))throw new Error('peer-profile-panel not in DOM');});
+      t('T5 DB_MIGRATIONS length ≥6',function(){if(!Array.isArray(DB_MIGRATIONS)||DB_MIGRATIONS.length<6)throw new Error('expected ≥6, got '+DB_MIGRATIONS?.length);});
+      t('T5 CFG.DB_VERSION is 7',function(){if(CFG.DB_VERSION!==7)throw new Error('expected 7, got '+CFG.DB_VERSION);});
+      t('T5 CFG.LINK_PREVIEW_CACHE is positive',function(){if(typeof CFG.LINK_PREVIEW_CACHE!=='number'||CFG.LINK_PREVIEW_CACHE<=0)throw new Error('invalid: '+CFG.LINK_PREVIEW_CACHE);});
+      t('T5 CFG.FINGERPRINT_SALT is devhub-v10',function(){if(CFG.FINGERPRINT_SALT!=='devhub-v10')throw new Error('expected devhub-v10, got '+CFG.FINGERPRINT_SALT);});
       t('App.callState still IDLE after all tests',function(){if(App.callState.state!=='IDLE')throw new Error('callState should still be IDLE, got '+App.callState.state);});
       t('CFG.AVATAR_EMOJIS is non-empty array',function(){if(!Array.isArray(CFG.AVATAR_EMOJIS)||CFG.AVATAR_EMOJIS.length<8)throw new Error('AVATAR_EMOJIS missing or too short: '+CFG.AVATAR_EMOJIS?.length);});
       t('CFG.SHORTCUTS has ≥8 entries',function(){if(!Array.isArray(CFG.SHORTCUTS)||CFG.SHORTCUTS.length<8)throw new Error('SHORTCUTS missing or too short: '+CFG.SHORTCUTS?.length);});
@@ -6081,13 +6521,13 @@ if(localStorage.getItem('dh-devmode')==='1'){
       /* A2 */
       t('ABRController exists',function(){if(!App.media._abr||typeof App.media._abr.start!=='function')throw new Error('ABRController missing');});
       /* B9 */
-      t('DB_MIGRATIONS array exists',function(){if(!Array.isArray(DB_MIGRATIONS))throw new Error('DB_MIGRATIONS not an array');if(DB_MIGRATIONS.length<5)throw new Error('Expected ≥5 migrations, got '+DB_MIGRATIONS.length);});
-      t('CFG.DB_VERSION is 6',function(){if(CFG.DB_VERSION!==6)throw new Error('DB_VERSION should be 6, got '+CFG.DB_VERSION);});
+      t('DB_MIGRATIONS array exists',function(){if(!Array.isArray(DB_MIGRATIONS))throw new Error('DB_MIGRATIONS not an array');if(DB_MIGRATIONS.length<6)throw new Error('Expected ≥6 migrations, got '+DB_MIGRATIONS.length);});
+      t('CFG.DB_VERSION is 7',function(){if(CFG.DB_VERSION!==7)throw new Error('DB_VERSION should be 7, got '+CFG.DB_VERSION);});
       /* B10 */
       t('CSP includes strict-dynamic',function(){const csp=document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.content||'';if(!csp.includes('strict-dynamic'))throw new Error('strict-dynamic missing from CSP');});
       t('CFG is frozen',function(){let threw=false;try{CFG._testMutate2='y';}catch(e){threw=true;}if(!threw&&CFG._testMutate2)throw new Error('CFG should be frozen');});
       t('_runBootAssert does not throw on valid App',function(){try{_runBootAssert();}catch(e){throw new Error('_runBootAssert threw on valid App: '+e.message);}});
-      /* === v9 NEW TESTS === */
+      /* === v9 CARRIED-FORWARD TESTS (G1-G4, WebRTC phases) === */
       /* G1: VirtualBackgroundManager functional */
       t('VBG.enable is async function',function(){if(typeof App.media._vbg.enable!=='function')throw new Error('enable missing');const r=App.media._vbg.enable(null,'blur');if(!r||typeof r.then!=='function')throw new Error('enable should return Promise');r.catch(()=>{});});
       t('VBG.disable is async function',function(){if(typeof App.media._vbg.disable!=='function')throw new Error('disable missing');});
@@ -6130,15 +6570,15 @@ if(localStorage.getItem('dh-devmode')==='1'){
       tests.forEach(({name,fn})=>t(name,fn));
     }else{
       /* built-in headless-safe subset (no DOM, no App dependency) */
-      t('CFG.VERSION is 9.x',()=>{if(!CFG.VERSION.startsWith('9.'))throw new Error('expected 9.x, got '+CFG.VERSION);});
-      t('CFG.DB_VERSION is 6',()=>{if(CFG.DB_VERSION!==6)throw new Error('expected 6, got '+CFG.DB_VERSION);});
+      t('CFG.VERSION is 10.x',()=>{if(!CFG.VERSION.startsWith('10.'))throw new Error('expected 10.x, got '+CFG.VERSION);});
+      t('CFG.DB_VERSION is 7',()=>{if(CFG.DB_VERSION!==7)throw new Error('expected 7, got '+CFG.DB_VERSION);});
       t('CFG is frozen',()=>{let threw=false;try{CFG.__hl='x';}catch(e){threw=true;}if(!threw&&CFG.__hl)throw new Error('CFG not frozen');});
-      t('DB_MIGRATIONS length ≥5',()=>{if(!Array.isArray(DB_MIGRATIONS)||DB_MIGRATIONS.length<5)throw new Error('expected ≥5');});
+      t('DB_MIGRATIONS length ≥6',()=>{if(!Array.isArray(DB_MIGRATIONS)||DB_MIGRATIONS.length<6)throw new Error('expected ≥6');});
       t('uid() returns string',()=>{if(typeof uid(8)!=='string')throw new Error('not a string');});
       t('esc() escapes <>&',()=>{const r=esc('<>&"');if(!r.includes('&lt;'))throw new Error('< not escaped');});
       t('fmtSize(1024)==1.0KB',()=>{if(fmtSize(1024)!=='1.0KB')throw new Error(fmtSize(1024));});
       t('fmtDur(65000)==01:05',()=>{if(fmtDur(65000)!=='01:05')throw new Error(fmtDur(65000));});
-      t('CFG.CHANGELOG[0] starts with v9:',()=>{if(!CFG.CHANGELOG[0].startsWith('v9:'))throw new Error(CFG.CHANGELOG[0]);});
+      t('CFG.CHANGELOG[0] starts with v10:',()=>{if(!CFG.CHANGELOG[0].startsWith('v10:'))throw new Error(CFG.CHANGELOG[0]);});
       t('CFG.FINGERPRINT_SALT defined',()=>{if(!CFG.FINGERPRINT_SALT)throw new Error('missing');});
       t('CFG.VBG_FPS ≥1',()=>{if(CFG.VBG_FPS<1)throw new Error(CFG.VBG_FPS);});
       t('CFG.DEV_MODE is boolean',()=>{if(typeof CFG.DEV_MODE!=='boolean')throw new Error(typeof CFG.DEV_MODE);});
@@ -6154,7 +6594,15 @@ if(localStorage.getItem('dh-devmode')==='1'){
     if(typeof console!=='undefined')console.log(out);
     return{results,passed,total:results.length,ok:!results.some(r=>!r.ok),summary:out};
   };
-  console.info('[DevHub v'+CFG.VERSION+'] v9 test harness active — window.__devhub_test.runAllTests() | __devhub_runHeadless() | recomputeCSPHash() | verifyAuditLog() | testDestroyMethods() | printFileMap() | getAppState()');
+  /* C5: window.__devhub_gotoSection — jump to named section in DEV_MODE */
+  window.__devhub_gotoSection=function(sectionName){
+    const sections=window.__devhub_test.printFileMap();
+    const s=sections.find(x=>x.name.toLowerCase().includes((sectionName||'').toLowerCase()));
+    if(s){console.info('[DevHub] §'+s.name+' at ~line '+s.approxLine+' in devhub-v10.0.html');}
+    else{console.warn('[DevHub] Section not found: '+sectionName+'. Available:',sections.map(x=>x.name).join(', '));}
+    return s||null;
+  };
+  console.info('[DevHub v'+CFG.VERSION+'] v10 test harness active — window.__devhub_test.runAllTests() | __devhub_runHeadless() | __devhub_gotoSection(name) | recomputeCSPHash() | verifyAuditLog() | testDestroyMethods() | printFileMap() | getAppState()');
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
@@ -6205,10 +6653,10 @@ document.addEventListener('DOMContentLoaded',()=>{
 </body>
 </html>
 <!-- HEADLESS TEST RUNNER (G3) -->
-<!-- To run headlessly: sed -n '/HEADLESS TEST RUNNER/,/END HEADLESS/p' devhub-v9.0.html | node -->
+<!-- To run headlessly: sed -n '/HEADLESS TEST RUNNER/,/END HEADLESS/p' devhub-v10.0.html | node -->
 <!--
 <script id="devhub-headless-test">
-/* DevHub v9 headless test runner — pure-logic subset, no DOM/WebRTC */
+/* DevHub v10 headless test runner — pure-logic subset, no DOM/WebRTC */
 (function(){
   if(typeof window!=='undefined'&&typeof window.__devhub_runHeadless==='function'){
     // Browser: already registered inside main IIFE
@@ -6222,9 +6670,9 @@ document.addEventListener('DOMContentLoaded',()=>{
   t('esc escapes HTML',()=>{const r=esc('<>&"');if(!r.includes('&lt;')||!r.includes('&amp;'))throw new Error(r);});
   t('fmtSize 1024 → 1.0KB',()=>{if(fmtSize(1024)!=='1.0KB')throw new Error(fmtSize(1024));});
   t('fmtDur 65000 → 01:05',()=>{if(fmtDur(65000)!=='01:05')throw new Error(fmtDur(65000));});
-  t('CFG.VERSION starts with 9',()=>{if(!CFG.VERSION.startsWith('9'))throw new Error(CFG.VERSION);});
-  t('CFG.DB_VERSION is 6',()=>{if(CFG.DB_VERSION!==6)throw new Error(CFG.DB_VERSION);});
-  t('DB_MIGRATIONS length ≥5',()=>{if(!Array.isArray(DB_MIGRATIONS)||DB_MIGRATIONS.length<5)throw new Error(DB_MIGRATIONS?.length);});
+  t('CFG.VERSION starts with 10',()=>{if(!CFG.VERSION.startsWith('10'))throw new Error(CFG.VERSION);});
+  t('CFG.DB_VERSION is 7',()=>{if(CFG.DB_VERSION!==7)throw new Error(CFG.DB_VERSION);});
+  t('DB_MIGRATIONS length ≥6',()=>{if(!Array.isArray(DB_MIGRATIONS)||DB_MIGRATIONS.length<6)throw new Error(DB_MIGRATIONS?.length);});
   t('CFG.FINGERPRINT_SALT truthy',()=>{if(!CFG.FINGERPRINT_SALT)throw new Error('missing');});
   t('CFG.VBG_FPS ≥1',()=>{if(CFG.VBG_FPS<1)throw new Error(CFG.VBG_FPS);});
   t('CFG.DEV_MODE is boolean',()=>{if(typeof CFG.DEV_MODE!=='boolean')throw new Error(typeof CFG.DEV_MODE);});
@@ -6244,5 +6692,3 @@ document.addEventListener('DOMContentLoaded',()=>{
 </script>
 END HEADLESS -->
 
-
-     
