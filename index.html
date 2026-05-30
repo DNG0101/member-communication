@@ -562,6 +562,7 @@ a{color:var(--primary);text-decoration:none;}
 @media(-webkit-min-device-pixel-ratio:2),(min-resolution:192dpi){
   #wb-canvas{image-rendering:pixelated;}
 }
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border-width:0}
 </style>
 </head>
 <body>
@@ -836,6 +837,7 @@ a{color:var(--primary);text-decoration:none;}
               <button class="btn btn-s btn-sm" onclick="App.ui.activePeer?App.media.video(App.ui.activePeer):App.toast.show('Select a peer first','warning')" aria-label="Start video call">📹 Video Call</button>
               <button class="btn btn-s btn-sm" onclick="App.ui.activePeer?App.media.screen(App.ui.activePeer):App.toast.show('Select a peer first','warning')" aria-label="Share screen">🖥️ Screen Share</button>
               <button class="btn btn-d btn-sm" onclick="App.media.end()" aria-label="Hang up">📵 Hang Up</button>
+              <button class="btn btn-s btn-sm" onclick="App.media.startRecording()" aria-label="Record call">⏺ Record</button>
             </div>
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
               <span style="font-size:12px">Timer:</span>
@@ -844,6 +846,12 @@ a{color:var(--primary);text-decoration:none;}
               <span id="cq-lbl3" style="font-size:11px;color:var(--muted)" aria-live="polite"></span>
             </div>
           </div>
+          <!-- Hidden mirror elements for JS call-state refs -->
+          <span id="cpeer-lbl3" class="sr-only" aria-live="polite"></span>
+          <span id="cq-lbl2" class="sr-only" aria-live="polite"></span>
+          <span id="call-quality-dot3" class="quality-dot" style="display:none" aria-hidden="true"></span>
+          <span id="recbadge2" style="display:none;font-size:10px;color:var(--red);font-weight:700" aria-label="Recording">&#9210; REC</span>
+          <div id="avis2" style="display:none;gap:2px;align-items:flex-end;height:20px" aria-hidden="true"></div>
           <div class="panel-section">
             <div class="panel-section-title">Call History</div>
             <div id="call-hist-list" style="display:flex;flex-direction:column;gap:5px;max-height:240px;overflow-y:auto" role="list" aria-label="Call history"></div>
@@ -1103,7 +1111,11 @@ a{color:var(--primary);text-decoration:none;}
             <div id="device-info-panel"></div>
           </div>
           <div class="panel-section">
-            <div class="panel-section-title">Danger Zone</div>
+              <div class="panel-section-title">Trusted Peers</div>
+              <div id="trusted-list" role="list" aria-label="Trusted peers" style="display:flex;flex-direction:column;gap:4px;max-height:180px;overflow-y:auto;margin-top:4px"></div>
+            </div>
+            <div class="panel-section">
+              <div class="panel-section-title">Danger Zone</div>
             <div style="display:flex;gap:6px;flex-wrap:wrap">
               <button id="btn-disc-all" class="btn btn-d btn-sm">Disconnect All</button>
               <button id="btn-clr-storage" class="btn btn-d btn-sm">Clear Local Data</button>
@@ -1282,7 +1294,7 @@ const TAB_NONCE=Math.random().toString(36).slice(2,6);
   if((cores<=2&&cores>0)||(mem>0&&mem<=2))perfClass='low-end';
   else if(cores>=8&&(mem===0||mem>=8))perfClass='high-end';
 
-  /* ─── Connection ──=�� */
+  /* ─── Connection ──=   */
   const conn=navigator.connection||navigator.mozConnection||navigator.webkitConnection||null;
   const et=conn?.effectiveType||'';
   const dl=conn?.downlink||0;
@@ -2490,7 +2502,8 @@ class PeerManager{
       }
       case 'uclip':App.uclip.receive(pid,msg.text,msg.hash);break;
       case 'group-video':App.groupVideo?._onSignal(pid,msg);break;
-    }
+        case 'wb-cursor':App.board?._onRemoteCursor?.(pid,msg);break;
+      }
   }
   _onClose(pid,reason){
     this._settingUp?.delete(pid);this.dconns.delete(pid);
@@ -2890,7 +2903,7 @@ class Whiteboard{
       const scaleX=c.width/rect.width;const scaleY=c.height/rect.height;
       return{x:(src.clientX-rect.left)*scaleX,y:(src.clientY-rect.top)*scaleY};
     };
-    const down=e=>{e.preventDefault();const p=getPos(e);this._drawing=true;this._startX=p.x;this._startY=p.y;this._snap=this._ctx.getImageData(0,0,c.width,c.height);if(this._tool==='pen'||this._tool==='eraser'){this._ctx.beginPath();this._ctx.moveTo(p.x,p.y);}this._currentStroke=[p];};
+    const down=e=>{e.preventDefault();const p=getPos(e);this._drawing=true;this._startX=p.x;this._startY=p.y;this._snap=this._ctx.getImageData(0,0,c.width,c.height);if(this._tool==='pen'||this._tool==='eraser'){this._ctx.beginPath();this._ctx.moveTo(p.x,p.y);}if(this._tool==='fill'){this._floodFill(p.x,p.y,this._color);this._drawing=false;return;}this._currentStroke=[p];};
     const move=e=>{
       e.preventDefault();if(!this._drawing)return;const p=getPos(e);this._currentStroke.push(p);
       if(this._tool==='pen'){this._ctx.globalCompositeOperation='source-over';this._ctx.strokeStyle=this._color;this._ctx.lineWidth=this._size;this._ctx.lineCap='round';this._ctx.lineJoin='round';this._ctx.lineTo(p.x,p.y);this._ctx.stroke();}
@@ -2905,8 +2918,13 @@ class Whiteboard{
       }
     };
     const up=e=>{
-      if(!this._drawing)return;this._drawing=false;
-      const p=getPos(e.changedTouches?e:e);
+        if(!this._drawing)return;this._drawing=false;
+        const p=getPos(e.changedTouches?e:e);
+        if(this._tool==='text'){
+          const txt=prompt('Enter text:','');
+          if(txt){this._ctx.globalCompositeOperation='source-over';this._ctx.fillStyle=this._color;this._ctx.font='bold '+Math.max(12,this._size*5)+'px sans-serif';this._ctx.fillText(txt,this._startX,this._startY);}
+          if(this._snap)this._undoStack.push(this._snap);this._redoStack=[];this._snap=null;return;
+        }
       if(this._tool!=='pen'&&this._tool!=='eraser'&&this._tool!=='laser'){
         this._drawShape(this._tool,this._startX,this._startY,p.x||this._startX,p.y||this._startY);
         this._syncShape(this._tool,this._startX,this._startY,p.x||this._startX,p.y||this._startY);
@@ -2958,6 +2976,32 @@ class Whiteboard{
     if(App.peer?.dconns)for(const[pid,conn]of App.peer.dconns){if(conn.open)try{conn.send(JSON.stringify({type:'whiteboard',action:'image',data:dataURL}));}catch(e){}}
     App.toast.show('Whiteboard shared','success');
   }
+
+    _floodFill(sx,sy,fillHex){
+      const ctx=this._ctx,c=this._canvas;if(!ctx||!c)return;
+      const imgData=ctx.getImageData(0,0,c.width,c.height);
+      const data=imgData.data,w=c.width,h=c.height;
+      const idx=(x,y)=>(y*w+x)*4;
+      sx=Math.max(0,Math.min(w-1,Math.round(sx)));sy=Math.max(0,Math.min(h-1,Math.round(sy)));
+      const si=idx(sx,sy);
+      const sr=data[si],sg=data[si+1],sb=data[si+2],sa=data[si+3];
+      const tmp=document.createElement('canvas');tmp.width=tmp.height=1;
+      const tc=tmp.getContext('2d');tc.fillStyle=fillHex;tc.fillRect(0,0,1,1);
+      const fd=tc.getImageData(0,0,1,1).data;
+      const fr=fd[0],fg=fd[1],fb=fd[2];
+      if(sr===fr&&sg===fg&&sb===fb)return;
+      const match=i=>data[i]===sr&&data[i+1]===sg&&data[i+2]===sb&&data[i+3]===sa;
+      const stack=[[sx,sy]];let iter=0;
+      while(stack.length&&iter++<150000){
+        const[x,y]=stack.pop();
+        if(x<0||x>=w||y<0||y>=h)continue;
+        const i=idx(x,y);if(!match(i))continue;
+        data[i]=fr;data[i+1]=fg;data[i+2]=fb;data[i+3]=255;
+        stack.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]);
+      }
+      ctx.putImageData(imgData,0,0);
+      if(this._snap)this._undoStack.push(this._snap);this._redoStack=[];
+    }
   _save(){const a=document.createElement('a');a.href=this._canvas.toDataURL('image/png');a.download='whiteboard-'+Date.now()+'.png';document.body.appendChild(a);a.click();document.body.removeChild(a);}
   _onRemote(msg){
     if(msg.action==='image'&&msg.data){
@@ -2973,7 +3017,15 @@ class Whiteboard{
       App.toast.show('Whiteboard received','info');
     }
   }
-  _onRemoteStroke(pid,msg){
+  _onRemoteCursor(pid,msg){
+      const wrap=document.getElementById('wb-cursors');if(!wrap||!this._canvas)return;
+      let dot=document.getElementById('wbc-'+pid);
+      if(!dot){dot=document.createElement('div');dot.id='wbc-'+pid;dot.style.cssText='position:absolute;width:10px;height:10px;border-radius:50%;pointer-events:none;transition:left .05s,top .05s;';dot.style.background='hsl('+((pid.charCodeAt(0)*47)%360)+',70%,55%)';wrap.appendChild(dot);}
+      dot.style.left=Math.round((msg.x||0)*this._canvas.width)+'px';
+      dot.style.top=Math.round((msg.y||0)*this._canvas.height)+'px';
+      clearTimeout(dot._t);dot._t=setTimeout(()=>dot.remove(),5000);
+    }
+    _onRemoteStroke(pid,msg){
     if(!this._ctx)this.init();if(!this._canvas)return;
     const c=this._canvas;const ctx=this._ctx;
     ctx.strokeStyle=msg.color||'#6366f1';ctx.fillStyle=(msg.color||'#6366f1')+'33';ctx.lineWidth=msg.size||3;ctx.lineCap='round';ctx.lineJoin='round';
@@ -3336,7 +3388,7 @@ class UIManager{
     if(tab==='whiteboard')Timers.timeout('wb-init',()=>App.board.init(),100);
     if(tab==='notifications')App.notifCenter.markAllRead();
     if(tab==='history')this._renderHistory();
-    if(tab==='settings')this._renderDeviceInfo();
+    if(tab==='settings'){this._renderDeviceInfo();App.trust?.renderTrustedList();}
     const btn=document.querySelector(`.tn[data-tab="${tab}"]`);
     if(btn){
       document.querySelectorAll('.tn').forEach(b=>{b.classList.remove('on');b.setAttribute('aria-selected','false');});
@@ -3464,8 +3516,9 @@ class UIManager{
         <span>${timeStr}</span>
         ${self?'<span class="del-mark" id="del-'+safeId+'" aria-label="Delivered" title="Delivered"></span>':''}
       </div>
-      <button class="mcopy" onclick="App.clipboard.write(${JSON.stringify(text)})" aria-label="Copy message">Copy</button>
+      <button class="mcopy" data-mid="${safeId}" onclick="App.ui._copyMsg(this.dataset.mid)" aria-label="Copy message">Copy</button>
     </div>`;
+    this._msgMap.set(id, text);
     msgs.appendChild(row);
     // Trim DOM
     const rows=[...msgs.querySelectorAll('.mr')];
@@ -3486,6 +3539,7 @@ class UIManager{
     Timers.timeout('typ-clear-'+pid,()=>setEl('mtyp-lbl',''),2500);
   }
   markRead(id){setEl('del-'+id,'✓',el=>{el.title='Read';el.style.color='var(--cyan)';})}
+  _copyMsg(id){App.clipboard.write(this._msgMap.get(id)||'')}
   markDel(id){
     const el=document.getElementById('del-'+id);
     if(el&&!el.textContent.includes('✓')){el.textContent='✓';el.title='Delivered';}
@@ -3607,6 +3661,20 @@ class UIManager{
     if(di){di.addEventListener('change',e=>{const files=[...e.target.files];if(files.length&&this.activePeer)App.files.sendFiles(files,this.activePeer);else if(!this.activePeer&&files.length)App.toast.show('Select a peer first','warning');di.value='';});}
   }
   _bindSettings(){
+    // Restore saved settings to UI controls
+      {
+        const _e2e=document.getElementById('set-e2e');
+        if(_e2e){_e2e.checked=SafeStorage.get('dh-e2e')==='1';_e2e.addEventListener('change',e=>{SafeStorage.set('dh-e2e',e.target.checked?'1':'0');App.toast.show('E2E '+(e.target.checked?'enabled':'disabled'),'info');});}
+        const _app=document.getElementById('set-approval');
+        if(_app){_app.checked=SafeStorage.get('dh-approval')==='1';_app.addEventListener('change',e=>{SafeStorage.set('dh-approval',e.target.checked?'1':'0');if(App.room)App.room.requireApproval=e.target.checked;App.toast.show('Approval '+(e.target.checked?'on':'off'),'info');});}
+        const _ns=document.getElementById('set-noise');
+        if(_ns){_ns.checked=SafeStorage.get('dh-noise')==='1';_ns.addEventListener('change',e=>{SafeStorage.set('dh-noise',e.target.checked?'1':'0');App.toast.show('Noise suppression '+(e.target.checked?'on':'off'),'info');});}
+        const _snd=document.getElementById('set-sounds');
+        if(_snd){_snd.checked=SafeStorage.get('dh-sounds')!=='0';_snd.addEventListener('change',e=>App.sounds.toggle(e.target.checked));}
+        const _sn=document.getElementById('set-name');if(_sn)_sn.value=SafeStorage.get('dh-name','');
+        const _av=document.getElementById('set-avatar');if(_av)_av.value=SafeStorage.get('dh-avatar','👤');
+      }
+
     document.getElementById('btn-save-identity')?.addEventListener('click',()=>{
       const name=(document.getElementById('set-name')?.value||'').trim();
       const av=(document.getElementById('set-avatar')?.value||'👤').trim();
@@ -3853,7 +3921,7 @@ const App={
   peer:null,files:null,media:null,board:null,code:null,tasks:null,group:null,
   vault:null,groupVideo:null,ui:null,presence:null,qr:null,notifCenter:null,
   sounds:null,uclip:null,clipboard:null,netq:null,msgQ:null,offlineQ:null,
-  perms:null,rateLimiter:null,broadcastDisc:null,room:null,trust:null,
+  perms:null,rateLimiter:null,broadcastDisc:null,room:null,
   heal:null,stateStore:null,memMon:null,errMgr:null,connReg:null,
   rtcReg:null,streamReg:null,cleanup:null,netRecovery:null,bootRec:null,
 };
