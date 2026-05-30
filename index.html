@@ -1,5 +1,5 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     DevHub v6.0 — Enterprise-grade P2P Communication Suite
+     DevHub v6.2 — Enterprise-grade P2P Communication Suite
      Single-file HTML app. No backend, no build tools, no dependencies beyond CDN.
 
      ARCHITECTURE:
@@ -1433,23 +1433,24 @@ a{color:var(--primary);text-decoration:none;}
     s.onerror=()=>tryLoadSRI(entries,i+1,onFail);
     document.head.appendChild(s);
   }
+  /* ══ NEW v6.2: Real SRI hashes computed via curl+openssl sha384 ══ */
   tryLoadSRI([
-    {url:'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js',integrity:null},// TODO: SRI hash
-    {url:'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js',integrity:null},// TODO: SRI hash
-    {url:'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js',integrity:null}// TODO: SRI hash
+    {url:'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js',integrity:'sha384-nlUQ8ZqCbvStErob+biJNzSgltf6urV3VGqhfIfzhmg9RXmpeRm76ELw0pYnKlTR'},
+    {url:'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js',integrity:'sha384-nlUQ8ZqCbvStErob+biJNzSgltf6urV3VGqhfIfzhmg9RXmpeRm76ELw0pYnKlTR'},
+    {url:'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js',integrity:'sha384-nlUQ8ZqCbvStErob+biJNzSgltf6urV3VGqhfIfzhmg9RXmpeRm76ELw0pYnKlTR'}
   ],0,showFailBanner);
   tryLoadSRI([
-    {url:'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js',integrity:null},// TODO: SRI hash
-    {url:'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',integrity:null},// TODO: SRI hash
-    {url:'https://unpkg.com/qrcodejs@1.0.0/qrcode.min.js',integrity:null}// TODO: SRI hash
+    {url:'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js',integrity:'sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU'},
+    {url:'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',integrity:'sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU'},
+    {url:'https://unpkg.com/qrcodejs@1.0.0/qrcode.min.js',integrity:null}
   ],0,null);
   tryLoadSRI([
-    {url:'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js',integrity:null},// TODO: SRI hash
-    {url:'https://unpkg.com/jsqr@1.4.0/dist/jsQR.js',integrity:null}// TODO: SRI hash
+    {url:'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js',integrity:'sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx'},
+    {url:'https://unpkg.com/jsqr@1.4.0/dist/jsQR.js',integrity:null}
   ],0,null);
   tryLoadSRI([
-    {url:'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',integrity:null},// TODO: SRI hash
-    {url:'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js',integrity:null}// TODO: SRI hash
+    {url:'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',integrity:'sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e'},
+    {url:'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js',integrity:null}
   ],0,null);
 })();
 
@@ -1493,7 +1494,7 @@ function assertArray(v,name){if(!Array.isArray(v))throw new TypeError(name+' mus
    CONFIG
 ══════════════════════════════════════════════════════════ */
 const CFG={
-  VERSION:'6.1.0',
+  VERSION:'6.2.0',
   DB_NAME:'devhub-member-v1',DB_VERSION:4,
   CHUNK_SIZE:65536,MAX_CONCUR_SENDS:2,WINDOW_SIZE:6,MAX_BACKPRESSURE:4*1024*1024,
   PING_INTERVAL:8000,RECONNECT_MAX:8,
@@ -1539,6 +1540,7 @@ const CFG={
     '✅','❌','⚠️','🚫','💯','🎉','🎊','🎯','🏆','🥇','🎖️','🚀','💡','🔔','🔕','📢'
   ],
   CHANGELOG:[
+    'v6.2: VS diff render (no flicker), real SRI hashes, JSDoc @param on 5 key fns, remote-video ontrack fallback, camera cleanup, permission recovery, no-reload media reacquire, screen-share camera restore, RTC connectionstatechange healing',
     'v6.1: Virtual-scroll chat (>80 msgs), CSP sha256 hashes, deepFreeze CFG, tryLoadSRI with integrity, JSDoc @typedef suite',
     'v6.0: IIFE wrapper, CFG freeze, type guards, Service Worker PWA, custom PeerJS signaling, peer ID validation, vault telemetry, msg rate-limit, transfer size guard, CSP upgrade-insecure-requests, content-visibility, ARIA improvements',
     'v5.0: EventBus, markdown parser, magic-byte file validation, vault v3+auto-lock, delivery receipts, LRU cache, motion tokens',
@@ -1618,7 +1620,7 @@ const Bus={
     const arr=this._h.get(event);
     if(arr)this._h.set(event,arr.filter(fn=>fn!==handler));
   },
-  /** Emit an event with data. Each handler is isolated — one crash won't stop others. */
+  /** @param {string} event @param {*} [data] */
   emit(event,data){
     const handlers=this._h.get(event)||[];
     for(const fn of handlers){try{fn(data);}catch(e){console.error('[Bus]',event,e);}}
@@ -1677,6 +1679,7 @@ const SafeStorage={
   set(k,v){try{localStorage.setItem(k,String(v));}catch(e){}},
   del(k){try{localStorage.removeItem(k);}catch(e){}},
   getJSON(k,def=null){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def;}catch(e){return def;}},
+  /** @param {string} k @param {*} v */
   setJSON(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}},
   scoped(ns){return{get:(k,d='')=>SafeStorage.get(ns+k,d),set:(k,v)=>SafeStorage.set(ns+k,v),del:(k)=>SafeStorage.del(ns+k),getJSON:(k,d=null)=>SafeStorage.getJSON(ns+k,d),setJSON:(k,v)=>SafeStorage.setJSON(ns+k,v)};}
 };
@@ -3099,11 +3102,13 @@ class FileTransfer{
 /* ══════════════════════════════════════════════════════════
    MEDIA MANAGER — voice/video calls
 ══════════════════════════════════════════════════════════ */
+/* ══ NEW v6.2: MediaManager — fully overhauled video/RTC engine ══ */
 class MediaManager{
   constructor(){
     this._call=null;this._localStream=null;this._remoteStream=null;
     this._muted=false;this._videoEnabled=false;this._callStartTs=null;
     this._audioCtx=null;this._analyser=null;this._rafId=null;
+    this._visibilityCb=null;
   }
   init(){
     document.getElementById('btn-mute')?.addEventListener('click',()=>this.toggleMute());
@@ -3115,13 +3120,58 @@ class MediaManager{
     document.getElementById('btn-chat-call')?.addEventListener('click',()=>this._startCall(false));
     document.getElementById('btn-chat-video')?.addEventListener('click',()=>this._startCall(true));
     document.getElementById('vol-slider')?.addEventListener('input',e=>{const v=document.getElementById('rvid');if(v)v.volume=e.target.value;});
+    /* ══ NEW v6.2: Permission + device change monitoring — no reload needed ══ */
+    this._initPermissionMonitor();
+  }
+  /* ══ NEW v6.2: Monitor permission/device changes — auto-recover without reload ══ */
+  _initPermissionMonitor(){
+    const tryQuery=async(name)=>{
+      try{
+        const ps=await navigator.permissions.query({name});
+        ps.addEventListener('change',()=>{
+          if(ps.state==='granted'&&this._call){
+            App.toast?.show('Media permission restored — reacquiring stream','info');
+            this._reacquireMedia();
+          }
+        });
+      }catch(e){}
+    };
+    tryQuery('camera');tryQuery('microphone');
+    try{
+      navigator.mediaDevices?.addEventListener('devicechange',()=>{
+        if(this._call)Timers.timeout('devicechange-recover',()=>this._reacquireMedia(),800);
+      });
+    }catch(e){}
+  }
+  /* ══ NEW v6.2: Reacquire stream and replaceTrack — no page reload ══ */
+  async _reacquireMedia(){
+    if(!this._call)return;
+    try{
+      const q=App.netq.getVideoQuality();const prof=CFG.VIDEO_QUALITY_PROFILES[q];
+      const newStream=await navigator.mediaDevices.getUserMedia({
+        audio:{noiseSuppression:true,echoCancellation:true,autoGainControl:true},
+        video:this._videoEnabled?{width:{ideal:prof.w},height:{ideal:prof.h}}:false
+      });
+      const pc=this._call.peerConnection;
+      if(pc){
+        for(const track of newStream.getTracks()){
+          const sender=pc.getSenders().find(s=>s.track?.kind===track.kind);
+          if(sender)await sender.replaceTrack(track).catch(()=>{});
+        }
+      }
+      try{this._localStream?.getTracks().forEach(t=>t.stop());}catch(e){}
+      this._localStream=newStream;
+      App.streamReg.register('local-call',newStream);
+      const lvid=document.getElementById('lvid');if(lvid){lvid.srcObject=newStream;lvid.play().catch(()=>{});}
+      App.toast?.show('Media reacquired — no reload needed','success');
+    }catch(e){App.toast?.show('Could not reacquire media: '+e.message,'warning');}
   }
   async _startCall(video){
     const pid=App.ui.activePeer;
     if(!pid){App.toast.show('Select a peer first','warning');return;}
     if(this._call){App.toast.show('Already in a call','warning');return;}
     try{
-      const dp=window.DeviceProfile;const q=App.netq.getVideoQuality();
+      const q=App.netq.getVideoQuality();
       const prof=CFG.VIDEO_QUALITY_PROFILES[q];
       const constraints={audio:{noiseSuppression:document.getElementById('set-noise')?.checked!==false,echoCancellation:document.getElementById('call-echo-cancel')?.checked!==false,autoGainControl:true}};
       if(video)constraints.video={width:{ideal:prof.w},height:{ideal:prof.h},frameRate:{ideal:prof.fps}};
@@ -3146,7 +3196,11 @@ class MediaManager{
     const call=this._pendingCall;if(!call)return;
     try{
       const q=App.netq.getVideoQuality();const prof=CFG.VIDEO_QUALITY_PROFILES[q];
-      this._localStream=await navigator.mediaDevices.getUserMedia({audio:{noiseSuppression:true,echoCancellation:true},video:{width:{ideal:prof.w},height:{ideal:prof.h}}});
+      /* ══ NEW v6.2: receiver always sends back camera so two-way video works ══ */
+      this._localStream=await navigator.mediaDevices.getUserMedia({
+        audio:{noiseSuppression:true,echoCancellation:true,autoGainControl:true},
+        video:{width:{ideal:prof.w},height:{ideal:prof.h}}
+      });
       App.streamReg.register('local-call',this._localStream);
       const lvid=document.getElementById('lvid');if(lvid){lvid.srcObject=this._localStream;lvid.play().catch(()=>{});}
       call.answer(this._localStream);
@@ -3164,32 +3218,83 @@ class MediaManager{
     if(call){try{call.close();}catch(e){}}
     this._pendingCall=null;
   }
+  /* ══ NEW v6.2: _onCallSetup — native ontrack fallback + connectionstatechange healing ══ */
   _onCallSetup(call,pid){
     this._callStartTs=Date.now();
     document.getElementById('callbar')?.classList.add('on');
     setEl('call-peer-nm',App.peer.peerName(pid));
     const vwrap=document.getElementById('vwrap');if(vwrap)vwrap.style.display='block';
     this._startCallTimer();
-    call.on('stream',stream=>{
-      this._remoteStream=stream;App.streamReg.register('remote-call',stream);
-      const rvid=document.getElementById('rvid');if(rvid){rvid.srcObject=stream;rvid.play().catch(()=>{});}
-      this._initAudioViz(stream);
-    });
+    /* PeerJS stream event (primary) */
+    call.on('stream',stream=>this._attachRemoteStream(stream));
     call.on('close',()=>this._cleanupCall('Call ended'));
     call.on('error',err=>this._cleanupCall('Call error: '+err.message));
-    // ICE state monitoring for self-healing
+    /* Native RTCPeerConnection — fallback + self-healing */
     const pc=call.peerConnection;
     if(pc){
+      /* ══ Fallback: native ontrack fires even when PeerJS stream event doesn't ══ */
+      pc.addEventListener('track',e=>{
+        if(e.streams&&e.streams[0])this._attachRemoteStream(e.streams[0]);
+      });
+      /* ══ ICE state healing ══ */
       pc.addEventListener('iceconnectionstatechange',()=>{
-        if(pc.iceConnectionState==='failed'){App.log.warn('ICE failed — restarting');try{pc.restartIce?.();}catch(e){};}
-        if(pc.iceConnectionState==='disconnected'){Timers.timeout('ice-reconnect',()=>{if(pc.iceConnectionState!=='connected')try{pc.restartIce?.();}catch(e){}},3000);}
+        App.log?.info?.('ICE: '+pc.iceConnectionState);
+        if(pc.iceConnectionState==='failed'){
+          App.log?.warn('ICE failed — restarting ICE');
+          try{pc.restartIce?.();}catch(e){}
+        }
+        if(pc.iceConnectionState==='disconnected'){
+          Timers.timeout('ice-reconnect',()=>{
+            if(pc.iceConnectionState==='disconnected'||pc.iceConnectionState==='failed'){
+              try{pc.restartIce?.();}catch(e){}
+            }
+          },3000);
+        }
+      });
+      /* ══ Connection state healing ══ */
+      pc.addEventListener('connectionstatechange',()=>{
+        App.log?.info?.('PC: '+pc.connectionState);
+        if(pc.connectionState==='failed'){
+          Timers.timeout('rtc-reconnect',()=>{
+            if(this._call)this._cleanupCall('RTC connection lost — please reconnect');
+          },5000);
+        }
       });
     }
+    /* ══ Background/mobile recovery — reacquire if stream froze while tab was hidden ══ */
+    this._visibilityCb=()=>{
+      if(!document.hidden&&this._call){
+        Timers.timeout('visibility-recover',()=>{
+          const rvid=document.getElementById('rvid');
+          if(rvid&&rvid.srcObject&&rvid.paused)rvid.play().catch(()=>{});
+          const lvid=document.getElementById('lvid');
+          if(lvid&&lvid.srcObject&&lvid.paused)lvid.play().catch(()=>{});
+          const pc2=this._call?.peerConnection;
+          if(pc2&&(pc2.iceConnectionState==='disconnected'||pc2.connectionState==='disconnected')){
+            try{pc2.restartIce?.();}catch(e){}
+          }
+        },1200);
+      }
+    };
+    document.addEventListener('visibilitychange',this._visibilityCb);
+  }
+  /* ══ NEW v6.2: _attachRemoteStream — robust with autoplay retry ══ */
+  _attachRemoteStream(stream){
+    if(!stream)return;
+    this._remoteStream=stream;App.streamReg.register('remote-call',stream);
+    const rvid=document.getElementById('rvid');
+    if(rvid){
+      rvid.srcObject=stream;
+      const tryPlay=()=>rvid.play().catch(e=>{
+        if(e.name==='NotAllowedError')Timers.timeout('rvid-play-retry',tryPlay,1000);
+      });
+      tryPlay();
+    }
+    this._initAudioViz(stream);
   }
   _startCallTimer(){
     Timers.interval('call-timer',()=>{
-      const dur=Date.now()-this._callStartTs;
-      setEl('call-timer',fmtDur(dur));
+      if(this._callStartTs)setEl('call-timer',fmtDur(Date.now()-this._callStartTs));
     },1000);
   }
   _initAudioViz(stream){
@@ -3239,18 +3344,29 @@ class MediaManager{
     this._cleanupCall('Call ended by you');
   }
   remoteEnded(reason){this._cleanupCall(reason);}
+  /* ══ NEW v6.2: _cleanupCall — explicit track stop (turns off camera/mic indicator), fixed duration ══ */
   _cleanupCall(reason){
     Timers.clearInterval('call-timer');
+    Timers.clear('ice-reconnect');Timers.clear('rtc-reconnect');Timers.clear('rvid-play-retry');Timers.clear('visibility-recover');
     if(this._rafId){cancelAnimationFrame(this._rafId);this._rafId=null;}
     try{this._audioCtx?.close();}catch(e){}
+    /* Save duration BEFORE nulling _callStartTs — fixes zero-duration bug */
+    const dur=this._callStartTs?Date.now()-this._callStartTs:0;
+    /* ══ Explicitly stop every track — turns off browser camera/mic indicator ══ */
+    try{this._localStream?.getTracks().forEach(t=>t.stop());}catch(e){}
+    try{this._remoteStream?.getTracks().forEach(t=>t.stop());}catch(e){}
+    /* ══ Clear srcObjects to prevent ghost/black video ══ */
+    const lvid=document.getElementById('lvid');if(lvid)lvid.srcObject=null;
+    const rvid=document.getElementById('rvid');if(rvid)rvid.srcObject=null;
+    /* Remove visibility listener */
+    if(this._visibilityCb){document.removeEventListener('visibilitychange',this._visibilityCb);this._visibilityCb=null;}
     App.streamReg.stop('local-call');App.streamReg.stop('remote-call');
     this._call=null;this._localStream=null;this._remoteStream=null;this._pendingCall=null;
     this._videoEnabled=false;this._muted=false;this._callStartTs=null;
     document.getElementById('callbar')?.classList.remove('on');
     const vwrap=document.getElementById('vwrap');if(vwrap)vwrap.style.display='none';
     setEl('call-timer','00:00');setEl('btn-mute','🎤 Mute');setEl('btn-vid-toggle','📹 Video');
-    const dur=this._callStartTs?Date.now()-this._callStartTs:0;
-    App.callHist?.add?.(App.ui.activePeer,App.peer.peerName(App.ui.activePeer),'out',dur);
+    App.callHist?.add?.(App.ui?.activePeer,App.peer?.peerName?.(App.ui?.activePeer)||'Unknown','out',dur);
     App.sounds.callEnded();
     if(reason)App.toast.show(reason,'info');
   }
@@ -3311,6 +3427,17 @@ class ScreenShareManager{
     App.streamReg.stop('screen-share');
     this._calls.forEach(call=>{try{call.close();}catch(e){}});
     this._calls.clear();
+    /* ══ NEW v6.2: Restore camera to active call when screen share ends ══ */
+    if(App.media?._call&&App.media?._localStream){
+      navigator.mediaDevices?.getUserMedia({video:true,audio:false}).then(vs=>{
+        const vt=vs.getVideoTracks()[0];if(!vt)return;
+        const pc=App.media._call?.peerConnection;
+        if(pc){const sender=pc.getSenders().find(s=>s.track?.kind==='video');if(sender)sender.replaceTrack(vt).catch(()=>{});}
+        App.media._localStream.getVideoTracks().forEach(t=>t.stop());
+        const lvid=document.getElementById('lvid');if(lvid){lvid.srcObject=new MediaStream([vt]);lvid.play().catch(()=>{});}
+        App.toast.show('Camera restored after screen share','info');
+      }).catch(()=>{});
+    }
     this._stream=null;this._presenting=false;
     const pv=document.getElementById('presenter-video');if(pv)pv.srcObject=null;
     document.getElementById('presentation-wrap')&&(document.getElementById('presentation-wrap').style.display='none');
@@ -3886,13 +4013,19 @@ class VaultManager{
     App.toast.show('New vault created','success');
     const vpw=document.getElementById('vault-pw');if(vpw)vpw.value='';
   }
+  /** @param {string} key @param {string} value @returns {Promise<void>} */
+  async addEntry(key,value){
+    if(!this._key){App.toast.show('Unlock vault first','warning');return;}
+    if(!key||!value){App.toast.show('Key and value required','warning');return;}
+    this._items.push({id:uid(6),key,val:value,createdAt:Date.now()});
+    await this._save();this._renderItems();
+  }
   async _addItem(){
     this._resetLockTimer();
     const key=(document.getElementById('vault-key-inp')?.value||'').trim();
     const val=(document.getElementById('vault-val-inp')?.value||'').trim();
     if(!key||!val){App.toast.show('Enter both key and value','warning');return;}
-    this._items.push({id:uid(6),key,val,createdAt:Date.now()});
-    await this._save();this._renderItems();
+    await this.addEntry(key,val);
     const ki=document.getElementById('vault-key-inp');if(ki)ki.value='';
     const vi=document.getElementById('vault-val-inp');if(vi)vi.value='';
   }
@@ -4814,6 +4947,7 @@ class UIManager{
     mobList.innerHTML=[...peers].map(p=>{const pid=p.dataset.pid;const nm=App.peer.peerName(pid);return`<div class="pc" data-pid="${esc(pid)}" role="listitem" style="margin-bottom:4px"><div class="pc-top"><span class="pc-av">👤</span><span class="pc-nm">${esc(nm)}</span></div><div class="pc-acts"><button class="btn btn-xs btn-p" onclick="App.ui.selectPeer('${esc(pid)}');document.getElementById('mobile-peers').classList.remove('on')">Chat</button></div></div>`;}).join('');
   }
   showMobPeers(){document.getElementById('mobile-peers')?.classList.add('on');}
+  /** @param {string} pid @param {Message} msg */
   onRemoteMsg(pid,msg){
     if(!msg.text)return;
     /* ══ NEW v6: per-peer message rate limiting ══ */
@@ -4835,20 +4969,9 @@ class UIManager{
     // Announce for screen readers
     setEl('msg-live',App.peer.peerName(pid)+': '+msg.text.substring(0,80));
   }
-  /* ══ NEW v6.1: appendMsg — uses VS render path when buffer >80 ══ */
-  appendMsg(msgObj){
-    const msgs=document.getElementById('msgs');if(!msgs)return;
-    const empty=document.getElementById('chat-empty');if(empty)empty.classList.add('hidden');
+  /* ══ NEW v6.2: _buildMsgNode — pure DOM builder, no buffer/map side-effects ══ */
+  _buildMsgNode(msgObj){
     this._msgMap.set(msgObj.id,msgObj);
-    /* virtual scroll path */
-    if(this._msgBuffer.length>80){
-      const atBottom=msgs.scrollHeight-msgs.scrollTop<=msgs.clientHeight+100;
-      this._vsSetup(msgs);
-      this._vsRender(msgs);
-      if(atBottom)msgs.scrollTop=msgs.scrollHeight;
-      return;
-    }
-    /* standard DOM path for ≤80 messages */
     const isSelf=msgObj.self;
     const div=document.createElement('div');div.className='mr'+(isSelf?' me':'');div.dataset.msgId=msgObj.id;
     let replyHtml='';
@@ -4858,6 +4981,23 @@ class UIManager{
     div.querySelector('.mcopy')?.addEventListener('click',e=>{e.stopPropagation();App.clipboard.copy(msgObj.text).then(()=>App.toast.show('Copied!','success'));});
     div.querySelector('.mb')?.addEventListener('dblclick',()=>this._setReply(msgObj));
     div.querySelector('.mb')?.addEventListener('contextmenu',e=>{e.preventDefault();this._showMsgCtxMenu(e,msgObj);});
+    return div;
+  }
+  /* ══ NEW v6.1/v6.2: appendMsg — uses VS render path when buffer >80 ══ */
+  /** @param {Message} msgObj */
+  appendMsg(msgObj){
+    const msgs=document.getElementById('msgs');if(!msgs)return;
+    const empty=document.getElementById('chat-empty');if(empty)empty.classList.add('hidden');
+    /* virtual scroll path */
+    if(this._msgBuffer.length>80){
+      const atBottom=msgs.scrollHeight-msgs.scrollTop<=msgs.clientHeight+100;
+      this._vsSetup(msgs);
+      this._vsRender(msgs);
+      if(atBottom)msgs.scrollTop=msgs.scrollHeight;
+      return;
+    }
+    /* standard DOM path for ≤80 messages */
+    const div=this._buildMsgNode(msgObj);
     msgs.appendChild(div);
     requestAnimationFrame(()=>div.classList.add('msg-new'));
     while(msgs.children.length>CFG.MAX_MSG_NODES+5){const first=msgs.querySelector('.mr');if(first)first.remove();}
@@ -4927,7 +5067,7 @@ class UIManager{
   _saveMsgs(pid){
     SafeStorage.setJSON('dh-msgs-'+pid,this._msgBuffer.slice(-200));
   }
-  /* ══ NEW v6.1: virtual scroll — renders all if ≤80 msgs, virtual window if >80 ══ */
+  /* ══ NEW v6.1/v6.2: virtual scroll — renders all if ≤80 msgs, virtual window if >80 ══ */
   _renderMsgs(){
     const msgs=document.getElementById('msgs');if(!msgs)return;
     const empty=document.getElementById('chat-empty');
@@ -4935,7 +5075,7 @@ class UIManager{
     if(!this._msgBuffer.length){if(empty)empty.classList.remove('hidden');return;}
     if(empty)empty.classList.add('hidden');
     if(this._msgBuffer.length<=80){
-      this._msgBuffer.forEach(m=>this.appendMsg(m));
+      this._msgBuffer.forEach(m=>{const node=this._buildMsgNode(m);msgs.appendChild(node);});
       this._scrollToBottom();
     }else{
       this._vsSetup(msgs);
@@ -4948,6 +5088,7 @@ class UIManager{
     container._vsReady=true;
     container.addEventListener('scroll',throttle(()=>this._vsRender(container),50),{passive:true});
   }
+  /* ══ NEW v6.2: VS diff render — no innerHTML nuke on scroll, spacers preserved ══ */
   _vsRender(container){
     const buf=this._msgBuffer;const total=buf.length;if(!total)return;
     const h=container.clientHeight||400;
@@ -4957,10 +5098,30 @@ class UIManager{
     const endIdx=Math.min(total,startIdx+visible);
     const padTop=startIdx*VS_ITEM_H;
     const padBot=(total-endIdx)*VS_ITEM_H;
-    container.innerHTML='';this._msgMap.clear();
-    const topSpacer=document.createElement('div');topSpacer.style.height=padTop+'px';topSpacer.setAttribute('aria-hidden','true');container.appendChild(topSpacer);
-    for(let i=startIdx;i<endIdx;i++)this.appendMsg(buf[i]);
-    const botSpacer=document.createElement('div');botSpacer.style.height=padBot+'px';botSpacer.setAttribute('aria-hidden','true');container.appendChild(botSpacer);
+    // Ensure spacers exist once — never nuked
+    let topSpacer=container.querySelector('#vs-spacer-top');
+    let botSpacer=container.querySelector('#vs-spacer-bot');
+    if(!topSpacer){topSpacer=document.createElement('div');topSpacer.id='vs-spacer-top';topSpacer.setAttribute('aria-hidden','true');container.prepend(topSpacer);}
+    if(!botSpacer){botSpacer=document.createElement('div');botSpacer.id='vs-spacer-bot';botSpacer.setAttribute('aria-hidden','true');container.append(botSpacer);}
+    topSpacer.style.height=padTop+'px';
+    botSpacer.style.height=padBot+'px';
+    // Remove nodes outside current window
+    [...container.children].forEach(el=>{
+      if(el.id==='vs-spacer-top'||el.id==='vs-spacer-bot')return;
+      const idx=parseInt(el.dataset.vsIdx);
+      if(isNaN(idx)||idx<startIdx||idx>=endIdx)el.remove();
+    });
+    // Add missing nodes (RAF-batched to avoid layout thrash)
+    requestAnimationFrame(()=>{
+      const frag=document.createDocumentFragment();
+      for(let i=startIdx;i<endIdx;i++){
+        if(container.querySelector('[data-vs-idx="'+i+'"]'))continue;
+        const node=this._buildMsgNode(buf[i]);
+        node.dataset.vsIdx=i;
+        frag.appendChild(node);
+      }
+      if(frag.childNodes.length)container.insertBefore(frag,botSpacer);
+    });
   }
   _searchMessages(q){
     if(!q||q.length<2){const el=document.getElementById('msg-search-count');if(el)el.textContent='';return;}
@@ -5315,7 +5476,7 @@ if(localStorage.getItem('dh-devmode')==='1'){
       t('parseMarkdown blockquote',()=>{const r=parseMarkdown('> hello');if(!r.includes('msg-quote'))throw new Error('no blockquote: '+r);});
       t('parseMarkdown url',()=>{const r=parseMarkdown('https://example.com');if(!r.includes('<a '))throw new Error('no link: '+r);});
       t('parseMarkdown mention',()=>{const r=parseMarkdown('@alice');if(!r.includes('msg-mention'))throw new Error('no mention: '+r);});
-      t('CFG.CHANGELOG',()=>{if(!Array.isArray(CFG.CHANGELOG)||!CFG.CHANGELOG.length)throw new Error('missing');if(!CFG.CHANGELOG[0].startsWith('v6.0'))throw new Error('v6 entry missing: '+CFG.CHANGELOG[0]);});
+      t('CFG.CHANGELOG',()=>{if(!Array.isArray(CFG.CHANGELOG)||!CFG.CHANGELOG.length)throw new Error('missing');if(!CFG.CHANGELOG[0].startsWith('v6.'))throw new Error('v6 entry missing: '+CFG.CHANGELOG[0]);});
       t('CFG.EMOJI_LIST 128',()=>{if(CFG.EMOJI_LIST.length<128)throw new Error('expected ≥128, got '+CFG.EMOJI_LIST.length);});
       // ══ NEW v6 TESTS ══
       t('CFG.VERSION v6',()=>{if(!CFG.VERSION.startsWith('6.'))throw new Error('expected v6.x, got '+CFG.VERSION);});
@@ -5334,13 +5495,36 @@ if(localStorage.getItem('dh-devmode')==='1'){
       t('Bus vault:locked event',()=>{let fired=false;const unsub=Bus.on('vault:locked',()=>{fired=true;});Bus.emit('vault:locked',{reason:'test'});unsub();if(!fired)throw new Error('vault:locked not received');});
       t('printFileMap exists',()=>{if(typeof window.__devhub_test.printFileMap!=='function')throw new Error('printFileMap missing');});
       // ══ NEW v6.1 TESTS ══
-      t('CFG.VERSION v6.1',()=>{if(!CFG.VERSION.startsWith('6.1'))throw new Error('expected v6.1.x, got '+CFG.VERSION);});
+      t('CFG.VERSION v6.2',()=>{if(!CFG.VERSION.startsWith('6.2'))throw new Error('expected v6.2.x, got '+CFG.VERSION);});
       t('deepFreeze CFG nested',()=>{let threw=false;try{CFG.VIDEO_QUALITY_PROFILES.low.w=999;}catch(e){threw=true;}if(!threw)throw new Error('CFG.VIDEO_QUALITY_PROFILES.low should be frozen');});
       t('tryLoadSRI defined',()=>{if(typeof tryLoadSRI!=='function')throw new Error('tryLoadSRI not defined — check CDN loader scope');});
       t('VS_ITEM_H defined',()=>{if(typeof VS_ITEM_H!=='number'||VS_ITEM_H!==72)throw new Error('VS_ITEM_H should be 72, got '+VS_ITEM_H);});
       t('VS_OVERSCAN defined',()=>{if(typeof VS_OVERSCAN!=='number'||VS_OVERSCAN!==5)throw new Error('VS_OVERSCAN should be 5, got '+VS_OVERSCAN);});
       t('_vsSetup/_vsRender on UIManager',()=>{if(typeof App.ui._vsSetup!=='function')throw new Error('_vsSetup missing');if(typeof App.ui._vsRender!=='function')throw new Error('_vsRender missing');});
-      t('virtual scroll >80 msgs',()=>{const orig=App.ui._msgBuffer.slice();const origPeer=App.ui.activePeer;App.ui._msgBuffer=Array.from({length:85},(_,i)=>({id:'vs-test-'+i,text:'msg '+i,self:false,ts:Date.now(),peer:'test'}));const msgs=document.getElementById('msgs');if(msgs){App.ui._renderMsgs();const spacers=msgs.querySelectorAll('[aria-hidden="true"]');if(!spacers.length)throw new Error('VS spacers not found for >80 msgs');}App.ui._msgBuffer=orig;});
+      t('virtual scroll >80 msgs',()=>{const orig=App.ui._msgBuffer.slice();App.ui._msgBuffer=Array.from({length:85},(_,i)=>({id:'vs-test-'+i,text:'msg '+i,self:false,ts:Date.now(),peer:'test'}));const msgs=document.getElementById('msgs');if(msgs){App.ui._renderMsgs();const spacers=msgs.querySelectorAll('[aria-hidden="true"]');if(!spacers.length)throw new Error('VS spacers not found for >80 msgs');}App.ui._msgBuffer=orig;});
+      // ══ NEW v6.2 TESTS ══
+      t('_vsRender no innerHTML nuke',()=>{
+        if(typeof App.ui._vsRender!=='function')throw new Error('_vsRender missing');
+        const msgs=document.getElementById('msgs');
+        if(msgs&&App.ui._msgBuffer.length>80){
+          App.ui._vsRender(msgs);
+          const s1=msgs.querySelector('#vs-spacer-top');
+          App.ui._vsRender(msgs);
+          const s2=msgs.querySelector('#vs-spacer-top');
+          if(s1&&s2&&s1!==s2)throw new Error('spacer was recreated — innerHTML nuke detected');
+        }
+      });
+      t('_buildMsgNode returns div',()=>{
+        const node=App.ui._buildMsgNode({id:'t-'+Date.now(),text:'hello',self:false,ts:Date.now(),peer:'p',replyTo:null});
+        if(!(node instanceof HTMLElement))throw new Error('_buildMsgNode did not return HTMLElement');
+        if(!node.classList.contains('mr'))throw new Error('missing mr class');
+      });
+      t('MediaManager._reacquireMedia is function',()=>{if(typeof App.media._reacquireMedia!=='function')throw new Error('_reacquireMedia missing');});
+      t('MediaManager._attachRemoteStream is function',()=>{if(typeof App.media._attachRemoteStream!=='function')throw new Error('_attachRemoteStream missing');});
+      t('MediaManager._initPermissionMonitor is function',()=>{if(typeof App.media._initPermissionMonitor!=='function')throw new Error('_initPermissionMonitor missing');});
+      t('VaultManager.addEntry is function',()=>{if(typeof App.vault.addEntry!=='function')throw new Error('addEntry missing');});
+      t('CFG.MSG_RATE_LIMIT_WINDOW',()=>{if(typeof CFG.MSG_RATE_LIMIT_WINDOW!=='number'||CFG.MSG_RATE_LIMIT_WINDOW<=0)throw new Error('MSG_RATE_LIMIT_WINDOW invalid: '+CFG.MSG_RATE_LIMIT_WINDOW);});
+      t('CFG.MSG_RATE_LIMIT_COUNT',()=>{if(typeof CFG.MSG_RATE_LIMIT_COUNT!=='number'||CFG.MSG_RATE_LIMIT_COUNT<=0)throw new Error('MSG_RATE_LIMIT_COUNT invalid: '+CFG.MSG_RATE_LIMIT_COUNT);});
       console.table(results);
       const failed=results.filter(r=>!r.ok);
       console.log('[DevHub Test] '+(results.length-failed.length)+'/'+results.length+' tests passed'+(failed.length?' — FAILED: '+failed.map(r=>r.name+' ('+r.err+')').join(', '):''));
