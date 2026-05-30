@@ -2068,7 +2068,16 @@ class StateStore{
 
 /* ── Memory Monitor ── */
 class MemoryMonitor{
-  sample(){try{if(performance?.memory){}this._last=performance?.memory?.usedJSHeapSize;}catch(e){}}
+  sample(){
+    try{
+      if(performance?.memory){
+        this._last=performance.memory.usedJSHeapSize;
+        this._samples=this._samples||[];
+        this._samples.push({used:this._last,ts:Date.now()});
+        if(this._samples.length>20)this._samples.shift();
+      }
+    }catch(e){}
+  }
   getUsedMB(){try{return performance?.memory?Math.round(performance.memory.usedJSHeapSize/1048576):null;}catch(e){return null;}}
   isCritical(){try{return performance?.memory&&performance.memory.usedJSHeapSize>performance.memory.jsHeapSizeLimit*0.85;}catch(e){return false;}}
   isHigh(){try{return performance?.memory&&performance.memory.usedJSHeapSize>250*1048576;}catch(e){return false;}}
@@ -3611,14 +3620,13 @@ class UIManager{
   _flushMsgWindow(){
     const msgsEl=document.getElementById('msgs');if(!msgsEl)return;
     const buf=this._msgBuffer;
-    const start=Math.max(0,buf.length-this._msgWindowSize-this._msgWindowStart);
-    const visible=buf.slice(start,start+this._msgWindowSize+(this._msgWindowStart>0?this._msgWindowStart:0));
-    // Show "load older" if there are hidden messages
+    const totalVisible=Math.min(buf.length,this._msgWindowSize+this._msgWindowStart);
+    const start=Math.max(0,buf.length-totalVisible);
+    const visible=buf.slice(start,buf.length);
     const loaderWrap=document.getElementById('msgs-load-older');
     if(loaderWrap)loaderWrap.style.display=start>0?'block':'none';
     const empty=document.getElementById('chat-empty');
     if(empty)empty.classList.toggle('hidden',visible.length>0);
-    // Only re-render if count changed
     const current=msgsEl.querySelectorAll('.mr').length;
     if(current===visible.length&&visible.length>0)return;
     msgsEl.querySelectorAll('.mr').forEach(n=>n.remove());
@@ -3630,18 +3638,18 @@ class UIManager{
     });
     msgsEl.appendChild(frag);
     msgsEl.scrollTop=msgsEl.scrollHeight;
-    // Bind copy buttons
     msgsEl.querySelectorAll('.mcopy').forEach(btn=>{
       btn.addEventListener('click',e=>{
         e.stopPropagation();
-        const mb=btn.closest('.mb');if(!mb)return;
-        const text=mb.querySelector('.msg-text')?.textContent||'';
+        const text=btn.closest('.mb')?.querySelector('.msg-text')?.textContent||'';
         App.clipboard.write(text);
       });
     });
   }
   _loadOlderMsgs(){
-    this._msgWindowStart=Math.min(this._msgWindowStart+this._msgWindowSize,Math.max(0,this._msgBuffer.length-this._msgWindowSize));
+    const extra=Math.min(this._msgWindowSize,this._msgBuffer.length-this._msgWindowSize-this._msgWindowStart);
+    if(extra<=0)return;
+    this._msgWindowStart+=extra;
     this._flushMsgWindow();
   }
   _clearMsgs(){
@@ -3675,7 +3683,7 @@ class UIManager{
   _initScrollPill(){
     const msgs=document.getElementById('msgs');const pill=document.getElementById('scroll-pill');
     if(!msgs||!pill)return;
-    msgs.addEventListener('scroll',throttle(()=>{const atBottom=msgs.scrollHeight-msgs.scrollTop-msgs.clientHeight<80;pill.style.display=atBottom?'none':'block';},{passive:true}),60);
+    msgs.addEventListener('scroll',throttle(()=>{const atBottom=msgs.scrollHeight-msgs.scrollTop-msgs.clientHeight<80;pill.style.display=atBottom?'none':'block';},60),{passive:true});
     pill.addEventListener('click',()=>{msgs.scrollTop=msgs.scrollHeight;pill.style.display='none';});
   }
   _bindSidebar(){/* handled in _bindStaticHandlers */}
@@ -4073,6 +4081,79 @@ async function bootApp(){
     }catch(e){}
   },30000);
   App.log.info('DevHub v'+CFG.VERSION+' booted');
+}
+
+if(localStorage.getItem('dh-devmode')==='1'){
+  window.__devhub_test={
+    sendMockMessage(peerId,text){
+      if(!App.ui||!App.peer)return console.warn('[DevHub Test] App not ready');
+      const id=uid(8);
+      App.ui.appendMsg({id,text,self:false,ts:Date.now(),peer:peerId});
+      App.log?.info?.('[TEST] sendMockMessage to '+peerId+': '+text);
+    },
+    simulateIncomingCall(peerId){
+      if(!App.media)return console.warn('[DevHub Test] App not ready');
+      const mockCall={
+        peer:peerId,
+        close(){},
+        on(evt,fn){if(evt==='stream')setTimeout(()=>fn(new MediaStream()),500);}
+      };
+      App.media.handleIncoming(mockCall);
+      App.log?.info?.('[TEST] simulateIncomingCall from '+peerId);
+    },
+    triggerDisconnect(){
+      for(const[pid,conn]of(App.peer?.dconns||[])){try{conn.close();}catch(e){}}
+      App.log?.info?.('[TEST] triggerDisconnect called');
+    },
+    getAppState(){
+      return{
+        version:CFG.VERSION,
+        myId:App.peer?.myId,
+        connected:App.peer?.dconns?.size||0,
+        activePeer:App.ui?.activePeer,
+        msgBuffer:App.ui?._msgBuffer?.length||0,
+        tasks:App.tasks?._tasks?.length||0,
+        notes:(document.getElementById('notepad')?.value||'').length,
+        deviceProfile:window.DeviceProfile,
+        deviceIdentity:window.DeviceIdentity,
+        memoryMB:App.memMon?.getUsedMB?.(),
+        errors:App.errMgr?.getErrors?.()?.length||0,
+      };
+    },
+    runAllTests(){
+      const results=[];
+      const t=(name,fn)=>{try{fn();results.push({name,ok:true});}catch(e){results.push({name,ok:false,err:e.message});}};
+      t('CFG.VERSION',        ()=>{if(!CFG.VERSION)throw new Error('missing');});
+      t('App.toast',          ()=>{if(!App.toast?.show)throw new Error('missing');});
+      t('App.peer',           ()=>{if(!App.peer)throw new Error('missing');});
+      t('App.ui',             ()=>{if(!App.ui)throw new Error('missing');});
+      t('App.files',          ()=>{if(!App.files)throw new Error('missing');});
+      t('App.media',          ()=>{if(!App.media)throw new Error('missing');});
+      t('App.board (lazy)',   ()=>{if(!App.board||App.board._initialized)throw new Error('should not be init yet');});
+      t('App.tasks',          ()=>{if(!App.tasks)throw new Error('missing');});
+      t('App.vault',          ()=>{if(!App.vault)throw new Error('missing');});
+      t('App.search',         ()=>{if(!App.search)throw new Error('missing');});
+      t('DeviceProfile',      ()=>{if(!window.DeviceProfile)throw new Error('missing');});
+      t('DeviceIdentity',     ()=>{if(!window.DeviceIdentity)throw new Error('missing');});
+      t('GlobalSearch',       ()=>{const r=App.search.search('chat');if(!Array.isArray(r))throw new Error('not array');});
+      t('SafeStorage',        ()=>{SafeStorage.set('__test','1');if(SafeStorage.get('__test')!=='1')throw new Error('failed');SafeStorage.del('__test');});
+      t('esc() XSS',          ()=>{const r=esc('<script>');if(r.includes('<script>'))throw new Error('XSS not escaped');});
+      t('uid()',               ()=>{const a=uid(8),b=uid(8);if(a===b||a.length<6)throw new Error('not unique');});
+      t('fmtSize()',           ()=>{if(fmtSize(1024)!=='1.0KB')throw new Error('wrong: '+fmtSize(1024));});
+      t('MemoryMonitor',      ()=>{App.memMon?.sample();});
+      t('VirtualMsgWindow',   ()=>{
+        const prev=App.ui._msgBuffer.length;
+        App.ui.appendMsg({id:uid(8),text:'test-msg-'+Date.now(),self:true,ts:Date.now(),peer:'test'});
+        if(App.ui._msgBuffer.length<=prev)throw new Error('buffer not growing');
+      });
+      t('MsgWindowStart>=0',  ()=>{if(App.ui._msgWindowStart<0)throw new Error('negative window start');});
+      console.table(results);
+      const failed=results.filter(r=>!r.ok);
+      console.log('[DevHub Test] '+(results.length-failed.length)+'/'+results.length+' tests passed'+(failed.length?' — FAILED: '+failed.map(r=>r.name).join(', '):''));
+      return results;
+    }
+  };
+  console.info('[DevHub] Test harness active — window.__devhub_test ready');
 }
 
 document.addEventListener('DOMContentLoaded',()=>{bootApp().catch(e=>{console.error('Boot failed',e);const bo=document.getElementById('boot-overlay');if(bo)bo.innerHTML='<div style="color:var(--red);font-size:14px;padding:20px">Boot failed — please refresh.<br><code>'+e.message+'</code></div>';});});
