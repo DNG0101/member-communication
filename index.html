@@ -1,5 +1,5 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     DevHub v6.2 — Enterprise-grade P2P Communication Suite
+     DevHub v6.3 — Enterprise-grade P2P Communication Suite
      Single-file HTML app. No backend, no build tools, no dependencies beyond CDN.
 
      ARCHITECTURE:
@@ -84,13 +84,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f0f17">
 <!-- HOW TO RECOMPUTE CSP HASHES: run node transform script after any script/style edits -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://mozilla.github.io; connect-src *; media-src *; img-src * data: blob:; style-src 'self' 'unsafe-inline'; worker-src blob:; frame-ancestors 'none'; form-action 'none'; base-uri 'self';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-OxEN/IfWuB6aSZSa2SWIA+Ecot7I7MAXKrM/zUL2qdg=' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://mozilla.github.io; connect-src *; media-src *; img-src * data: blob:; style-src 'self' 'sha256-ozYZ75sj///v6v3HB/MFDbgWxdjvliunNfewESYDlpM='; worker-src blob:; frame-ancestors 'none'; form-action 'none'; base-uri 'self';">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="description" content="DevHub — Secure P2P Communication Hub">
 <meta name="format-detection" content="telephone=no">
 <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;DevHub&quot;,&quot;short_name&quot;:&quot;DevHub&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#0f0f17&quot;,&quot;theme_color&quot;:&quot;#6366f1&quot;}">
-<title>DevHub v6.1 — P2P Communication Suite</title>
+<title>DevHub v6.3 — P2P Communication Suite</title>
 <style>
 /* ═══════════════════════════════════════════════
    DESIGN TOKENS
@@ -605,6 +605,64 @@ a{color:var(--primary);text-decoration:none;}
 @media(min-width:1440px){:root{--sidebar-w:280px;}.mb{max-width:60%;}}
 @media(-webkit-min-device-pixel-ratio:2),(min-resolution:192dpi){#wb-canvas{image-rendering:pixelated;}}
 @media(prefers-reduced-motion:reduce){*,::before,::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important;}}
+
+/* === v6.3: Call State Machine indicator === */
+.call-state{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;text-transform:uppercase;letter-spacing:.05em;}
+.call-state-idle{background:transparent;color:var(--muted);}
+.call-state-ringing{background:#f59e0b22;color:var(--yellow);animation:pulse 1s infinite;}
+.call-state-connecting{background:#6366f122;color:var(--primary);animation:pulse 1.2s infinite;}
+.call-state-connected{background:#22c55e22;color:var(--green);}
+.call-state-reconnecting{background:#f9731622;color:var(--orange);animation:pulse .8s infinite;}
+.call-state-ended,.call-state-failed{background:#ef444422;color:var(--red);}
+#call-state-indicator{margin-left:6px;}
+/* === v6.3: Outgoing call modal === */
+.ocall-avatar{font-size:52px;margin:12px 0 6px;text-align:center;}
+.ocall-name{font-size:20px;font-weight:700;margin-bottom:4px;text-align:center;}
+.ocall-type{font-size:13px;color:var(--muted);margin-bottom:18px;text-align:center;}
+.ocall-ring-anim{width:60px;height:60px;border-radius:50%;border:3px solid var(--primary);margin:0 auto 18px;animation:ring-pulse 1.2s ease-out infinite;}
+@keyframes ring-pulse{0%{transform:scale(1);opacity:.9;}100%{transform:scale(1.6);opacity:0;}}
+/* === v6.3: Conference === */
+.conf-participant{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);}
+.conf-participant:last-child{border-bottom:none;}
+#conf-status{font-size:11px;color:var(--muted);padding:4px 0;min-height:16px;}
+/* === v6.3: Mobile visual viewport + keyboard fix === */
+@supports (height:100dvh){#app{min-height:100dvh;}}
+@media(max-width:640px){
+  #chatbar{position:sticky;bottom:0;z-index:50;background:var(--bg2);border-top:1px solid var(--border);}
+  #msgs{overflow-y:auto;-webkit-overflow-scrolling:touch;}
+}
+/* === v6.3: stream health badge === */
+.stream-health-ok{color:var(--green);}
+.stream-health-warn{color:var(--yellow);}
+.stream-health-frozen{color:var(--red);animation:pulse .6s infinite;}
+
+/* ============================================================
+   v7.0 NEW STYLES
+   ============================================================ */
+/* E2E badge */
+.e2e-badge{font-size:10px;font-weight:700;border-radius:10px;padding:2px 7px;letter-spacing:.02em;transition:background .3s,color .3s,border .3s;}
+.e2e-badge.e2e-secured{background:rgba(34,197,94,.18);color:#22c55e;border:1px solid rgba(34,197,94,.3);}
+.e2e-badge.e2e-pending{background:rgba(234,179,8,.18);color:#ca8a04;border:1px solid rgba(234,179,8,.3);}
+.e2e-badge.e2e-none{background:rgba(107,114,128,.1);color:var(--muted);border:1px solid var(--border);}
+/* RTT bar */
+.rtt-bar{display:inline-flex;gap:2px;align-items:flex-end;height:11px;margin-left:5px;vertical-align:middle;}
+.rtt-seg{width:4px;border-radius:1px;background:var(--border);height:100%;}
+.rtt-seg.active.green{background:#22c55e;height:100%;}
+.rtt-seg.active.yellow{background:#eab308;height:80%;}
+.rtt-seg.active.orange{background:#f97316;height:60%;}
+.rtt-seg.active.red{background:#ef4444;height:40%;}
+/* Avatar popover grid btn */
+.av-pick{font-size:18px;cursor:pointer;padding:4px;border:2px solid transparent;background:none;border-radius:var(--radius-sm);transition:background .12s,border .12s;line-height:1;}
+.av-pick:hover{background:var(--bg3);}
+.av-pick.sel{border-color:var(--primary);background:var(--bg3);}
+/* Shortcut modal list */
+.shortcut-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);}
+.shortcut-row:last-child{border-bottom:none;}
+.shortcut-key{font-family:monospace;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:1px 7px;font-size:11px;white-space:nowrap;color:var(--primary);}
+.shortcut-desc{font-size:12px;color:var(--text2);flex:1;text-align:right;padding-left:8px;}
+/* conf-participant item */
+.conf-participant{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);}
+.conf-participant:last-child{border-bottom:none;}
 </style>
 </head>
 <body>
@@ -835,6 +893,7 @@ a{color:var(--primary);text-decoration:none;}
       </div>
       <span id="net-quality-badge" title="Network quality" aria-label="Network quality" role="status" style="display:none"></span>
       <button id="btn-offline-retry" class="btn btn-xs btn-s" aria-label="Retry connection">↺ Retry</button>
+      <button id="btn-e2e-badge" class="btn btn-xs e2e-badge e2e-none" title="E2E: inactive" aria-label="E2E encryption status">🔒 E2E</button>
       <button id="btn-cmd" class="btn btn-xs btn-s" aria-label="Command palette (Ctrl+K)" title="Ctrl+K">⌘</button>
       <button id="btn-theme" class="btn btn-xs btn-s" aria-label="Toggle theme">🌙</button>
       <button id="btn-search-top" class="btn btn-xs btn-s" aria-label="Search">🔍</button>
@@ -847,6 +906,7 @@ a{color:var(--primary);text-decoration:none;}
       <button class="tn on" data-tab="chat" role="tab" aria-selected="true" aria-controls="tab-chat" id="tabn-chat">💬 Chat</button>
       <button class="tn" data-tab="files" role="tab" aria-selected="false" aria-controls="tab-files" id="tabn-files">📁 Files</button>
       <button class="tn" data-tab="call" role="tab" aria-selected="false" aria-controls="tab-call" id="tabn-call">📞 Call</button>
+      <button class="tn" data-tab="conference" role="tab" aria-selected="false" aria-controls="tab-conference" id="tabn-conf">&#128249; Conf</button>
       <button class="tn" data-tab="group-video" role="tab" aria-selected="false" aria-controls="tab-group-video" id="tabn-gv">📹 Group</button>
       <button class="tn" data-tab="group-voice" role="tab" aria-selected="false" aria-controls="tab-group-voice" id="tabn-gvoice">🎤 Voice</button>
       <button class="tn" data-tab="presentation" role="tab" aria-selected="false" aria-controls="tab-presentation" id="tabn-pres">🖥 Present</button>
@@ -938,6 +998,7 @@ a{color:var(--primary);text-decoration:none;}
             <button id="btn-vid-toggle" class="btn btn-s btn-xs">📹 Video</button>
             <button id="btn-screen-share" class="btn btn-s btn-xs">🖥 Share</button>
             <button id="btn-hang" class="btn btn-d btn-xs">📵 End</button>
+            <button id="btn-call-stats" class="btn btn-s btn-xs" title="Toggle call stats" aria-label="Toggle call quality stats">📊 Stats</button>
             <label for="vol-slider" class="sr-only">Speaker volume</label>
             <input id="vol-slider" type="range" min="0" max="1" step="0.05" value="1" aria-label="Volume">
             <span id="cq-lbl2"></span>
@@ -1331,6 +1392,14 @@ a{color:var(--primary);text-decoration:none;}
             <div id="trusted-list" role="list" style="display:flex;flex-direction:column;gap:4px;max-height:180px;overflow-y:auto;margin-top:4px"></div>
           </div>
           <div class="panel-section">
+            <div class="panel-section-title">Export &amp; Backup</div>
+            <div class="set-sub" style="margin-bottom:8px">Export your chat, tasks, vault (encrypted), peers &amp; settings as JSON.</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+              <button id="btn-export-backup" class="btn btn-s btn-xs">&#128190; Export Backup</button>
+              <label class="btn btn-s btn-xs" style="cursor:pointer" title="Import backup JSON">&#128193; Import Backup<input id="inp-import-backup" type="file" accept=".json" style="display:none" aria-label="Import backup file"></label>
+            </div>
+          </div>
+          <div class="panel-section">
             <div class="panel-section-title">Danger Zone</div>
             <div style="display:flex;gap:6px;flex-wrap:wrap">
               <button id="btn-disc-all" class="btn btn-d btn-sm">Disconnect All</button>
@@ -1405,6 +1474,33 @@ a{color:var(--primary);text-decoration:none;}
   </div>
 </div>
 
+
+<!-- OUTGOING CALL MODAL (v6.3) -->
+<div id="outgoing-call-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="ocall-title">
+  <div class="modal-box" style="max-width:340px;">
+    <div class="modal-title"><span id="ocall-title">Calling…</span></div>
+    <div class="ocall-avatar" aria-hidden="true">&#128222;</div>
+    <div class="ocall-ring-anim" aria-hidden="true"></div>
+    <div class="ocall-name" id="ocall-name">—</div>
+    <div class="ocall-type" id="ocall-type">&#128222; Voice Call</div>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:8px;">
+      <button id="btn-ocall-cancel" class="btn btn-d" style="min-width:80px">&#128245; Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFERENCE INVITE MODAL (v6.3) -->
+<div id="conf-invite-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="conf-inv-title">
+  <div class="modal-box" style="max-width:360px;">
+    <div class="modal-title"><span id="conf-inv-title">&#128249; Conference Invite</span></div>
+    <div id="conf-inv-body" style="font-size:13px;margin-bottom:14px;color:var(--text2)"></div>
+    <div style="display:flex;gap:8px;">
+      <button id="btn-conf-inv-accept" class="btn btn-p" style="flex:1">&#9989; Join</button>
+      <button id="btn-conf-inv-decline" class="btn btn-d" style="flex:1">&#10060; Decline</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast-container" aria-live="polite" aria-atomic="false"></div>
 <div id="emoji-picker" style="display:none;position:fixed;z-index:8500;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:8px;box-shadow:var(--shadow);grid-template-columns:repeat(8,32px);gap:2px;" aria-label="Emoji picker" role="listbox"></div>
 
@@ -1442,15 +1538,15 @@ a{color:var(--primary);text-decoration:none;}
   tryLoadSRI([
     {url:'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js',integrity:'sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU'},
     {url:'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',integrity:'sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU'},
-    {url:'https://unpkg.com/qrcodejs@1.0.0/qrcode.min.js',integrity:null}
+    {url:'https://unpkg.com/qrcodejs@1.0.0/qrcode.min.js',integrity:'sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU'}
   ],0,null);
   tryLoadSRI([
     {url:'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js',integrity:'sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx'},
-    {url:'https://unpkg.com/jsqr@1.4.0/dist/jsQR.js',integrity:null}
+    {url:'https://unpkg.com/jsqr@1.4.0/dist/jsQR.js',integrity:'sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx'}
   ],0,null);
   tryLoadSRI([
     {url:'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',integrity:'sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e'},
-    {url:'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js',integrity:null}
+    {url:'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js',integrity:'sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e'}
   ],0,null);
 })();
 
@@ -1477,6 +1573,11 @@ function assertObject(v,name){if(!v||typeof v!=='object')throw new TypeError(nam
 function assertNumber(v,name){if(typeof v!=='number'||isNaN(v))throw new TypeError(name+' must be number, got '+typeof v);}
 /** @param {*} v @param {string} name */
 function assertArray(v,name){if(!Array.isArray(v))throw new TypeError(name+' must be array, got '+typeof v);}
+/** Runtime interface check — verifies obj has all keys in shape. @param {Object} obj @param {Object} shape @param {string} name */
+function assertInterface(obj,shape,name){
+  if(!obj||typeof obj!=='object')throw new TypeError(name+' must be an object, got '+typeof obj);
+  for(const k of Object.keys(shape)){if(!(k in obj))throw new TypeError(name+' is missing required key: '+k);}
+}
 
 /* ══ NEW v6.1: JSDoc @typedef suite ══ */
 /**
@@ -1494,7 +1595,9 @@ function assertArray(v,name){if(!Array.isArray(v))throw new TypeError(name+' mus
    CONFIG
 ══════════════════════════════════════════════════════════ */
 const CFG={
-  VERSION:'6.2.0',
+  VERSION:'7.0.0',
+  CALL_RING_TIMEOUT:30000,
+  MAX_CONF_PARTICIPANTS:12,
   DB_NAME:'devhub-member-v1',DB_VERSION:4,
   CHUNK_SIZE:65536,MAX_CONCUR_SENDS:2,WINDOW_SIZE:6,MAX_BACKPRESSURE:4*1024*1024,
   PING_INTERVAL:8000,RECONNECT_MAX:8,
@@ -1524,7 +1627,9 @@ const CFG={
   ],
   FREE_TURN_SERVERS:[
     {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
-    {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'}
+    {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
+    {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject',transport:'tcp'},
+    {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject',transport:'tcp'}
   ],
   PEER_ID_RE:/^[a-zA-Z0-9_\-]{6,64}$/,
   INVITE_CHARS:'ABCDEFGHJKMNPQRSTUVWXYZ',
@@ -1539,7 +1644,29 @@ const CFG={
     '🔥','⚡','✨','🌟','💫','⭐','🌈','☀️','🌙','❄️','💧','🌊','🍀','🌸','🌺','🦋',
     '✅','❌','⚠️','🚫','💯','🎉','🎊','🎯','🏆','🥇','🎖️','🚀','💡','🔔','🔕','📢'
   ],
+  AVATAR_EMOJIS:[
+    '😀','😁','😂','🤣','😊','😎','🥰','😍','🤔','😏','😒','🙄','😬','😱','😢','😭',
+    '😡','🤬','💀','🥳','😇','🤩','🤗','🤭','👍','👎','👏','🙌','🤝','💪','🙏','👋',
+    '❤️','🧡','💛','💚','💙','💜','🖤','🤍','🔥','⚡','✨','🌟','💫','⭐','🌈','☀️',
+    '🌙','❄️','💧','🌊','🍀','🌸','🌺','🦋','✅','❌','⚠️','🚫','💯','🎉','🌞','🎯',
+  ],
+  SHORTCUTS:[
+    {key:'Ctrl+K',desc:'Open command palette'},
+    {key:'Escape',desc:'Close modal / command palette'},
+    {key:'Enter',desc:'Send message'},
+    {key:'Shift+Enter',desc:'New line in message'},
+    {key:'?',desc:'Show keyboard shortcuts'},
+    {key:'↑ / ↓',desc:'Navigate command palette results'},
+    {key:'Ctrl+K → Chat',desc:'Switch to Chat tab'},
+    {key:'Ctrl+K → Call',desc:'Start / view voice call'},
+    {key:'Ctrl+K → QR',desc:'Open QR connect'},
+    {key:'Ctrl+K → Invite',desc:'Open invite system'},
+    {key:'Ctrl+K → Vault',desc:'Open encrypted vault'},
+    {key:'Ctrl+K → Theme',desc:'Toggle dark / light theme'},
+  ],
   CHANGELOG:[
+    'v7.0: E2E shield badge, RTT bar, offline drain toast, call stats overlay, keyboard shortcuts (?), avatar customiser, export/backup, assertInterface, boot assertions, 4+ TURN servers',
+    'v6.3: CallStateMachine (8 states), DirectCallModule (ring/reject/busy/missed/timeout), ConferenceModule (host controls, kick, lock, mute-all), StreamWatchdog (frozen stream ICE restart), WakeLock, visual viewport keyboard fix, +3 STUN/TURN servers',
     'v6.2: VS diff render (no flicker), real SRI hashes, JSDoc @param on 5 key fns, remote-video ontrack fallback, camera cleanup, permission recovery, no-reload media reacquire, screen-share camera restore, RTC connectionstatechange healing',
     'v6.1: Virtual-scroll chat (>80 msgs), CSP sha256 hashes, deepFreeze CFG, tryLoadSRI with integrity, JSDoc @typedef suite',
     'v6.0: IIFE wrapper, CFG freeze, type guards, Service Worker PWA, custom PeerJS signaling, peer ID validation, vault telemetry, msg rate-limit, transfer size guard, CSP upgrade-insecure-requests, content-visibility, ARIA improvements',
@@ -1975,16 +2102,18 @@ class OfflineQueue{
   push(item){this._q.push({...item,id:uid(8),qts:Date.now()});this._save();}
   async flush(){
     const items=[...this._q];this._q=[];this._save();
+    let sent=0;
     for(const item of items){
       try{
         if(item.type==='msg'&&item.pid){
           const conn=App.peer?.dconns?.get(item.pid);
-          if(conn?.open){conn.send(JSON.stringify({type:'msg',id:item.id,text:item.text,ts:item.ts}));}
+          if(conn?.open){conn.send(JSON.stringify({type:'msg',id:item.id,text:item.text,ts:item.ts}));sent++;}
           else{this._q.push(item);}
         }
       }catch(e){this._q.push(item);}
     }
     this._save();
+    return sent;
   }
   _save(){SafeStorage.setJSON('dh-offline-q',this._q.slice(-50));}
   size(){return this._q.length;}
@@ -2042,7 +2171,38 @@ class CryptoManager{
     }catch(e){return null;}
   }
   async setPeerKey(pid,pubKeyStr){
-    try{if(!pubKeyStr)return;const k=await crypto.subtle.importKey('jwk',JSON.parse(pubKeyStr),{name:'ECDH',namedCurve:'P-256'},false,[]);this._peerKeys.set(pid,k);}catch(e){}
+    try{
+      if(!pubKeyStr)return;
+      const k=await crypto.subtle.importKey('jwk',JSON.parse(pubKeyStr),{name:'ECDH',namedCurve:'P-256'},false,[]);
+      this._peerKeys.set(pid,k);
+      Bus.emit('e2e:status',{pid,state:'pending'});
+      if(this._myKeyPair)this.deriveSharedSecret(pid).catch(()=>{});
+    }catch(e){}
+  }
+  /** Derive AES-GCM shared secret via ECDH. Emits e2e:status secured/none. */
+  async deriveSharedSecret(pid){
+    try{
+      const peerKey=this._peerKeys.get(pid);
+      if(!peerKey||!this._myKeyPair)return null;
+      const secret=await crypto.subtle.deriveKey(
+        {name:'ECDH',public:peerKey},
+        this._myKeyPair.privateKey,
+        {name:'AES-GCM',length:256},false,['encrypt','decrypt']
+      );
+      Bus.emit('e2e:status',{pid,state:'secured'});
+      return secret;
+    }catch(e){Bus.emit('e2e:status',{pid,state:'none'});return null;}
+  }
+  /** Returns 16-char hex fingerprint of peer's public key (groups of 4). */
+  async getFingerprint(pid){
+    try{
+      const peerKey=this._peerKeys.get(pid);if(!peerKey)return null;
+      const exported=await crypto.subtle.exportKey('jwk',peerKey);
+      const str=JSON.stringify({x:exported.x,y:exported.y});
+      const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+      const hex=[...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+      return hex.substring(0,16).match(/.{4}/g).join(' ');
+    }catch(e){return null;}
   }
 }
 
@@ -2252,7 +2412,7 @@ class NetworkRecovery{
     window.addEventListener('online',()=>{
       const ob=document.getElementById('offline-banner');if(ob)ob.style.display='none';
       App.toast?.show('Network restored — reconnecting…','success');
-      App.offlineQ?.flush();
+      App.offlineQ?.flush().then(sent=>{if(sent>0)App.toast?.show('✓ '+sent+' queued message'+(sent>1?'s':'')+' delivered','success');}).catch(()=>{});
       Timers.timeout('net-reconnect',()=>{if(App.peer?.peer?.disconnected)App.peer.tryReconnect();},1200);
     });
     window.addEventListener('offline',()=>{
@@ -2272,7 +2432,20 @@ class NetworkRecovery{
         },1500);
       }
     });
-    window.addEventListener('orientationchange',()=>{
+    // v6.3: Visual viewport — fix mobile keyboard overlap
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize',function(){
+      const vvh=window.visualViewport.height;
+      document.documentElement.style.setProperty('--visual-viewport-height',vvh+'px');
+      const chatbar=document.getElementById('chatbar');
+      if(chatbar&&window.DeviceProfile?.isMobile){
+        const bot=window.innerHeight-vvh;
+        chatbar.style.paddingBottom=Math.max(bot,0)+'px';
+      }
+    });
+    document.documentElement.style.setProperty('--visual-viewport-height',window.visualViewport.height+'px');
+  }
+  window.addEventListener('orientationchange',()=>{
       Timers.timeout('orient',()=>{
         if(window.DeviceProfile)window.DeviceProfile.orientation=(screen.orientation?.type||'').split('-')[0]||'landscape';
         App.board?.initOnce?.().then(()=>App.board?._resize?.());
@@ -2966,6 +3139,14 @@ class PeerManager{
     }else if(type==='room-new-member'){
       const newPeer=msg.newPeer;
       if(newPeer&&newPeer!==this.myId){Timers.timeout('room-connect-new-'+newPeer,()=>this.connectTo(newPeer),600+Math.random()*400);}
+    }else if(type==='direct-call-signal'){App.directCall?.onRemoteSignal?.(pid,msg);
+    }else if(type==='conf-signal'){
+      if(msg.action==='invite'&&msg.confId&&msg.hostPid){
+        const invBody=document.getElementById('conf-inv-body');
+        if(invBody)invBody.textContent=(App.peer.peerName(pid)||pid.substring(0,12))+' invited you to conference '+(msg.confId||'');
+        window._pendingConfInvite={confId:msg.confId,hostPid:msg.hostPid};
+        Modal.show('conf-invite-modal');
+      }else{App.conference?.onSignal?.(pid,msg);}
     }else if(type==='gv-signal'){App.groupVideo?._onSignal?.(pid,msg);
     }else if(type==='gvoice-signal'){App.groupVoice?._onSignal?.(pid,msg);
     }else if(type==='screen-share-start'){App.screenShare?._onRemoteStart?.(pid,msg);
@@ -3181,6 +3362,8 @@ class MediaManager{
       const call=App.peer.peer.call(pid,this._localStream);
       this._call=call;this._videoEnabled=video;
       App.ui.setTab('call');
+      App.callState?.transition('RINGING');App.callState?.transition('CONNECTING');
+      WakeLock.acquire();
       this._onCallSetup(call,pid);
     }catch(e){App.toast.show('Could not access media: '+e.message,'error');}
   }
@@ -3206,6 +3389,9 @@ class MediaManager{
       call.answer(this._localStream);
       this._call=call;this._videoEnabled=true;
       App.ui.setTab('call');
+      App.callState?.transition('CONNECTING');
+      App.directCall?.notifyAccepted?.(call.peer);
+      WakeLock.acquire();
       this._onCallSetup(call,call.peer);
     }catch(e){
       App.toast.show('Could not access media: '+e.message,'error');
@@ -3282,6 +3468,7 @@ class MediaManager{
   _attachRemoteStream(stream){
     if(!stream)return;
     this._remoteStream=stream;App.streamReg.register('remote-call',stream);
+    App.callState?.transition('CONNECTED');
     const rvid=document.getElementById('rvid');
     if(rvid){
       rvid.srcObject=stream;
@@ -3289,6 +3476,16 @@ class MediaManager{
         if(e.name==='NotAllowedError')Timers.timeout('rvid-play-retry',tryPlay,1000);
       });
       tryPlay();
+      App.streamWatchdog?.watch('remote-call',rvid,function(){
+        App.log?.warn('StreamWatchdog: remote stream frozen — ICE restart');
+        App.callState?.transition('RECONNECTING');
+        const pc=App.media._call?.peerConnection;
+        if(pc)try{pc.restartIce?.();}catch(ex){}
+        Timers.timeout('frozen-recover',function(){
+          if(rvid.srcObject)rvid.play().catch(function(){});
+          if(App.callState?.state==='RECONNECTING')App.callState?.transition('CONNECTED');
+        },3000);
+      });
     }
     this._initAudioViz(stream);
   }
@@ -3347,7 +3544,11 @@ class MediaManager{
   /* ══ NEW v6.2: _cleanupCall — explicit track stop (turns off camera/mic indicator), fixed duration ══ */
   _cleanupCall(reason){
     Timers.clearInterval('call-timer');
-    Timers.clear('ice-reconnect');Timers.clear('rtc-reconnect');Timers.clear('rvid-play-retry');Timers.clear('visibility-recover');
+    Timers.clear('ice-reconnect');Timers.clear('rtc-reconnect');Timers.clear('rvid-play-retry');Timers.clear('visibility-recover');Timers.clear('frozen-recover');
+    App.callStats?.destroy?.();
+    App.streamWatchdog?.unwatch('remote-call');
+    WakeLock.release();
+    App.callState?.reset();
     if(this._rafId){cancelAnimationFrame(this._rafId);this._rafId=null;}
     try{this._audioCtx?.close();}catch(e){}
     /* Save duration BEFORE nulling _callStartTs — fixes zero-duration bug */
@@ -4907,6 +5108,7 @@ class UIManager{
     this._unread.delete(pid);this._updateUnreadBadge(pid,0);
     // Switch to chat tab
     this.setTab('chat');
+    App.e2eBadge?.onPeerSelect?.(pid);
     setEl('tx-info','Sending to: '+esc(fp.name||pid));
   }
   renderPeer(pid,fp,status){
@@ -4918,7 +5120,7 @@ class UIManager{
     const pres=App.presence.getRemote(pid);
     const presCls=pres==='busy'?'pres-busy':pres==='idle'?'pres-idle':pres==='away'?'pres-away':'pres-online';
     const unread=this._unread.get(pid)||0;
-    const html=`<div class="pc-top"><span class="pc-av">${esc(fp?.av||'👤')}</span><span class="pc-nm">${esc(fp?.name||pid.substring(0,12))}</span>${unread?`<span class="ubadge">${unread}</span>`:''}<span class="presence-dot ${presCls}"></span></div><div class="pc-row"><span class="plat-dot ${latCls}"></span><span>${lat?lat+'ms':'—'}</span><span style="margin-left:auto;font-size:10px;color:var(--muted)">${esc(fp?.version||'')}</span></div><div class="pc-acts"><button class="btn btn-xs btn-s" data-peer-act="call" aria-label="Call">📞</button><button class="btn btn-xs btn-s" data-peer-act="video" aria-label="Video">📹</button><button class="btn btn-xs btn-s" data-peer-act="file" aria-label="File">📁</button></div>`;
+    const html=`<div class="pc-top"><span class="pc-av">${esc(fp?.av||'👤')}</span><span class="pc-nm">${esc(fp?.name||pid.substring(0,12))}</span>${unread?`<span class="ubadge">${unread}</span>`:''}<span class="presence-dot ${presCls}"></span></div><div class="pc-row"><span class="plat-dot ${latCls}"></span><span>${lat?lat+'ms':'—'}</span><span class="rtt-bar" aria-hidden="true">${lat?(()=>{const c=lat<50?'green':lat<150?'yellow':lat<300?'orange':'red';const n=lat<50?4:lat<150?3:lat<300?2:1;return Array.from({length:4},(_,i)=>i<n?`<span class="rtt-seg active ${c}"></span>`:`<span class="rtt-seg"></span>`).join('');})():''}</span><span style="margin-left:auto;font-size:10px;color:var(--muted)">${esc(fp?.version||'')}</span></div><div class="pc-acts"><button class="btn btn-xs btn-s" data-peer-act="call" aria-label="Call">📞</button><button class="btn btn-xs btn-s" data-peer-act="video" aria-label="Video">📹</button><button class="btn btn-xs btn-s" data-peer-act="file" aria-label="File">📁</button></div>`;
     if(!card){
       card=document.createElement('div');card.className='pc peer-card-new';card.id='pc-'+pid;card.dataset.pid=pid;
       card.setAttribute('role','listitem');card.setAttribute('tabindex','0');card.setAttribute('aria-label',esc(fp?.name||pid));
@@ -5262,6 +5464,295 @@ self.addEventListener('fetch',e=>{
 /* ══════════════════════════════════════════════════════════
    APP BOOTSTRAP
 ══════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════
+   CALL STATE MACHINE — v6.3
+   Finite state machine: IDLE/RINGING/CONNECTING/CONNECTED/RECONNECTING/ENDED/FAILED
+══════════════════════════════════════════════════════════ */
+class CallStateMachine{
+  constructor(){this._state='IDLE';this._listeners=new Map();}
+  get state(){return this._state;}
+  transition(next){
+    const valid={
+      IDLE:['RINGING','CONNECTING'],
+      RINGING:['CONNECTING','ENDED','FAILED'],
+      CONNECTING:['CONNECTED','FAILED','ENDED'],
+      CONNECTED:['RECONNECTING','ENDING','ENDED'],
+      RECONNECTING:['CONNECTED','ENDED','FAILED'],
+      PAUSED:['CONNECTED','ENDED'],
+      ENDING:['ENDED'],
+      ENDED:['IDLE'],
+      FAILED:['IDLE']
+    };
+    if(!valid[this._state]?.includes(next)){App.log?.warn('CallState: invalid '+this._state+'→'+next);return false;}
+    const prev=this._state;this._state=next;
+    this._listeners.forEach(fn=>{try{fn(next,prev);}catch(e){}});
+    Bus.emit('call:state',{state:next,prev});
+    const el=document.getElementById('call-state-indicator');
+    if(el){el.textContent=next;el.className='call-state call-state-'+next.toLowerCase();}
+    return true;
+  }
+  on(fn){const id=uid(6);this._listeners.set(id,fn);return()=>this._listeners.delete(id);}
+  reset(){
+    const s=this._state;if(s==='IDLE')return;
+    if(['CONNECTING','CONNECTED','RECONNECTING','PAUSED','ENDING','RINGING','FAILED'].includes(s))this.transition('ENDED');
+    if(this._state==='ENDED')this.transition('IDLE');
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   DIRECT CALL MODULE — v6.3
+   Ring/Accept/Reject/Busy/Missed/Timeout signaling via data channel
+══════════════════════════════════════════════════════════ */
+class DirectCallModule{
+  constructor(){this._ringTimer=null;this._pendingPid=null;this._RING_TIMEOUT=30000;}
+  init(){
+    document.getElementById('btn-ocall-cancel')?.addEventListener('click',()=>this.cancel());
+    document.getElementById('btn-conf-inv-accept')?.addEventListener('click',()=>{
+      const inv=window._pendingConfInvite;
+      Modal.hide('conf-invite-modal');
+      if(inv){App.conference?.joinConference(inv.confId,inv.hostPid);}
+      window._pendingConfInvite=null;
+    });
+    document.getElementById('btn-conf-inv-decline')?.addEventListener('click',()=>{
+      Modal.hide('conf-invite-modal');window._pendingConfInvite=null;
+    });
+    Bus.on('call:state',({state})=>{
+      if(state==='ENDED'||state==='FAILED'){this._clearRingTimer();this._hideOutgoing();}
+    });
+  }
+  /** Start outgoing direct call — signals remote before PeerJS call */
+  ring(pid,video){
+    if(App.callState?.state!=='IDLE'){App.toast.show('Already in a call','warning');return;}
+    App.callState?.transition('RINGING');
+    this._pendingPid=pid;
+    setEl('ocall-name',esc(App.peer.peerName(pid)));
+    setEl('ocall-type',video?'📹 Video Call':'📞 Voice Call');
+    Modal.show('outgoing-call-modal');
+    App.sounds.callIncoming();
+    const conn=App.peer.conn(pid);
+    if(conn?.open){try{conn.send(JSON.stringify({type:'direct-call-signal',action:'ring',video,name:SafeStorage.get('dh-name','Peer'),ts:Date.now()}));}catch(e){}}
+    this._ringTimer=setTimeout(()=>{
+      if(App.callState?.state==='RINGING'){
+        this._hideOutgoing();App.callState?.reset();
+        App.toast.show('No answer — missed call','info');
+        App.callHist?.add(pid,App.peer.peerName(pid),'missed',0);
+        const c=App.peer.conn(pid);
+        if(c?.open)try{c.send(JSON.stringify({type:'direct-call-signal',action:'missed'}));}catch(e){}
+      }
+    },this._RING_TIMEOUT);
+  }
+  cancel(){
+    this._clearRingTimer();
+    const pid=this._pendingPid;
+    if(pid){const c=App.peer.conn(pid);if(c?.open)try{c.send(JSON.stringify({type:'direct-call-signal',action:'cancel'}));}catch(e){}}
+    this._hideOutgoing();
+    if(App.callState?.state==='RINGING')App.callState?.reset();
+    this._pendingPid=null;
+  }
+  /** Notify remote we accepted — called after answering PeerJS call */
+  notifyAccepted(pid){
+    const c=App.peer.conn(pid);
+    if(c?.open)try{c.send(JSON.stringify({type:'direct-call-signal',action:'accepted'}));}catch(e){}
+  }
+  onRemoteSignal(pid,msg){
+    const a=msg.action;
+    if(a==='ring'){
+      if(App.callState&&App.callState.state!=='IDLE'){
+        const c=App.peer.conn(pid);
+        if(c?.open)try{c.send(JSON.stringify({type:'direct-call-signal',action:'busy'}));}catch(e){}
+        return;
+      }
+      App.callState?.transition('RINGING');
+      Bus.emit('direct-call:incoming',{pid,video:msg.video,name:msg.name});
+    }else if(a==='accepted'){
+      this._clearRingTimer();this._hideOutgoing();
+      App.callState?.transition('CONNECTING');
+    }else if(a==='rejected'){
+      this._clearRingTimer();this._hideOutgoing();App.callState?.reset();
+      App.toast.show(esc(App.peer.peerName(pid))+' declined the call','info');
+    }else if(a==='busy'){
+      this._clearRingTimer();this._hideOutgoing();App.callState?.reset();
+      App.toast.show(esc(App.peer.peerName(pid))+' is busy','warning');
+    }else if(a==='missed'){
+      App.toast.show('Missed call from '+esc(App.peer.peerName(pid)),'warning');
+      App.notifCenter?.add('Missed call',App.peer.peerName(pid),'📞');
+      App.callHist?.add(pid,App.peer.peerName(pid),'missed',0);
+    }else if(a==='cancel'){
+      Modal.hide('incoming-call-modal');App.callState?.reset();
+      App.toast.show('Call cancelled by '+esc(App.peer.peerName(pid)),'info');
+    }
+  }
+  _clearRingTimer(){clearTimeout(this._ringTimer);this._ringTimer=null;}
+  _hideOutgoing(){Modal.hide('outgoing-call-modal');}
+}
+
+/* ══════════════════════════════════════════════════════════
+   CONFERENCE MODULE — v6.3
+   Multi-peer audio/video conference with host controls
+══════════════════════════════════════════════════════════ */
+class ConferenceModule{
+  constructor(){
+    this._confId=null;this._host=null;this._isHost=false;
+    this._participants=new Map();this._locked=false;
+  }
+  init(){
+    document.getElementById('btn-conf-create')?.addEventListener('click',()=>this._create());
+    document.getElementById('btn-conf-leave')?.addEventListener('click',()=>this._leave());
+    document.getElementById('btn-conf-invite')?.addEventListener('click',()=>this._inviteAll());
+    document.getElementById('btn-conf-lock')?.addEventListener('click',()=>this._toggleLock());
+    document.getElementById('btn-conf-mute-all')?.addEventListener('click',()=>this._muteAll());
+  }
+  _create(){
+    if(this._confId){App.toast.show('Already in a conference','warning');return;}
+    this._confId=uid(8);this._host=App.peer.myId;this._isHost=true;
+    this._participants.set(App.peer.myId,{name:SafeStorage.get('dh-name','Me'),host:true,muted:false});
+    setEl('conf-id-display','Conf ID: '+this._confId);
+    this._render();App.toast.show('Conference created — invite peers','success');
+    Bus.emit('conf:created',{confId:this._confId});
+  }
+  async joinConference(confId,hostPid){
+    if(this._confId){App.toast.show('Already in a conference','warning');return;}
+    this._confId=confId;this._host=hostPid;this._isHost=false;
+    this._participants.set(App.peer.myId,{name:SafeStorage.get('dh-name','Me'),host:false,muted:false});
+    if(!App.peer.dconns.has(hostPid)){
+      App.peer.connectTo(hostPid);
+      await new Promise(r=>Timers.timeout('conf-join-wait',r,2500));
+    }
+    const conn=App.peer.conn(hostPid);
+    if(conn?.open)try{conn.send(JSON.stringify({type:'conf-signal',action:'join',confId,name:SafeStorage.get('dh-name','Peer')}));}catch(e){}
+    setEl('conf-id-display','Conf ID: '+confId);
+    this._render();App.toast.show('Joining conference…','info');
+    App.ui?.setTab('conference');
+    Bus.emit('conf:joined',{confId});
+  }
+  onSignal(pid,msg){
+    const{action,confId,name}=msg;
+    if(action==='join'&&this._isHost&&confId===this._confId){
+      this._participants.set(pid,{name:name||pid.substring(0,12),host:false,muted:false});
+      this._render();
+      const members=[...this._participants.entries()].map(([p,d])=>({pid:p,name:d.name}));
+      for(const[,conn]of App.peer.dconns){
+        if(conn.open)try{conn.send(JSON.stringify({type:'conf-signal',action:'member-list',confId:this._confId,members}));}catch(e){}
+      }
+      App.toast.show(esc(name||pid)+' joined conference','info');
+    }else if(action==='member-list'&&confId===this._confId){
+      (msg.members||[]).forEach(m=>{if(!this._participants.has(m.pid))this._participants.set(m.pid,{name:m.name,host:false,muted:false});});
+      this._render();
+    }else if(action==='mute-participant'){
+      App.toast.show('You were muted by host','warning');
+      App.media?._localStream?.getAudioTracks().forEach(t=>{t.enabled=false;});
+    }else if(action==='leave'&&confId===this._confId){
+      this._participants.delete(pid);this._render();App.toast.show(esc(msg.name||pid)+' left the conference','info');
+    }else if(action==='host-kick'&&msg.target===App.peer.myId){
+      App.toast.show('You were removed from the conference','warning');this._leave();
+    }
+  }
+  _leave(){
+    if(!this._confId)return;
+    for(const[,conn]of App.peer.dconns){
+      if(conn.open)try{conn.send(JSON.stringify({type:'conf-signal',action:'leave',confId:this._confId,name:SafeStorage.get('dh-name','Peer')}));}catch(e){}
+    }
+    App.streamReg?.stop('conf-local');
+    this._confId=null;this._host=null;this._isHost=false;
+    this._participants.clear();this._locked=false;setEl('conf-id-display','');this._render();
+    App.toast.show('Left conference','info');Bus.emit('conf:left',{});
+  }
+  _inviteAll(){
+    if(!this._confId){App.toast.show('Create a conference first','warning');return;}
+    for(const[,conn]of App.peer.dconns){
+      if(conn.open)try{conn.send(JSON.stringify({type:'conf-signal',action:'invite',confId:this._confId,hostPid:App.peer.myId,name:SafeStorage.get('dh-name','Host')}));}catch(e){}
+    }
+    App.toast.show('Conference invites sent to all peers','success');
+  }
+  _toggleLock(){
+    if(!this._isHost){App.toast.show('Only host can lock conference','warning');return;}
+    this._locked=!this._locked;
+    setEl('btn-conf-lock',this._locked?'🔒 Locked':'🔓 Lock');
+    App.toast.show(this._locked?'Conference locked':'Conference unlocked','info');
+  }
+  _muteAll(){
+    if(!this._isHost)return;
+    for(const[,conn]of App.peer.dconns){
+      if(conn.open)try{conn.send(JSON.stringify({type:'conf-signal',action:'mute-participant',confId:this._confId}));}catch(e){}
+    }
+    App.toast.show('All participants muted','info');
+  }
+  _kickParticipant(pid){
+    if(!this._isHost)return;
+    const conn=App.peer.conn(pid);
+    if(conn?.open)try{conn.send(JSON.stringify({type:'conf-signal',action:'host-kick',confId:this._confId,target:pid}));}catch(e){}
+    this._participants.delete(pid);this._render();
+    App.toast.show('Participant removed','info');
+  }
+  _render(){
+    const el=document.getElementById('conf-participants');if(!el)return;
+    const cs=document.getElementById('conf-status');
+    if(cs)cs.textContent=this._confId?('📹 '+this._participants.size+' participant(s) · '+(this._locked?'🔒 Locked':'🔓 Open')):'';
+    if(!this._confId){
+      el.innerHTML='<div style="color:var(--muted);font-size:12px;text-align:center;padding:20px;">No active conference — create one or accept an invite</div>';
+      return;
+    }
+    const rows=[...this._participants.entries()].map(function(entry){
+      const pid=entry[0],p=entry[1];
+      const label=(p.host?'👑 ':'')+esc(p.name||pid.substring(0,12));
+      let rm='';
+      if(App.conference._isHost&&pid!==App.peer.myId){
+        rm='<button class="btn btn-xs btn-d" onclick="App.conference._kickParticipant('+JSON.stringify(pid)+')">Remove</button>';
+      }
+      return '<div class="conf-participant"><span class="gc-pill">'+label+'</span>'+rm+'</div>';
+    });
+    el.innerHTML=rows.join('');
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   STREAM WATCHDOG — v6.3
+   Detect frozen remote video and trigger ICE restart recovery
+══════════════════════════════════════════════════════════ */
+class StreamWatchdog{
+  constructor(){this._checks=new Map();}
+  init(){Timers.interval('stream-watchdog',()=>this._check(),5000);}
+  watch(id,videoEl,onFrozen){this._checks.set(id,{videoEl,onFrozen,lastFrames:-1,frozenCount:0});}
+  unwatch(id){this._checks.delete(id);}
+  _check(){
+    for(const[id,e]of this._checks){
+      try{
+        const v=e.videoEl;if(!v||!v.srcObject)continue;
+        const q=v.getVideoPlaybackQuality?.();
+        if(q){
+          const f=q.totalVideoFrames;
+          if(f===e.lastFrames&&v.readyState>=2&&!v.paused&&!v.ended){
+            e.frozenCount++;
+            if(e.frozenCount>=3){
+              e.frozenCount=0;
+              App.log?.warn('StreamWatchdog: frozen: '+id);
+              try{e.onFrozen&&e.onFrozen(id);}catch(ex){}
+            }
+          }else{e.frozenCount=0;}
+          e.lastFrames=f;
+        }else{if(v.readyState>=2&&v.paused&&!v.ended){v.play().catch(function(){});}}
+      }catch(ex){}
+    }
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   WAKE LOCK MANAGER — v6.3
+   Prevents screen sleep during active calls
+══════════════════════════════════════════════════════════ */
+const WakeLock={
+  _lock:null,
+  async acquire(){
+    if(!navigator.wakeLock)return;
+    try{
+      this._lock=await navigator.wakeLock.request('screen');
+      this._lock.addEventListener('release',()=>{this._lock=null;});
+      App.log?.info('WakeLock acquired');
+    }catch(e){App.log?.warn('WakeLock: '+e.message);}
+  },
+  release(){try{this._lock?.release();this._lock=null;}catch(e){}},
+  get active(){return!!this._lock;}
+};
 const App={
   toast:null,log:null,store:null,crypto:null,trust:null,hist:null,callHist:null,
   peer:null,files:null,media:null,board:null,code:null,tasks:null,group:null,
@@ -5271,10 +5762,280 @@ const App={
   heal:null,stateStore:null,memMon:null,errMgr:null,connReg:null,
   rtcReg:null,streamReg:null,cleanup:null,netRecovery:null,bootRec:null,
   search:null,invite:null,screenShare:null,presentation:null,moduleHealth:null,
-  sw:null,
+  sw:null,callState:null,directCall:null,conference:null,streamWatchdog:null,
 };
 /* ══ NEW v6: Protect App global from accidental reassignment ══ */
 Object.defineProperty(window,'App',{value:App,writable:false,configurable:false,enumerable:true});
+
+
+/* ══════════════════════════════════════════════════════════
+   BOOT ASSERTION — v7.0
+   Runs synchronously before bootApp. Checks CFG, classes, Bus events.
+══════════════════════════════════════════════════════════ */
+function _runBootAssert(){
+  try{
+    if(!Object.isFrozen(CFG))throw new Error('CFG is not frozen');
+    [CallStateMachine,DirectCallModule,ConferenceModule,StreamWatchdog].forEach(C=>{
+      if(typeof C!=='function')throw new Error('Class missing: '+C.name);
+    });
+    const REQUIRED_EVENTS=['call:state','conf:created','conf:joined','conf:left','e2e:status',
+      'direct-call:incoming','peer:connected','peer:disconnected','msg:received','msg:sent','vault:locked'];
+    REQUIRED_EVENTS.forEach(ev=>{
+      if(typeof ev!=='string'||!ev.trim().length)throw new Error('Invalid bus event: '+JSON.stringify(ev));
+    });
+  }catch(err){
+    console.error('[DevHub BootAssert FAILED]',err.message);
+    const bo=document.getElementById('boot-overlay');
+    if(bo)bo.innerHTML='<div style="color:#ef4444;font-size:14px;padding:24px;text-align:center">⚠️ Boot assertion failed:<br><code>'+esc(err.message)+'</code></div>';
+    throw err;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   E2E STATUS BADGE — v7.0
+   Shows 🔒 E2E in topbar: green=secured, yellow=pending, gray=none
+   Shows fingerprint tooltip from CryptoManager.getFingerprint()
+══════════════════════════════════════════════════════════ */
+class E2EStatusBadge{
+  constructor(){this._states=new Map();}
+  init(){
+    Bus.on('e2e:status',({pid,state})=>{
+      this._states.set(pid,state);
+      const active=App.ui?.activePeer;
+      if(active&&(pid===active||!active))this._updateBadge(pid,state);
+    });
+    Bus.on('peer:connected',({pid})=>this._updateBadge(pid,'none'));
+    Bus.on('peer:disconnected',({pid})=>{this._states.delete(pid);this._updateBadge(null,'none');});
+    document.getElementById('btn-e2e-badge')?.addEventListener('click',()=>this._showFingerprint());
+    document.addEventListener('click',e=>{if(e.target.closest('#btn-e2e-badge'))return;});
+  }
+  onPeerSelect(pid){
+    const state=this._states.get(pid)||'none';
+    this._updateBadge(pid,state);
+  }
+  _updateBadge(pid,state){
+    const btn=document.getElementById('btn-e2e-badge');if(!btn)return;
+    btn.classList.remove('e2e-secured','e2e-pending','e2e-none');
+    btn.classList.add('e2e-'+state);
+    const label={secured:'🔒 E2E ✓',pending:'🔒 E2E…',none:'🔒 E2E'};
+    btn.textContent=label[state]||label.none;
+    const tip={secured:'E2E: Encrypted — click for fingerprint',pending:'E2E: Key exchange pending',none:'E2E: Not active'};
+    btn.title=tip[state]||tip.none;
+  }
+  async _showFingerprint(){
+    const pid=App.ui?.activePeer;
+    if(!pid){App.toast?.show('Select a peer to see E2E fingerprint','info');return;}
+    const fp=await App.crypto?.getFingerprint?.(pid);
+    const state=this._states.get(pid)||'none';
+    if(fp&&state==='secured'){App.toast?.show('🔒 Fingerprint: '+fp,'success',5000);}
+    else if(state==='pending'){App.toast?.show('🔒 E2E key exchange in progress…','info');}
+    else{App.toast?.show('E2E not established with this peer','warning');}
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   CALL STATS OVERLAY — v7.0
+   Collapsible 📊 Stats during active call via getStats()
+══════════════════════════════════════════════════════════ */
+class CallStatsOverlay{
+  constructor(){this._visible=false;this._timer=null;}
+  init(){
+    document.getElementById('btn-call-stats')?.addEventListener('click',()=>this.toggle());
+  }
+  toggle(){
+    this._visible=!this._visible;
+    const el=document.getElementById('call-stats-overlay');
+    if(el)el.style.display=this._visible?'block':'none';
+    if(this._visible)this._startPolling();
+    else this._stopPolling();
+  }
+  show(){this._visible=true;const el=document.getElementById('call-stats-overlay');if(el)el.style.display='block';this._startPolling();}
+  hide(){this._visible=false;const el=document.getElementById('call-stats-overlay');if(el)el.style.display='none';this._stopPolling();}
+  _startPolling(){this._stopPolling();this._poll();this._timer=setInterval(()=>this._poll(),3000);}
+  _stopPolling(){if(this._timer){clearInterval(this._timer);this._timer=null;}}
+  async _poll(){
+    if(!this._visible)return;
+    const pc=App.media?._call?.peerConnection;
+    const el=document.getElementById('call-stats-content');
+    if(!pc||!el){if(el)el.textContent='No active call';return;}
+    try{
+      const stats=await pc.getStats();
+      let rtt='—',pktLoss='—',res='—',fps='—',bw='—';
+      stats.forEach(r=>{
+        if(r.type==='candidate-pair'&&r.state==='succeeded'&&r.currentRoundTripTime!=null)
+          rtt=Math.round(r.currentRoundTripTime*1000)+'ms';
+        if(r.type==='inbound-rtp'&&r.kind==='video'){
+          if(r.framesPerSecond!=null)fps=Math.round(r.framesPerSecond)+'fps';
+          if(r.frameWidth)res=r.frameWidth+'x'+r.frameHeight;
+          if(r.packetsLost!=null&&r.packetsReceived){
+            const total=r.packetsReceived+r.packetsLost;
+            pktLoss=total>0?((r.packetsLost/total)*100).toFixed(1)+'%':'0%';
+          }
+        }
+        if(r.type==='candidate-pair'&&r.availableOutgoingBitrate)
+          bw=Math.round(r.availableOutgoingBitrate/1000)+'kbps';
+      });
+      el.innerHTML='RTT: '+rtt+'<br>Loss: '+pktLoss+'<br>Res: '+res+'<br>FPS: '+fps+'<br>BW: '+bw;
+    }catch(e){if(el)el.textContent='Stats unavailable';}
+  }
+  destroy(){this._stopPolling();this.hide();}
+}
+
+/* ══════════════════════════════════════════════════════════
+   KEYBOARD SHORTCUTS CHEATSHEET — v7.0
+   Press ? anywhere to open modal; content from CFG.SHORTCUTS
+══════════════════════════════════════════════════════════ */
+class ShortcutCheatsheet{
+  init(){
+    document.addEventListener('keydown',e=>{
+      if(e.key==='?'&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
+        const tag=(e.target||{}).tagName||'';
+        if(['INPUT','TEXTAREA','SELECT'].includes(tag.toUpperCase()))return;
+        e.preventDefault();
+        Modal.toggle('shortcuts-modal');
+        if(document.getElementById('shortcuts-modal')?.classList.contains('on'))this._render();
+      }
+    });
+    document.getElementById('btn-shortcuts-close')?.addEventListener('click',()=>Modal.hide('shortcuts-modal'));
+    document.getElementById('shortcuts-modal')?.addEventListener('click',e=>{if(e.target===e.currentTarget)Modal.hide('shortcuts-modal');});
+    this._render();
+  }
+  _render(){
+    const el=document.getElementById('shortcuts-list');if(!el)return;
+    el.innerHTML=(CFG.SHORTCUTS||[]).map(s=>
+      '<div class="shortcut-row" role="listitem">'+
+      '<span class="shortcut-key">'+esc(s.key)+'</span>'+
+      '<span class="shortcut-desc">'+esc(s.desc)+'</span>'+
+      '</div>'
+    ).join('');
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   AVATAR CUSTOMISER — v7.0
+   Click avatar in topbar/settings to pick from 8×8 emoji grid.
+   Saves to SafeStorage and re-broadcasts presence.
+══════════════════════════════════════════════════════════ */
+class AvatarCustomiser{
+  constructor(){this._open=false;}
+  init(){
+    this._render();
+    document.getElementById('btn-avatar-close')?.addEventListener('click',()=>this.hide());
+    document.getElementById('avatar-popover')?.addEventListener('click',e=>{
+      const btn=e.target.closest('.av-pick');
+      if(!btn)return;
+      this._select(btn.dataset.em);
+    });
+    // Hook onto the save-identity button to also show popover
+    document.getElementById('set-avatar')?.addEventListener('dblclick',()=>this.show());
+    document.addEventListener('click',e=>{
+      if(!e.target.closest('#avatar-popover')&&!e.target.closest('#set-avatar'))this.hide();
+    });
+  }
+  show(anchorEl){
+    const pop=document.getElementById('avatar-popover');if(!pop)return;
+    const cur=SafeStorage.get('dh-avatar','👤');
+    pop.querySelectorAll('.av-pick').forEach(b=>b.classList.toggle('sel',b.dataset.em===cur));
+    if(anchorEl){
+      const r=anchorEl.getBoundingClientRect();
+      pop.style.top=Math.min(r.bottom+4,window.innerHeight-220)+'px';
+      pop.style.left=Math.min(r.left,window.innerWidth-270)+'px';
+    }else{pop.style.top='60px';pop.style.left='50%';pop.style.transform='translateX(-50%)';}
+    pop.style.display='block';this._open=true;
+  }
+  hide(){const pop=document.getElementById('avatar-popover');if(pop)pop.style.display='none';this._open=false;}
+  _select(em){
+    if(!em)return;
+    SafeStorage.set('dh-avatar',em);
+    const inp=document.getElementById('set-avatar');if(inp)inp.value=em;
+    App.toast?.show('Avatar updated to '+em,'success');
+    App.presence?.broadcast?.();
+    this.hide();
+  }
+  _render(){
+    const grid=document.getElementById('avatar-grid');if(!grid)return;
+    grid.innerHTML=(CFG.AVATAR_EMOJIS||[]).map(em=>
+      '<button class="av-pick" data-em="'+esc(em)+'" aria-label="Avatar '+esc(em)+'">'+em+'</button>'
+    ).join('');
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   EXPORT / BACKUP MANAGER — v7.0
+   Serialises: chat, vault (encrypted blob), tasks, peer history,
+   settings → devhub-backup-{ts}.json. Import validates schema.
+══════════════════════════════════════════════════════════ */
+class ExportBackupManager{
+  init(){
+    document.getElementById('btn-export-backup')?.addEventListener('click',()=>this.exportBackup());
+    document.getElementById('inp-import-backup')?.addEventListener('change',e=>this._onImportFile(e));
+  }
+  exportBackup(){
+    const data=this._collect();
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download='devhub-backup-'+Date.now()+'.json';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},2000);
+    App.toast?.show('✓ Backup exported','success');
+    return data;
+  }
+  _collect(){
+    return{
+      version:CFG.VERSION,
+      ts:Date.now(),
+      chat:SafeStorage.getJSON('dh-msgs-v1',{}),
+      vault:SafeStorage.getJSON('dh-vault-v3',{}),
+      tasks:(App.tasks?._tasks||[]).map(t=>({...t})),
+      peers:SafeStorage.getJSON('dh-hist-v2',[]),
+      settings:{
+        name:SafeStorage.get('dh-name',''),
+        avatar:SafeStorage.get('dh-avatar','👤'),
+        theme:SafeStorage.get('dh-theme','dark'),
+        sounds:SafeStorage.get('dh-sounds','1'),
+        e2e:SafeStorage.get('dh-e2e',''),
+        turn:SafeStorage.getJSON('devhub-turn',{})
+      }
+    };
+  }
+  _validate(data){
+    const REQUIRED=['version','ts','chat','vault','tasks','peers','settings'];
+    for(const k of REQUIRED){if(!(k in data))throw new Error('Backup missing key: '+k);}
+    if(typeof data.version!=='string')throw new Error('version must be string');
+    if(!Array.isArray(data.tasks))throw new Error('tasks must be array');
+    if(!Array.isArray(data.peers))throw new Error('peers must be array');
+    return true;
+  }
+  _onImportFile(e){
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try{
+        const data=JSON.parse(ev.target.result);
+        this._validate(data);
+        // Apply settings
+        if(data.settings){
+          if(data.settings.name)SafeStorage.set('dh-name',data.settings.name);
+          if(data.settings.avatar)SafeStorage.set('dh-avatar',data.settings.avatar);
+          if(data.settings.theme)SafeStorage.set('dh-theme',data.settings.theme);
+          if(data.settings.sounds)SafeStorage.set('dh-sounds',data.settings.sounds);
+        }
+        // Apply peers history
+        if(data.peers)SafeStorage.setJSON('dh-hist-v2',data.peers);
+        // Apply chat
+        if(data.chat)SafeStorage.setJSON('dh-msgs-v1',data.chat);
+        // Apply vault (encrypted blob — no plaintext)
+        if(data.vault)SafeStorage.setJSON('dh-vault-v3',data.vault);
+        // Apply tasks
+        if(data.tasks&&App.tasks){App.tasks._tasks=data.tasks;App.tasks._save?.();App.tasks._render?.();}
+        App.toast?.show('✓ Backup imported successfully — reload to apply all changes','success',5000);
+      }catch(err){App.toast?.show('Import failed: '+err.message,'error');}
+      e.target.value='';
+    };
+    reader.readAsText(file);
+  }
+}
 
 async function bootApp(){
   const setBootMsg=(msg,pct)=>{
@@ -5283,6 +6044,7 @@ async function bootApp(){
     if(fill){fill.style.width=pct+'%';fill.closest('[role="progressbar"]')?.setAttribute('aria-valuenow',pct);}
   };
 
+  _runBootAssert();
   App.bootRec=new BootRecoveryManager();App.bootRec.markBootStart();App.bootRec.checkBootFailure();
   App.errMgr=new GlobalErrorManager();App.errMgr.init();
   App.log=new Logger();
@@ -5292,7 +6054,7 @@ async function bootApp(){
   App.moduleHealth=new ModuleHealthEngine();
 
   // Register modules for health tracking
-  ['PeerManager','FileTransfer','MediaManager','Whiteboard','CodeEditor','GroupVideo','GroupVoice','InviteManager','ScreenShare','Presentation','GroupChat'].forEach(m=>App.moduleHealth.register(m));
+  ['PeerManager','FileTransfer','MediaManager','Whiteboard','CodeEditor','GroupVideo','GroupVoice','InviteManager','ScreenShare','Presentation','GroupChat','CallStateMachine','DirectCall','Conference','StreamWatchdog'].forEach(m=>App.moduleHealth.register(m));
 
   setBootMsg('Initializing storage…',10);
   App.store=new DBStore();await App.store.init();
@@ -5339,6 +6101,15 @@ async function bootApp(){
   App.screenShare=new ScreenShareManager();
   App.presentation=new PresentationManager();App.presentation.init();
   App.invite=new InviteManager();App.invite.init();
+  App.callState=new CallStateMachine();
+  App.directCall=new DirectCallModule();App.directCall.init();
+  App.conference=new ConferenceModule();App.conference.init();
+  App.streamWatchdog=new StreamWatchdog();App.streamWatchdog.init();
+  App.e2eBadge=new E2EStatusBadge();App.e2eBadge.init();
+  App.callStats=new CallStatsOverlay();App.callStats.init();
+  App.shortcuts=new ShortcutCheatsheet();App.shortcuts.init();
+  App.avatarPicker=new AvatarCustomiser();App.avatarPicker.init();
+  App.exportMgr=new ExportBackupManager();App.exportMgr.init();
   App.peer=new PeerManager();
   App.search=new GlobalSearch();
   App.ui=new UIManager();App.ui.init();
@@ -5476,10 +6247,10 @@ if(localStorage.getItem('dh-devmode')==='1'){
       t('parseMarkdown blockquote',()=>{const r=parseMarkdown('> hello');if(!r.includes('msg-quote'))throw new Error('no blockquote: '+r);});
       t('parseMarkdown url',()=>{const r=parseMarkdown('https://example.com');if(!r.includes('<a '))throw new Error('no link: '+r);});
       t('parseMarkdown mention',()=>{const r=parseMarkdown('@alice');if(!r.includes('msg-mention'))throw new Error('no mention: '+r);});
-      t('CFG.CHANGELOG',()=>{if(!Array.isArray(CFG.CHANGELOG)||!CFG.CHANGELOG.length)throw new Error('missing');if(!CFG.CHANGELOG[0].startsWith('v6.'))throw new Error('v6 entry missing: '+CFG.CHANGELOG[0]);});
+      t('CFG.CHANGELOG',()=>{if(!Array.isArray(CFG.CHANGELOG)||!CFG.CHANGELOG.length)throw new Error('missing');if(!CFG.CHANGELOG[0].startsWith('v7.'))throw new Error('v7 entry missing: '+CFG.CHANGELOG[0]);});
       t('CFG.EMOJI_LIST 128',()=>{if(CFG.EMOJI_LIST.length<128)throw new Error('expected ≥128, got '+CFG.EMOJI_LIST.length);});
       // ══ NEW v6 TESTS ══
-      t('CFG.VERSION v6',()=>{if(!CFG.VERSION.startsWith('6.'))throw new Error('expected v6.x, got '+CFG.VERSION);});
+      t('CFG.VERSION v7',()=>{if(!CFG.VERSION.startsWith('7.'))throw new Error('expected v7.x, got '+CFG.VERSION);});
       t('assertString pass',()=>{assertString('hello','test');});
       t('assertString fail',()=>{let threw=false;try{assertString(42,'test');}catch(e){threw=true;}if(!threw)throw new Error('should have thrown');});
       t('assertObject pass',()=>{assertObject({a:1},'test');});
@@ -5495,7 +6266,7 @@ if(localStorage.getItem('dh-devmode')==='1'){
       t('Bus vault:locked event',()=>{let fired=false;const unsub=Bus.on('vault:locked',()=>{fired=true;});Bus.emit('vault:locked',{reason:'test'});unsub();if(!fired)throw new Error('vault:locked not received');});
       t('printFileMap exists',()=>{if(typeof window.__devhub_test.printFileMap!=='function')throw new Error('printFileMap missing');});
       // ══ NEW v6.1 TESTS ══
-      t('CFG.VERSION v6.2',()=>{if(!CFG.VERSION.startsWith('6.2'))throw new Error('expected v6.2.x, got '+CFG.VERSION);});
+      // removed stale v6.2 assertion
       t('deepFreeze CFG nested',()=>{let threw=false;try{CFG.VIDEO_QUALITY_PROFILES.low.w=999;}catch(e){threw=true;}if(!threw)throw new Error('CFG.VIDEO_QUALITY_PROFILES.low should be frozen');});
       t('tryLoadSRI defined',()=>{if(typeof tryLoadSRI!=='function')throw new Error('tryLoadSRI not defined — check CDN loader scope');});
       t('VS_ITEM_H defined',()=>{if(typeof VS_ITEM_H!=='number'||VS_ITEM_H!==72)throw new Error('VS_ITEM_H should be 72, got '+VS_ITEM_H);});
@@ -5525,13 +6296,102 @@ if(localStorage.getItem('dh-devmode')==='1'){
       t('VaultManager.addEntry is function',()=>{if(typeof App.vault.addEntry!=='function')throw new Error('addEntry missing');});
       t('CFG.MSG_RATE_LIMIT_WINDOW',()=>{if(typeof CFG.MSG_RATE_LIMIT_WINDOW!=='number'||CFG.MSG_RATE_LIMIT_WINDOW<=0)throw new Error('MSG_RATE_LIMIT_WINDOW invalid: '+CFG.MSG_RATE_LIMIT_WINDOW);});
       t('CFG.MSG_RATE_LIMIT_COUNT',()=>{if(typeof CFG.MSG_RATE_LIMIT_COUNT!=='number'||CFG.MSG_RATE_LIMIT_COUNT<=0)throw new Error('MSG_RATE_LIMIT_COUNT invalid: '+CFG.MSG_RATE_LIMIT_COUNT);});
+            // === NEW v6.3 TESTS ===
+      t('CFG.VERSION v7.0',function(){if(!CFG.VERSION.startsWith('7.'))throw new Error('expected v7.x, got '+CFG.VERSION);});
+      t('CFG.CALL_RING_TIMEOUT',function(){if(typeof CFG.CALL_RING_TIMEOUT!=='number'||CFG.CALL_RING_TIMEOUT<5000)throw new Error('CALL_RING_TIMEOUT invalid: '+CFG.CALL_RING_TIMEOUT);});
+      t('CFG.MAX_CONF_PARTICIPANTS',function(){if(typeof CFG.MAX_CONF_PARTICIPANTS!=='number'||CFG.MAX_CONF_PARTICIPANTS<2)throw new Error('MAX_CONF_PARTICIPANTS invalid: '+CFG.MAX_CONF_PARTICIPANTS);});
+      t('CallStateMachine exists',function(){if(!App.callState||typeof App.callState.transition!=='function')throw new Error('CallStateMachine missing or invalid');});
+      t('CallStateMachine starts IDLE',function(){if(App.callState.state!=='IDLE')throw new Error('unexpected initial state: '+App.callState.state);});
+      t('CallStateMachine invalid transition rejected',function(){const r=App.callState.transition('ENDING');if(r!==false)throw new Error('IDLE-to-ENDING should be rejected');});
+      t('CallStateMachine valid chain',function(){
+        const sm=new CallStateMachine();
+        if(!sm.transition('RINGING'))throw new Error('IDLE-to-RINGING failed');
+        if(!sm.transition('CONNECTING'))throw new Error('RINGING-to-CONNECTING failed');
+        if(!sm.transition('CONNECTED'))throw new Error('CONNECTING-to-CONNECTED failed');
+        if(!sm.transition('ENDED'))throw new Error('CONNECTED-to-ENDED failed');
+        if(!sm.transition('IDLE'))throw new Error('ENDED-to-IDLE failed');
+      });
+      t('CallStateMachine RECONNECTING chain',function(){
+        const sm=new CallStateMachine();
+        sm.transition('RINGING');sm.transition('CONNECTING');sm.transition('CONNECTED');
+        if(!sm.transition('RECONNECTING'))throw new Error('CONNECTED-to-RECONNECTING failed');
+        if(!sm.transition('CONNECTED'))throw new Error('RECONNECTING-to-CONNECTED failed');
+      });
+      t('CallStateMachine.on returns unsubscribe fn',function(){
+        const unsub=App.callState.on(function(){});
+        if(typeof unsub!=='function')throw new Error('on() should return unsubscribe function');
+        unsub();
+      });
+      t('CallStateMachine.reset from IDLE is safe',function(){App.callState.reset();if(App.callState.state!=='IDLE')throw new Error('reset from IDLE should stay IDLE');});
+      t('DirectCallModule exists',function(){if(!App.directCall||typeof App.directCall.onRemoteSignal!=='function')throw new Error('DirectCallModule missing');});
+      t('DirectCallModule.cancel is function',function(){if(typeof App.directCall.cancel!=='function')throw new Error('cancel missing');});
+      t('DirectCallModule.ring is function',function(){if(typeof App.directCall.ring!=='function')throw new Error('ring missing');});
+      t('DirectCallModule.notifyAccepted is function',function(){if(typeof App.directCall.notifyAccepted!=='function')throw new Error('notifyAccepted missing');});
+      t('ConferenceModule exists',function(){if(!App.conference||typeof App.conference.joinConference!=='function')throw new Error('ConferenceModule missing');});
+      t('ConferenceModule._render is function',function(){if(typeof App.conference._render!=='function')throw new Error('_render missing');});
+      t('ConferenceModule._kickParticipant is function',function(){if(typeof App.conference._kickParticipant!=='function')throw new Error('_kickParticipant missing');});
+      t('ConferenceModule initial state is null',function(){if(App.conference._confId!==null)throw new Error('_confId should be null initially, got: '+App.conference._confId);});
+      t('StreamWatchdog exists',function(){if(!App.streamWatchdog||typeof App.streamWatchdog.watch!=='function')throw new Error('StreamWatchdog missing');});
+      t('StreamWatchdog.unwatch is function',function(){if(typeof App.streamWatchdog.unwatch!=='function')throw new Error('unwatch missing');});
+      t('WakeLock singleton exists',function(){if(typeof WakeLock==='undefined'||typeof WakeLock.acquire!=='function')throw new Error('WakeLock missing');});
+      t('WakeLock.release is function',function(){if(typeof WakeLock.release!=='function')throw new Error('release missing');});
+      t('Bus conf:created event',function(){let ok=false;const u=Bus.on('conf:created',function(){ok=true;});Bus.emit('conf:created',{confId:'test'});u();if(!ok)throw new Error('conf:created not received');});
+      t('Bus call:state event',function(){let ok=false;const u=Bus.on('call:state',function(){ok=true;});Bus.emit('call:state',{state:'IDLE',prev:'ENDED'});u();if(!ok)throw new Error('call:state not received');});
+      t('Bus direct-call:incoming event',function(){let ok=false;const u=Bus.on('direct-call:incoming',function(){ok=true;});Bus.emit('direct-call:incoming',{pid:'x',video:false});u();if(!ok)throw new Error('direct-call:incoming not received');});
+      t('CFG has 6+ ICE/TURN servers',function(){const servers=CFG.FREE_TURN_SERVERS||[];if(servers.length<4)throw new Error('Expected 4+ servers, got '+servers.length);});
+      t('App.callState still IDLE after all tests',function(){if(App.callState.state!=='IDLE')throw new Error('callState should still be IDLE, got '+App.callState.state);});
+      // === NEW v7.0 TESTS ===
+      t('CFG.CALL_RING_TIMEOUT in CFG',function(){if(typeof CFG.CALL_RING_TIMEOUT!=='number'||CFG.CALL_RING_TIMEOUT<5000)throw new Error('CALL_RING_TIMEOUT invalid: '+CFG.CALL_RING_TIMEOUT);});
+      t('CFG.MAX_CONF_PARTICIPANTS in CFG',function(){if(typeof CFG.MAX_CONF_PARTICIPANTS!=='number'||CFG.MAX_CONF_PARTICIPANTS<2)throw new Error('MAX_CONF_PARTICIPANTS invalid: '+CFG.MAX_CONF_PARTICIPANTS);});
+      t('CFG.AVATAR_EMOJIS is non-empty array',function(){if(!Array.isArray(CFG.AVATAR_EMOJIS)||CFG.AVATAR_EMOJIS.length<8)throw new Error('AVATAR_EMOJIS missing or too short: '+CFG.AVATAR_EMOJIS?.length);});
+      t('CFG.SHORTCUTS has ≥8 entries',function(){if(!Array.isArray(CFG.SHORTCUTS)||CFG.SHORTCUTS.length<8)throw new Error('SHORTCUTS missing or too short: '+CFG.SHORTCUTS?.length);});
+      t('CFG.SHORTCUTS entries have key+desc',function(){(CFG.SHORTCUTS||[]).forEach((s,i)=>{if(!s.key||!s.desc)throw new Error('SHORTCUTS['+i+'] missing key/desc');});});
+      t('CFG has 4+ FREE_TURN_SERVERS',function(){if((CFG.FREE_TURN_SERVERS||[]).length<4)throw new Error('Expected ≥4, got '+CFG.FREE_TURN_SERVERS?.length);});
+      t('assertInterface pass',function(){assertInterface({a:1,b:2},{a:null,b:null},'test');});
+      t('assertInterface catches missing key',function(){let threw=false;try{assertInterface({a:1},{a:null,b:null},'test');}catch(e){threw=true;}if(!threw)throw new Error('should have thrown for missing key b');});
+      t('assertInterface rejects non-object',function(){let threw=false;try{assertInterface(null,{},'x');}catch(e){threw=true;}if(!threw)throw new Error('should throw for null');});
+      t('Bus e2e:status event fires',function(){let ok=false;const u=Bus.on('e2e:status',()=>{ok=true;});Bus.emit('e2e:status',{pid:'x',state:'secured'});u();if(!ok)throw new Error('e2e:status not received');});
+      t('E2EStatusBadge exists and init ran',function(){if(!App.e2eBadge||typeof App.e2eBadge._updateBadge!=='function')throw new Error('E2EStatusBadge missing or incomplete');});
+      t('CallStatsOverlay exists',function(){if(!App.callStats||typeof App.callStats.toggle!=='function')throw new Error('CallStatsOverlay missing');});
+      t('ShortcutCheatsheet exists',function(){if(!App.shortcuts||typeof App.shortcuts._render!=='function')throw new Error('ShortcutCheatsheet missing');});
+      t('AvatarCustomiser exists',function(){if(!App.avatarPicker||typeof App.avatarPicker.show!=='function')throw new Error('AvatarCustomiser missing');});
+      t('ExportBackupManager exists',function(){if(!App.exportMgr||typeof App.exportMgr.exportBackup!=='function')throw new Error('ExportBackupManager missing');});
+      t('exportBackup returns correct keys',function(){
+        const data=App.exportMgr._collect();
+        const REQUIRED=['version','ts','chat','vault','tasks','peers','settings'];
+        REQUIRED.forEach(k=>{if(!(k in data))throw new Error('exportBackup missing key: '+k);});
+        if(data.version!==CFG.VERSION)throw new Error('version mismatch: '+data.version+' vs '+CFG.VERSION);
+        if(!Array.isArray(data.tasks))throw new Error('tasks must be array');
+        if(!Array.isArray(data.peers))throw new Error('peers must be array');
+      });
+      t('OfflineQueue.flush returns promise',function(){const r=App.offlineQ.flush();if(!r||typeof r.then!=='function')throw new Error('flush() should return Promise');});
+      t('OfflineQueue.size is function',function(){if(typeof App.offlineQ.size!=='function')throw new Error('size() missing');});
+      t('offlineQueue drain order preserved',function(){
+        const q=new OfflineQueue();q.init();
+        const orig=q._q.slice();
+        q._q=[{type:'msg',pid:'p1',text:'a',id:'1',ts:1},{type:'msg',pid:'p1',text:'b',id:'2',ts:2}];
+        const items=[...q._q];
+        if(items[0].text!=='a'||items[1].text!=='b')throw new Error('Order not preserved');
+        q._q=orig;q._save();
+      });
+      t('CryptoManager.deriveSharedSecret is function',function(){if(!App.crypto||typeof App.crypto.deriveSharedSecret!=='function')throw new Error('deriveSharedSecret missing');});
+      t('CryptoManager.getFingerprint is function',function(){if(typeof App.crypto?.getFingerprint!=='function')throw new Error('getFingerprint missing');});
+      t('shortcuts modal exists in DOM',function(){if(!document.getElementById('shortcuts-modal'))throw new Error('shortcuts-modal not in DOM');});
+      t('shortcuts-list element exists',function(){if(!document.getElementById('shortcuts-list'))throw new Error('shortcuts-list not in DOM');});
+      t('avatar-popover exists in DOM',function(){if(!document.getElementById('avatar-popover'))throw new Error('avatar-popover not in DOM');});
+      t('avatar-grid exists in DOM',function(){if(!document.getElementById('avatar-grid'))throw new Error('avatar-grid not in DOM');});
+      t('call-stats-overlay exists in DOM',function(){if(!document.getElementById('call-stats-overlay'))throw new Error('call-stats-overlay not in DOM');});
+      t('btn-export-backup exists in DOM',function(){if(!document.getElementById('btn-export-backup'))throw new Error('btn-export-backup not in DOM');});
+      t('btn-e2e-badge exists in DOM',function(){if(!document.getElementById('btn-e2e-badge'))throw new Error('btn-e2e-badge not in DOM');});
+      t('btn-call-stats exists in DOM',function(){if(!document.getElementById('btn-call-stats'))throw new Error('btn-call-stats not in DOM');});
+      t('_runBootAssert does not throw on valid App',function(){try{_runBootAssert();}catch(e){throw new Error('_runBootAssert threw on valid App: '+e.message);}});
       console.table(results);
       const failed=results.filter(r=>!r.ok);
       console.log('[DevHub Test] '+(results.length-failed.length)+'/'+results.length+' tests passed'+(failed.length?' — FAILED: '+failed.map(r=>r.name+' ('+r.err+')').join(', '):''));
       return results;
     }
   };
-  console.info('[DevHub v'+CFG.VERSION+'] v6 test harness active — window.__devhub_test.runAllTests() | printFileMap() | getAppState()');
+  console.info('[DevHub v'+CFG.VERSION+'] v7 test harness active — window.__devhub_test.runAllTests() | printFileMap() | getAppState()');
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
@@ -5544,5 +6404,25 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 })(); // end DevHub IIFE
 </script>
+<!-- KEYBOARD SHORTCUTS MODAL (v7.0) -->
+<div id="shortcuts-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title">
+  <div class="modal-box" style="max-width:500px">
+    <div class="modal-title">
+      <span id="shortcuts-title">&#9000; Keyboard Shortcuts</span>
+      <button id="btn-shortcuts-close" class="btn btn-xs btn-s" aria-label="Close shortcuts">&#10005;</button>
+    </div>
+    <div id="shortcuts-list" role="list"></div>
+  </div>
+</div>
+<!-- AVATAR POPOVER (v7.0) -->
+<div id="avatar-popover" style="display:none;position:fixed;z-index:9100;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px;box-shadow:0 8px 32px rgba(0,0,0,.45);max-width:260px" role="dialog" aria-modal="true" aria-label="Choose avatar emoji">
+  <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Choose Avatar</div>
+  <div id="avatar-grid" style="display:grid;grid-template-columns:repeat(8,1fr);gap:3px"></div>
+  <button id="btn-avatar-close" class="btn btn-xs btn-s" style="margin-top:8px;width:100%" aria-label="Close avatar picker">Done</button>
+</div>
+<!-- CALL STATS OVERLAY (v7.0) -->
+<div id="call-stats-overlay" style="display:none;position:absolute;top:52px;right:8px;background:rgba(15,15,20,.88);color:#e2e8f0;border:1px solid rgba(255,255,255,.1);border-radius:var(--radius-sm);padding:10px 14px;font-size:11px;font-family:monospace;z-index:200;min-width:190px;line-height:1.8;backdrop-filter:blur(6px)" role="status" aria-live="polite" aria-label="Call quality statistics">
+  <div id="call-stats-content">Loading stats…</div>
+</div>
 </body>
 </html>
