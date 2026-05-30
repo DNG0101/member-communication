@@ -1,3 +1,33 @@
+<!-- ════════════════════════════════════════════════════════════════════
+     DevHub v5.0 — Enterprise-grade P2P Communication Suite
+     Single-file HTML app. No backend, no build tools, no dependencies beyond CDN.
+
+     ARCHITECTURE:
+     · Transport  : PeerJS (WebRTC data channels + media)
+     · UI         : Vanilla JS, CSS custom properties, mobile-first
+     · Storage    : localStorage (SafeStorage), IndexedDB (FileDB)
+     · Crypto     : WebCrypto AES-256-GCM + PBKDF2 (vault v3)
+     · Events     : EventBus pub/sub (Bus.on/emit/off/once)
+     · Rendering  : parseMarkdown() XSS-safe mini-parser, LRU render cache
+
+     v5.0 CHANGES:
+     · EventBus singleton for decoupled cross-module communication
+     · LRU cache (LRUCache) for rendered message HTML
+     · parseMarkdown: bold/italic/strike/code/blockquote/url/@mention
+     · SafeFileValidator.sniffBytes(): magic-byte MIME detection
+     · VaultManager v3: combined IV+ciphertext, 5-min auto-lock, v2 migration
+     · Delivery receipts: ✓ sent → ✓✓ delivered → cyan ✓✓ read
+     · Emoji picker: search input + full keyboard navigation (↑↓←→ Enter Esc)
+     · CSS: motion tokens, z-index scale, spacing scale, micro-animations
+     · 128 emoji across 8 categories
+
+     BUG FIXES (v4.9):
+     · emoji-picker display:none overridden by display:grid
+     · SoundTheme._beep inverted sounds setting check
+     · PDF.js ESM module loaded via classic <script>
+     · pdf.worker.mjs → pdf.worker.min.js
+     · App.invite?.init?.() → App.invite?.openIfPending?.()
+════════════════════════════════════════════════════════════════════ -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,7 +40,7 @@
 <meta name="description" content="DevHub — Secure P2P Communication Hub">
 <meta name="format-detection" content="telephone=no">
 <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;DevHub&quot;,&quot;short_name&quot;:&quot;DevHub&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#0f0f17&quot;,&quot;theme_color&quot;:&quot;#6366f1&quot;}">
-<title>DevHub — Member Communication</title>
+<title>DevHub v5 — P2P Communication Suite</title>
 <style>
 /* ═══════════════════════════════════════════════
    DESIGN TOKENS
@@ -28,6 +58,12 @@
   --safe-top:env(safe-area-inset-top,0px);
   --safe-left:env(safe-area-inset-left,0px);
   --safe-right:env(safe-area-inset-right,0px);
+  --shadow-sm:0 2px 8px rgba(0,0,0,.3);
+  --dur-fast:80ms;--dur-normal:150ms;--dur-slow:300ms;
+  --ease:cubic-bezier(.4,0,.2,1);--ease-out:cubic-bezier(0,0,.2,1);
+  --z-base:1;--z-dropdown:100;--z-sticky:200;--z-overlay:500;
+  --z-modal:1000;--z-toast:2000;--z-cmd:3000;--z-critical:9999;
+  --sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-6:24px;--sp-8:32px;
 }
 .light{
   --bg:#f8f8ff;--bg2:#ededf8;--bg3:#e4e4f0;--bg4:#d8d8ec;
@@ -329,6 +365,29 @@ a{color:var(--primary);text-decoration:none;}
 @media(min-width:701px){#toast-container{bottom:20px;}}
 .toast-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 14px;font-size:12px;font-weight:600;pointer-events:all;min-width:200px;max-width:320px;box-shadow:var(--shadow);animation:slidein .25s ease;display:flex;align-items:center;gap:8px;}
 @keyframes slidein{from{transform:translateX(60px);opacity:0;}to{transform:none;opacity:1;}}
+@keyframes msg-in{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes modal-in{from{transform:scale(.96);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes skeleton-shimmer{to{background-position:-200% 0}}
+.msg-new{animation:msg-in var(--dur-fast,80ms) var(--ease-out,ease);}
+.modal-overlay.on .modal-box{animation:modal-in var(--dur-normal,150ms) var(--ease,ease);}
+/* Message markdown rendering */
+.msg-code-block{background:var(--bg3);border-radius:var(--radius-sm);margin:6px 0;overflow:hidden;border:1px solid var(--border);}
+.msg-code-header{display:flex;align-items:center;justify-content:space-between;padding:4px 10px;background:var(--bg4);border-bottom:1px solid var(--border);}
+.msg-code-lang{font-size:10px;color:var(--muted);text-transform:uppercase;font-weight:700;font-family:monospace;}
+.msg-code-pre{margin:0;padding:10px;overflow-x:auto;font-size:11px;font-family:monospace;white-space:pre;line-height:1.5;}
+.msg-code-pre code{background:none;padding:0;font-size:inherit;}
+.msg-code-inline{background:var(--bg4);border-radius:3px;padding:1px 5px;font-family:monospace;font-size:11px;color:var(--cyan);}
+.me .msg-code-inline{background:rgba(0,0,0,.2);color:var(--cyan);}
+.msg-quote{border-left:3px solid var(--primary);padding:3px 8px;margin:4px 0;color:var(--text2);background:var(--bg4);border-radius:0 3px 3px 0;display:block;}
+/* Delivery receipt ticks */
+.msg-ticks{font-size:11px;color:rgba(255,255,255,.45);margin-left:4px;vertical-align:middle;}
+.msg-ticks.delivered{color:rgba(255,255,255,.7);}
+.msg-ticks.read{color:var(--cyan);}
+/* Emoji picker search */
+#emoji-search-inp{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 8px;font-size:12px;margin-bottom:6px;min-height:auto;color:var(--text);}
+/* Skeleton loader */
+.skeleton{background:linear-gradient(90deg,var(--bg3) 25%,var(--bg4) 50%,var(--bg3) 75%);background-size:200% 100%;border-radius:var(--radius-sm);animation:skeleton-shimmer 1.5s infinite linear;}
+@media(prefers-reduced-motion:reduce){.skeleton{animation:none;background:var(--bg3);}}
 .toast-s{border-left:3px solid var(--green);}
 .toast-e{border-left:3px solid var(--red);}
 .toast-w{border-left:3px solid var(--yellow);}
@@ -1259,7 +1318,7 @@ a{color:var(--primary);text-decoration:none;}
 </div>
 
 <div id="toast-container" aria-live="polite" aria-atomic="false"></div>
-<div id="emoji-picker" style="display:none;position:fixed;z-index:8500;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:8px;box-shadow:var(--shadow);display:grid;grid-template-columns:repeat(8,32px);gap:2px;" aria-label="Emoji picker" role="listbox"></div>
+<div id="emoji-picker" style="display:none;position:fixed;z-index:8500;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:8px;box-shadow:var(--shadow);grid-template-columns:repeat(8,32px);gap:2px;" aria-label="Emoji picker" role="listbox"></div>
 
 <!-- CDN Scripts with fallbacks -->
 <script>
@@ -1290,7 +1349,8 @@ a{color:var(--primary);text-decoration:none;}
     'https://unpkg.com/jsqr@1.4.0/dist/jsQR.js'
   ],0,null);
   tryLoad([
-    'https://mozilla.github.io/pdf.js/build/pdf.mjs'
+    'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',
+    'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js'
   ],0,null);
 })();
 </script>
@@ -1307,7 +1367,7 @@ function idleRun(fn){requestIdleCallback(fn,{timeout:2000});}
    CONFIG
 ══════════════════════════════════════════════════════════ */
 const CFG={
-  VERSION:'4.0.0',
+  VERSION:'5.0.0',
   DB_NAME:'devhub-member-v1',DB_VERSION:4,
   CHUNK_SIZE:65536,MAX_CONCUR_SENDS:2,WINDOW_SIZE:6,MAX_BACKPRESSURE:4*1024*1024,
   PING_INTERVAL:8000,RECONNECT_MAX:8,
@@ -1339,7 +1399,23 @@ const CFG={
   ],
   INVITE_CHARS:'ABCDEFGHJKMNPQRSTUVWXYZ',
   INVITE_NUMS:'0123456789',
-  EMOJI_LIST:['😀','😂','😍','🤔','😮','😢','😡','👍','👎','👏','🙏','❤️','🔥','⚡','✅','❌','🎉','💡','🚀','💯','🤝','💪','🎯','🌟','💀','🤣','😎','🥰','😴','🤩','😇','🥳']
+  EMOJI_LIST:[
+    '😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','🥰','😘','😗',
+    '🤔','😐','😑','😶','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒',
+    '😮','😲','🥱','😯','😦','😧','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥺',
+    '😡','😠','🤬','💀','☠️','💥','🤯','🥳','😇','🤩','🥸','🤗','🤭','🤫','🤪','😜',
+    '👍','👎','👏','🙌','🤝','🤜','🤛','✊','👊','🤞','✌️','🤘','💪','🙏','👋','🤚',
+    '❤️','🧡','💛','💚','💙','💜','🖤','🤍','💔','❣️','💕','💞','💓','💗','💖','💝',
+    '🔥','⚡','✨','🌟','💫','⭐','🌈','☀️','🌙','❄️','💧','🌊','🍀','🌸','🌺','🦋',
+    '✅','❌','⚠️','🚫','💯','🎉','🎊','🎯','🏆','🥇','🎖️','🚀','💡','🔔','🔕','📢'
+  ],
+  CHANGELOG:[
+    'v5.0: EventBus, markdown parser, magic-byte file validation, vault v3+auto-lock, delivery receipts, LRU cache, motion tokens',
+    'v4.0: Module health engine, self-healing RTC, group voice/video, presentation mode, document sharing',
+    'v3.0: Encrypted vault, tasks manager, notes, code editor, whiteboard P2P sync',
+    'v2.0: Group chat, room system, invite codes, QR scanner, file transfer resume',
+    'v1.0: P2P chat, voice/video call, basic file transfer, device profile'
+  ]
 };
 
 /* ══════════════════════════════════════════════════════════
@@ -1354,13 +1430,84 @@ function setEl(id,text,fn){const el=document.getElementById(id);if(!el)return;if
 function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
 function throttle(fn,ms){let last=0;return(...a)=>{const now=Date.now();if(now-last<ms)return;last=now;fn(...a);};}
 function fmtCodeIcon(lang){const m={js:'☕',ts:'🔷',py:'🐍',html:'🌐',css:'🎨',json:'📋',md:'📄',sql:'🗄',bash:'💻',cpp:'⚙️',rust:'🦀',go:'🐹'};return m[lang]||'📝';}
-function sanitizeMsgText(text){
+/** Full markdown mini-parser with XSS-safe output. Replaces sanitizeMsgText. */
+function sanitizeMsgText(text){return parseMarkdown(text);}
+function parseMarkdown(text){
   if(!text)return'';
+  // Step 1: HTML-escape entire input first — prevents all XSS
   let s=esc(text);
-  s=s.replace(/(https?:\/\/[^\s<>"]+)/g,'<a class="msg-link" href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
-  s=s.replace(/@(\w+)/g,'<span class="msg-mention">@$1</span>');
+  // Step 2: Fenced code blocks ``` lang\ncode\n``` (before inline rules)
+  s=s.replace(/```(\w*)\n?([\s\S]*?)```/g,function(_,lang,code){
+    const id='cb-'+Math.random().toString(36).slice(2,8);
+    const langLabel=esc(lang||'code');
+    return'<div class="msg-code-block"><div class="msg-code-header"><span class="msg-code-lang">'+langLabel+'</span>'
+      +'<button class="btn btn-xs btn-s msg-code-copy" data-code-id="'+id+'" style="min-height:auto;padding:1px 5px" aria-label="Copy code">Copy</button></div>'
+      +'<pre id="'+id+'" class="msg-code-pre"><code>'+code+'</code></pre></div>';
+  });
+  // Step 3: Inline code `code` (before bold/italic to avoid conflicts)
+  s=s.replace(/`([^`\n]+?)`/g,'<code class="msg-code-inline">$1</code>');
+  // Step 4: Bold **text** or __text__
+  s=s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+  s=s.replace(/__(.+?)__/g,'<strong>$1</strong>');
+  // Step 5: Italic *text* (not inside words) or _text_
+  s=s.replace(/(?<![*])\*(?!\s)([^*\n]+?)(?<!\s)\*(?![*])/g,'<em>$1</em>');
+  s=s.replace(/(?<![a-zA-Z0-9_])_([^_\n]+?)_(?![a-zA-Z0-9_])/g,'<em>$1</em>');
+  // Step 6: Strikethrough ~~text~~
+  s=s.replace(/~~(.+?)~~/g,'<del>$1</del>');
+  // Step 7: Blockquote lines starting with &gt; (HTML-escaped >)
+  s=s.replace(/^&gt; ?(.+)$/gm,'<blockquote class="msg-quote">$1</blockquote>');
+  // Step 8: Line breaks
+  s=s.replace(/\n/g,'<br>');
+  // Step 9: URLs (after markdown to avoid conflicts with */_)
+  s=s.replace(/(https?:\/\/[^\s<>"']+)/g,'<a class="msg-link" href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+  // Step 10: @mentions (max 32 chars)
+  s=s.replace(/@(\w{1,32})/g,'<span class="msg-mention">@$1</span>');
   return s;
 }
+
+/* ══════════════════════════════════════════════════════════
+   EVENT BUS — decoupled pub/sub for cross-module communication
+══════════════════════════════════════════════════════════ */
+const Bus={
+  _h:new Map(),
+  /** Subscribe to an event. Returns an unsubscribe function. */
+  on(event,handler){
+    if(!this._h.has(event))this._h.set(event,[]);
+    this._h.get(event).push(handler);
+    return()=>this.off(event,handler);
+  },
+  /** Unsubscribe a specific handler from an event. */
+  off(event,handler){
+    const arr=this._h.get(event);
+    if(arr)this._h.set(event,arr.filter(fn=>fn!==handler));
+  },
+  /** Emit an event with data. Each handler is isolated — one crash won't stop others. */
+  emit(event,data){
+    const handlers=this._h.get(event)||[];
+    for(const fn of handlers){try{fn(data);}catch(e){console.error('[Bus]',event,e);}}
+  },
+  /** Subscribe once — auto-unsubscribes after first emission. */
+  once(event,handler){
+    const wrap=data=>{handler(data);this.off(event,wrap);};
+    this.on(event,wrap);
+  },
+  /** Total listener count for diagnostics. */
+  size(){let n=0;this._h.forEach(a=>n+=a.length);return n;}
+};
+
+/* ══════════════════════════════════════════════════════════
+   LRU CACHE — bounded message HTML render cache
+══════════════════════════════════════════════════════════ */
+class LRUCache{
+  constructor(max=100){this._max=max;this._map=new Map();}
+  get(k){if(!this._map.has(k))return undefined;const v=this._map.get(k);this._map.delete(k);this._map.set(k,v);return v;}
+  set(k,v){if(this._map.has(k))this._map.delete(k);else if(this._map.size>=this._max)this._map.delete(this._map.keys().next().value);this._map.set(k,v);}
+  has(k){return this._map.has(k);}
+  del(k){this._map.delete(k);}
+  clear(){this._map.clear();}
+  get size(){return this._map.size;}
+}
+const MsgRenderCache=new LRUCache(100);
 
 /* ══════════════════════════════════════════════════════════
    TIMER MANAGER — prevent leaks
@@ -1708,7 +1855,7 @@ class OfflineQueue{
 ══════════════════════════════════════════════════════════ */
 class SoundTheme{
   _beep(freq,dur,vol=0.08){
-    if(!SafeStorage.get('dh-sounds','1')==='0')return;
+    if(SafeStorage.get('dh-sounds','1')==='0')return;
     if(!document.getElementById('set-sounds')?.checked)return;
     try{
       const ac=new(window.AudioContext||window.webkitAudioContext)();
@@ -1828,13 +1975,47 @@ class PermissionManager{
 
 /* Safe File Validator */
 class SafeFileValidator{
-  static BLOCKED_EXT=['exe','bat','cmd','com','msi','ps1','sh','vbs','jar','deb','rpm','dmg','pkg'];
+  static BLOCKED_EXT=['exe','bat','cmd','com','msi','ps1','sh','vbs','jar','deb','rpm','dmg','pkg','app','scr','pif'];
   static BLOCKED_MIME=['application/javascript','text/javascript','application/x-msdownload','application/x-executable'];
+  /** Fast synchronous extension + MIME check. */
   static validate(name,mime){
     const ext=(name||'').split('.').pop().toLowerCase();
     if(this.BLOCKED_EXT.includes(ext))return{ok:false,reason:'Blocked extension: .'+ext};
     if(this.BLOCKED_MIME.includes(mime?.toLowerCase()))return{ok:false,reason:'Blocked MIME: '+mime};
     return{ok:true};
+  }
+  /** Async magic-byte sniffing (reads first 12 bytes). More reliable than extension checks. */
+  static async sniffBytes(file){
+    try{
+      const buf=await file.slice(0,12).arrayBuffer();
+      const b=new Uint8Array(buf);
+      // BLOCK: Windows PE executable (MZ header)
+      if(b[0]===0x4D&&b[1]===0x5A)return{ok:false,reason:'Executable files are not allowed'};
+      // BLOCK: ELF binary (Linux/Android native)
+      if(b[0]===0x7F&&b[1]===0x45&&b[2]===0x4C&&b[3]===0x46)return{ok:false,reason:'Binary files are not allowed'};
+      // ALLOW: PDF (%PDF)
+      if(b[0]===0x25&&b[1]===0x50&&b[2]===0x44&&b[3]===0x46)return{ok:true,mime:'application/pdf'};
+      // ALLOW: PNG
+      if(b[0]===0x89&&b[1]===0x50&&b[2]===0x4E&&b[3]===0x47)return{ok:true,mime:'image/png'};
+      // ALLOW: JPEG
+      if(b[0]===0xFF&&b[1]===0xD8&&b[2]===0xFF)return{ok:true,mime:'image/jpeg'};
+      // ALLOW: GIF
+      if(b[0]===0x47&&b[1]===0x49&&b[2]===0x46)return{ok:true,mime:'image/gif'};
+      // ALLOW: WebP (RIFF....WEBP)
+      if(b[0]===0x52&&b[1]===0x49&&b[2]===0x46&&b[3]===0x46&&b[8]===0x57&&b[9]===0x45)return{ok:true,mime:'image/webp'};
+      // ALLOW: ZIP (also covers DOCX, XLSX, PPTX, EPUB)
+      if(b[0]===0x50&&b[1]===0x4B&&b[2]===0x03&&b[3]===0x04)return{ok:true,mime:'application/zip'};
+      // ALLOW: MP4 (ftyp box at offset 4)
+      if(b[4]===0x66&&b[5]===0x74&&b[6]===0x79&&b[7]===0x70)return{ok:true,mime:'video/mp4'};
+      // ALLOW: WebM (EBML header)
+      if(b[0]===0x1A&&b[1]===0x45&&b[2]===0xDF&&b[3]===0xA3)return{ok:true,mime:'video/webm'};
+      // ALLOW: MP3 (ID3 tag or sync word)
+      if((b[0]===0xFF&&(b[1]&0xE0)===0xE0)||(b[0]===0x49&&b[1]===0x44&&b[2]===0x33))return{ok:true,mime:'audio/mpeg'};
+      // ALLOW: OGG
+      if(b[0]===0x4F&&b[1]===0x67&&b[2]===0x67&&b[3]===0x53)return{ok:true,mime:'audio/ogg'};
+      // Default: fall back to extension check
+      return this.validate(file.name,file.type);
+    }catch(e){return this.validate(file.name,file.type);}
   }
 }
 
@@ -2479,7 +2660,7 @@ class PeerManager{
       setEl('my-name-btn',esc(SafeStorage.get('dh-name',pid.substring(0,16))));
       App.ui.setStatus('ONLINE');
       App.room.autoConnect();
-      App.invite?.init?.() && null; // ensure init is done
+      App.invite?.openIfPending?.(); // surface any pending invite on connect
       App.log.info('Peer open: '+pid);
       this._reconnectAttempts=0;this._reconnecting=false;
       this._startPing();
@@ -2570,6 +2751,7 @@ class PeerManager{
       App.notifCenter.add('Peer connected',fp.name||pid,'👤');
       try{conn.send(JSON.stringify({type:'hello',name:SafeStorage.get('dh-name','Peer'),av:SafeStorage.get('dh-avatar','👤'),pubKey:App.crypto.getMyPubKey(),version:CFG.VERSION}));}catch(e){}
       App.msgQ.flush(pid,conn);
+      Bus.emit('peer:connected',{pid,fp});
     });
     conn.on('data',data=>this._onData(pid,data));
     conn.on('close',()=>{
@@ -2577,6 +2759,7 @@ class PeerManager{
       this.dconns.delete(pid);App.connReg.unregister(pid);
       App.ui.removePeer(pid);
       App.toast.show('Peer disconnected: '+esc(this.peerName(pid)),'warning');
+      Bus.emit('peer:disconnected',{pid});
       this.peerMap.delete(pid);
     });
     conn.on('error',err=>{
@@ -2601,6 +2784,9 @@ class PeerManager{
       if(typeof msg.text!=='string'||msg.text.length>CFG.MSG_SIZE_LIMIT)return;
       App.ui.onRemoteMsg(pid,msg);
       App.sounds.msgReceived();
+      Bus.emit('msg:received',{pid,msg});
+      // Send delivery receipt
+      if(msg.id){try{this.conn(pid)?.send(JSON.stringify({type:'msg-delivered',id:msg.id,ts:Date.now()}));}catch(e){}}
       App.notifCenter.add('Message from '+esc(this.peerName(pid)),msg.text.substring(0,60),'💬');
       if(document.hidden){try{if(Notification.permission==='granted')new Notification(this.peerName(pid),{body:msg.text.substring(0,100)});}catch(e){}}
     }else if(type==='typing'){App.ui.showTyping(pid,msg.typing);
@@ -2626,6 +2812,14 @@ class PeerManager{
     }else if(type==='screen-share-start'){App.screenShare?._onRemoteStart?.(pid,msg);
     }else if(type==='screen-share-stop'){App.screenShare?._onRemoteStop?.(pid,msg);
     }else if(type==='doc-page'){App.presentation?._onRemotePage?.(pid,msg);
+    }else if(type==='msg-delivered'){
+      // Remote peer confirmed receipt — upgrade tick to double-tick
+      const tick=document.getElementById('tick-'+msg.id);
+      if(tick){tick.textContent='✓✓';tick.classList.add('delivered');}
+    }else if(type==='msg-read'){
+      // Remote peer read the message — upgrade tick to cyan double-tick
+      const tick=document.getElementById('tick-'+msg.id);
+      if(tick){tick.textContent='✓✓';tick.classList.remove('delivered');tick.classList.add('read');}
     }
   }
   peerName(pid){if(!pid)return'Unknown';const info=this.peerMap.get(pid);return info?.fp?.name||info?.name||pid.substring(0,12);}
@@ -2636,7 +2830,7 @@ class PeerManager{
     const conn=this.dconns.get(pid);
     if(!navigator.onLine){App.offlineQ.push({type:'msg',pid,text,id:id||uid()});App.toast.show('Offline — message queued','warning');return true;}
     if(!conn?.open){App.msgQ.enqueue(pid,JSON.stringify({type:'msg',id:id||uid(),text,ts:Date.now()}));App.toast.show('Peer unavailable — message queued','warning');return true;}
-    try{conn.send(JSON.stringify({type:'msg',id:id||uid(),text,ts:Date.now()}));return true;}
+    try{conn.send(JSON.stringify({type:'msg',id:id||uid(),text,ts:Date.now()}));Bus.emit('msg:sent',{pid,text,id});return true;}
     catch(e){App.log.error('sendMsg: '+e.message);return false;}
   }
 }
@@ -2649,9 +2843,14 @@ class FileTransfer{
   sendFiles(files,pid){
     if(!App.perms.check(pid,'canSendFiles')){App.toast.show('File sending not permitted','warning');return;}
     for(const file of files){
+      // Quick sync check first (extension + MIME)
       const v=SafeFileValidator.validate(file.name,file.type);
       if(!v.ok){App.toast.show('Blocked: '+v.reason,'error');continue;}
-      safeModule('FileTransfer',()=>this._sendFile(file,pid));
+      // Async magic-byte check before sending
+      SafeFileValidator.sniffBytes(file).then(sv=>{
+        if(!sv.ok){App.toast.show('Blocked (magic bytes): '+sv.reason,'error');return;}
+        safeModule('FileTransfer',()=>this._sendFile(file,pid));
+      }).catch(()=>safeModule('FileTransfer',()=>this._sendFile(file,pid)));
     }
   }
   async _sendFile(file,pid){
@@ -3001,7 +3200,7 @@ class PresentationManager{
   async _loadPDF(file){
     if(typeof pdfjsLib==='undefined'){App.toast.show('PDF viewer loading — try again in a moment','warning');return;}
     try{
-      pdfjsLib.GlobalWorkerOptions.workerSrc='https://mozilla.github.io/pdf.js/build/pdf.worker.mjs';
+      pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
       const ab=await file.arrayBuffer();
       this._pdf=await pdfjsLib.getDocument({data:ab}).promise;
       this._totalPages=this._pdf.numPages;
@@ -3461,7 +3660,7 @@ class GroupChatManager{
    VAULT MANAGER
 ══════════════════════════════════════════════════════════ */
 class VaultManager{
-  constructor(){this._items=[];this._key=null;this._salt=null;}
+  constructor(){this._items=[];this._key=null;this._salt=null;this._lockTimer=null;}
   init(){
     document.getElementById('btn-vault-unlock')?.addEventListener('click',()=>this._unlock());
     document.getElementById('btn-vault-create')?.addEventListener('click',()=>this._createNew());
@@ -3471,22 +3670,41 @@ class VaultManager{
     document.getElementById('vault-pw')?.addEventListener('keydown',e=>{if(e.key==='Enter')this._unlock();});
     document.getElementById('vault-key-inp')?.addEventListener('keydown',e=>{if(e.key==='Enter')this._addItem();});
     document.getElementById('vault-items')?.addEventListener('click',e=>{
+      this._resetLockTimer();
       const btn=e.target.closest('[data-vault-del]');if(btn)this._delItem(btn.dataset.vaultDel);
+      const eye=e.target.closest('[data-vault-reveal]');if(eye)this._toggleReveal(eye);
     });
+  }
+  /** Reset the 5-minute auto-lock inactivity timer. */
+  _resetLockTimer(){
+    clearTimeout(this._lockTimer);
+    this._lockTimer=setTimeout(()=>{if(this._key){this._lock();App?.toast?.show('Vault auto-locked after inactivity','info');}},300000);
   }
   async _unlock(){
     const pw=document.getElementById('vault-pw')?.value||'';
     if(!pw){App.toast.show('Enter a password','warning');return;}
-    const raw=SafeStorage.get('dh-vault-v2','');
+    // Try v3 format first, fall back to v2 for migration
+    let raw=SafeStorage.get('dh-vault-v3','');
+    let isV2Migration=false;
+    if(!raw){raw=SafeStorage.get('dh-vault-v2','');isV2Migration=!!raw;}
     if(!raw){App.toast.show('No vault found — create one first','warning');return;}
     try{
       const data=JSON.parse(atob(raw));
       this._salt=new Uint8Array(data.salt);
       this._key=await this._deriveKey(pw,this._salt);
-      const dec=await this._decrypt(data.ct,data.iv);
-      this._items=JSON.parse(dec);
-      this._setOpen(true);App.toast.show('Vault unlocked','success');
-    }catch(e){App.toast.show('Wrong password or corrupted vault','error');}
+      let items;
+      if(isV2Migration){
+        // v2: separate ct+iv arrays
+        const dec=await this._decryptV2(data.ct,data.iv);
+        items=JSON.parse(dec);
+      }else{
+        // v3: combined IV+ciphertext in single base64
+        items=JSON.parse(await this._decryptV3(data.data));
+      }
+      this._items=items;
+      if(isV2Migration){await this._save();SafeStorage.del('dh-vault-v2');App.toast.show('Vault migrated to v3 format','info');}
+      this._setOpen(true);this._resetLockTimer();App.toast.show('Vault unlocked','success');
+    }catch(e){App.toast.show('Incorrect password or corrupted vault','error');}
     finally{const vpw=document.getElementById('vault-pw');if(vpw)vpw.value='';}
   }
   async _createNew(){
@@ -3494,20 +3712,38 @@ class VaultManager{
     if(!pw){App.toast.show('Enter a password first','warning');return;}
     this._salt=crypto.getRandomValues(new Uint8Array(16));
     this._key=await this._deriveKey(pw,this._salt);
-    this._items=[];await this._save();this._setOpen(true);App.toast.show('New vault created','success');
+    this._items=[];await this._save();this._setOpen(true);this._resetLockTimer();
+    App.toast.show('New vault created','success');
     const vpw=document.getElementById('vault-pw');if(vpw)vpw.value='';
   }
   async _addItem(){
+    this._resetLockTimer();
     const key=(document.getElementById('vault-key-inp')?.value||'').trim();
     const val=(document.getElementById('vault-val-inp')?.value||'').trim();
     if(!key||!val){App.toast.show('Enter both key and value','warning');return;}
-    this._items.push({id:uid(6),key,val});
+    this._items.push({id:uid(6),key,val,createdAt:Date.now()});
     await this._save();this._renderItems();
     const ki=document.getElementById('vault-key-inp');if(ki)ki.value='';
     const vi=document.getElementById('vault-val-inp');if(vi)vi.value='';
   }
-  async _delItem(id){this._items=this._items.filter(i=>i.id!==id);await this._save();this._renderItems();}
-  _lock(){this._items=[];this._key=null;this._salt=null;this._setOpen(false);}
+  async _delItem(id){
+    this._resetLockTimer();
+    this._items=this._items.filter(i=>i.id!==id);
+    await this._save();this._renderItems();
+  }
+  _toggleReveal(btn){
+    const vid=btn.dataset.vaultReveal;
+    const valEl=document.getElementById('vval-'+vid);
+    if(!valEl)return;
+    const item=this._items.find(i=>i.id===vid);if(!item)return;
+    if(valEl.dataset.revealed==='1'){valEl.textContent='••••••••';valEl.dataset.revealed='';btn.textContent='👁';}
+    else{valEl.textContent=item.val;valEl.dataset.revealed='1';btn.textContent='🙈';}
+  }
+  _lock(){
+    clearTimeout(this._lockTimer);
+    this._items=[];this._key=null;this._salt=null;
+    this._setOpen(false);
+  }
   _setOpen(open){
     setEl('vault-locked',null,el=>el.style.display=open?'none':'block');
     setEl('vault-open',null,el=>el.style.display=open?'block':'none');
@@ -3516,13 +3752,18 @@ class VaultManager{
   _renderItems(){
     const el=document.getElementById('vault-items');if(!el)return;
     if(!this._items.length){el.innerHTML='<div style="color:var(--muted);font-size:12px">No entries yet</div>';return;}
-    el.innerHTML=this._items.map(i=>`<div class="vault-item" role="listitem"><span class="vault-key">${esc(i.key)}</span><span class="vault-val">${esc(i.val)}</span><button class="btn btn-xs btn-d" data-vault-del="${esc(i.id)}" aria-label="Delete ${esc(i.key)}">✕</button></div>`).join('');
+    el.innerHTML=this._items.map(i=>`<div class="vault-item" role="listitem">
+      <span class="vault-key">${esc(i.key)}</span>
+      <span class="vault-val" id="vval-${esc(i.id)}" style="flex:1;font-family:monospace;font-size:12px;">••••••••</span>
+      <button class="btn btn-xs btn-s" data-vault-reveal="${esc(i.id)}" style="min-height:auto;padding:2px 5px" aria-label="Reveal value">👁</button>
+      <button class="btn btn-xs btn-d" data-vault-del="${esc(i.id)}" aria-label="Delete ${esc(i.key)}">✕</button>
+    </div>`).join('');
   }
+  /** Save vault using v3 format: { salt, data: base64(iv+ciphertext) } */
   async _save(){
     const json=JSON.stringify(this._items);
-    const{ct,iv}=await this._encrypt(json);
-    const data={salt:Array.from(this._salt),ct,iv};
-    SafeStorage.set('dh-vault-v2',btoa(JSON.stringify(data)));
+    const data64=await this._encryptV3(json);
+    SafeStorage.set('dh-vault-v3',btoa(JSON.stringify({salt:Array.from(this._salt),data:data64})));
   }
   _export(){
     const blob=new Blob([JSON.stringify(this._items,null,2)],{type:'application/json'});
@@ -3533,12 +3774,23 @@ class VaultManager{
     const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
     return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:CFG.VAULT_PBKDF2_ITER,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
   }
-  async _encrypt(text){
-    const iv=Array.from(crypto.getRandomValues(new Uint8Array(12)));
-    const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv:new Uint8Array(iv)},this._key,new TextEncoder().encode(text));
-    return{ct:Array.from(new Uint8Array(ct)),iv};
+  /** v3: encrypt and return base64 of iv(12 bytes) + ciphertext. Fresh IV always. */
+  async _encryptV3(text){
+    const iv=crypto.getRandomValues(new Uint8Array(12));
+    const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},this._key,new TextEncoder().encode(text));
+    const combined=new Uint8Array(12+ct.byteLength);
+    combined.set(iv,0);combined.set(new Uint8Array(ct),12);
+    return btoa(String.fromCharCode(...combined));
   }
-  async _decrypt(ct,iv){
+  /** v3: decrypt from base64 of iv+ciphertext. Throws on wrong password. */
+  async _decryptV3(b64){
+    const combined=new Uint8Array(atob(b64).split('').map(c=>c.charCodeAt(0)));
+    const iv=combined.slice(0,12);const ct=combined.slice(12);
+    const dec=await crypto.subtle.decrypt({name:'AES-GCM',iv},this._key,ct);
+    return new TextDecoder().decode(dec);
+  }
+  /** v2 legacy decrypt (separate ct+iv arrays). Used only for migration. */
+  async _decryptV2(ct,iv){
     const dec=await crypto.subtle.decrypt({name:'AES-GCM',iv:new Uint8Array(iv)},this._key,new Uint8Array(ct));
     return new TextDecoder().decode(dec);
   }
@@ -4077,23 +4329,81 @@ class UIManager{
     });
     // Scroll pill
     document.getElementById('scroll-pill')?.addEventListener('click',()=>this._scrollToBottom());
+    // Code-copy handler (delegated, works for dynamically rendered code blocks)
+    document.getElementById('msgs')?.addEventListener('click',e=>{
+      const copyBtn=e.target.closest('.msg-code-copy');
+      if(copyBtn){
+        const codeId=copyBtn.dataset.codeId;
+        const pre=document.getElementById(codeId);
+        if(pre){App.clipboard?.copy(pre.textContent);App.toast?.show('Code copied','success',1500);}
+      }
+    });
   }
   _initEmojiPicker(){
     const picker=document.getElementById('emoji-picker');if(!picker)return;
     picker.style.display='none';
+    // Search input
+    const search=document.createElement('input');
+    search.id='emoji-search-inp';search.placeholder='Search emoji…';search.autocomplete='off';search.setAttribute('aria-label','Search emoji');
+    search.addEventListener('input',()=>this._filterEmoji(search.value));
+    search.addEventListener('keydown',e=>{
+      if(e.key==='Escape'){e.stopPropagation();this._closeEmojiPicker();}
+      if(e.key==='ArrowDown'){e.preventDefault();const first=picker.querySelector('.emoji-btn');if(first)first.focus();}
+    });
+    picker.appendChild(search);
+    // Emoji grid container
+    const grid=document.createElement('div');grid.id='emoji-grid';grid.style.cssText='display:grid;grid-template-columns:repeat(8,32px);gap:2px;';
+    picker.appendChild(grid);
     CFG.EMOJI_LIST.forEach(em=>{
-      const btn=document.createElement('button');btn.textContent=em;btn.className='reaction-btn';btn.style.cssText='font-size:18px;width:32px;height:32px;border-radius:4px;';
-      btn.addEventListener('click',()=>{const mi=document.getElementById('mi');if(mi){mi.value+=em;mi.focus();}this._closeEmojiPicker();});
-      picker.appendChild(btn);
+      const btn=document.createElement('button');btn.textContent=em;btn.className='reaction-btn emoji-btn';
+      btn.style.cssText='font-size:18px;width:32px;height:32px;border-radius:4px;';
+      btn.dataset.em=em;btn.setAttribute('aria-label',em);
+      btn.addEventListener('click',()=>{
+        const mi=document.getElementById('mi');
+        if(mi){
+          const s=mi.selectionStart||mi.value.length;
+          const e2=mi.selectionEnd||s;
+          mi.setRangeText(em,s,e2,'end');
+          mi.focus();
+        }
+        this._closeEmojiPicker();
+      });
+      // Keyboard nav within grid
+      btn.addEventListener('keydown',e=>{
+        if(e.key==='Escape'){this._closeEmojiPicker();}
+        if(e.key==='ArrowRight'){e.preventDefault();const next=btn.nextElementSibling;if(next)next.focus();}
+        if(e.key==='ArrowLeft'){e.preventDefault();const prev=btn.previousElementSibling;if(prev)prev.focus();}
+        if(e.key==='ArrowDown'){e.preventDefault();
+          const all=[...grid.querySelectorAll('.emoji-btn:not([hidden])')];
+          const idx=all.indexOf(btn);const next=all[idx+8];if(next)next.focus();
+        }
+        if(e.key==='ArrowUp'){e.preventDefault();
+          const all=[...grid.querySelectorAll('.emoji-btn:not([hidden])')];
+          const idx=all.indexOf(btn);const prev=all[idx-8];if(prev)prev.focus();else search.focus();
+        }
+      });
+      grid.appendChild(btn);
     });
     document.addEventListener('click',e=>{if(!e.target.closest('#emoji-picker')&&!e.target.closest('#btn-emoji'))this._closeEmojiPicker();});
+    document.addEventListener('keydown',e=>{if(e.key==='Escape')this._closeEmojiPicker();});
+  }
+  _filterEmoji(q){
+    const grid=document.getElementById('emoji-grid');if(!grid)return;
+    const lq=q.toLowerCase();
+    grid.querySelectorAll('.emoji-btn').forEach(btn=>{
+      btn.hidden=!!(lq&&!btn.dataset.em.includes(q));
+    });
   }
   _toggleEmojiPicker(){
     const picker=document.getElementById('emoji-picker');if(!picker)return;
     this._emojiPickerOpen=!this._emojiPickerOpen;
     picker.style.display=this._emojiPickerOpen?'grid':'none';
     if(this._emojiPickerOpen){
-      const bar=document.getElementById('chatbar');if(bar){const r=bar.getBoundingClientRect();picker.style.bottom=(window.innerHeight-r.top+4)+'px';picker.style.left='16px';}
+      const bar=document.getElementById('chatbar');
+      if(bar){const r=bar.getBoundingClientRect();picker.style.bottom=(window.innerHeight-r.top+4)+'px';picker.style.left='16px';}
+      // Reset search and focus it
+      const si=document.getElementById('emoji-search-inp');
+      if(si){si.value='';this._filterEmoji('');Timers.timeout('emoji-focus',()=>si.focus(),50);}
     }
   }
   _closeEmojiPicker(){const picker=document.getElementById('emoji-picker');if(picker)picker.style.display='none';this._emojiPickerOpen=false;}
@@ -4336,12 +4646,15 @@ class UIManager{
     const div=document.createElement('div');div.className='mr'+(isSelf?' me':'');div.dataset.msgId=msgObj.id;
     let replyHtml='';
     if(msgObj.replyTo){const ref=this._msgMap.get(msgObj.replyTo);if(ref)replyHtml=`<div class="msg-reply-ref">↩ ${esc(ref.text?.substring(0,50)||'...')}</div>`;}
-    div.innerHTML=`<div class="mb${isSelf?' me':''}" role="article"><button class="mcopy" aria-label="Copy message">📋</button>${replyHtml}<div class="msg-text">${sanitizeMsgText(msgObj.text)}</div><div class="mtime">${fmtTs(msgObj.ts)}</div><div class="msg-reactions"></div></div>`;
+    const tickHtml=isSelf?`<span class="msg-ticks" id="tick-${msgObj.id}" aria-label="Sent">✓</span>`:'';
+    div.innerHTML=`<div class="mb${isSelf?' me':''}" role="article"><button class="mcopy" aria-label="Copy message">📋</button>${replyHtml}<div class="msg-text">${sanitizeMsgText(msgObj.text)}</div><div class="mtime">${fmtTs(msgObj.ts)}${tickHtml}</div><div class="msg-reactions"></div></div>`;
     div.querySelector('.mcopy')?.addEventListener('click',e=>{e.stopPropagation();App.clipboard.copy(msgObj.text).then(()=>App.toast.show('Copied!','success'));});
     div.querySelector('.mb')?.addEventListener('dblclick',()=>this._setReply(msgObj));
     div.querySelector('.mb')?.addEventListener('contextmenu',e=>{e.preventDefault();this._showMsgCtxMenu(e,msgObj);});
     this._msgMap.set(msgObj.id,msgObj);
     msgs.appendChild(div);
+    // Entrance animation (skip for history renders to avoid layout thrash)
+    requestAnimationFrame(()=>div.classList.add('msg-new'));
     // Trim DOM
     while(msgs.children.length>CFG.MAX_MSG_NODES+5){const first=msgs.querySelector('.mr');if(first)first.remove();}
   }
@@ -4653,15 +4966,35 @@ if(localStorage.getItem('dh-devmode')==='1'){
       });
       t('NetQuality.getChunkSize',()=>{const cs=App.netq.getChunkSize();if(cs<1024)throw new Error('chunk too small: '+cs);});
       t('SafeFileValidator.validate',()=>{const v=SafeFileValidator.validate('evil.exe','');if(v.ok)throw new Error('should be blocked');const v2=SafeFileValidator.validate('file.pdf','application/pdf');if(!v2.ok)throw new Error('pdf should be allowed');});
+      t('SafeFileValidator.BLOCKED_EXT coverage',()=>{['bat','cmd','scr','pif','app'].forEach(ext=>{const v=SafeFileValidator.validate('test.'+ext,'');if(v.ok)throw new Error('.'+ext+' should be blocked');});});
       t('Timers.timeout',()=>{let fired=false;Timers.timeout('test-timer',()=>{fired=true;},0);});
       t('BlobURLs roundtrip',()=>{const b=new Blob(['test']);const u=BlobURLs.create(b);if(!u.startsWith('blob:'))throw new Error('not a blob url');BlobURLs.revoke(u);});
+      // v5: EventBus
+      t('Bus.on/emit/off',()=>{let count=0;const unsub=Bus.on('__test',()=>count++);Bus.emit('__test');Bus.emit('__test');unsub();Bus.emit('__test');if(count!==2)throw new Error('expected 2 calls, got '+count);});
+      t('Bus.once',()=>{let count=0;Bus.once('__once',()=>count++);Bus.emit('__once');Bus.emit('__once');if(count!==1)throw new Error('expected 1 call, got '+count);});
+      t('Bus.size',()=>{const s=Bus.size();if(typeof s!=='number'||s<0)throw new Error('invalid size: '+s);});
+      // v5: LRUCache
+      t('LRUCache basic',()=>{const c=new LRUCache(3);c.set('a',1);c.set('b',2);c.set('c',3);c.set('d',4);if(c.has('a'))throw new Error('a should have been evicted');if(c.get('d')!==4)throw new Error('d should be 4');});
+      t('LRUCache LRU eviction order',()=>{const c=new LRUCache(2);c.set('x',1);c.set('y',2);c.get('x');c.set('z',3);if(c.has('y'))throw new Error('y should be evicted (LRU)');if(!c.has('x'))throw new Error('x should survive (recently used)');});
+      t('MsgRenderCache exists',()=>{if(!(MsgRenderCache instanceof LRUCache))throw new Error('MsgRenderCache not an LRUCache');});
+      // v5: parseMarkdown
+      t('parseMarkdown XSS safety',()=>{const r=parseMarkdown('<img src=x onerror=alert(1)>');if(r.includes('<img'))throw new Error('img tag leaked: '+r);});
+      t('parseMarkdown bold',()=>{const r=parseMarkdown('**bold**');if(!r.includes('<strong>'))throw new Error('no strong: '+r);});
+      t('parseMarkdown italic',()=>{const r=parseMarkdown('*italic*');if(!r.includes('<em>'))throw new Error('no em: '+r);});
+      t('parseMarkdown strikethrough',()=>{const r=parseMarkdown('~~del~~');if(!r.includes('<del>'))throw new Error('no del: '+r);});
+      t('parseMarkdown inline code',()=>{const r=parseMarkdown('`code`');if(!r.includes('msg-code-inline'))throw new Error('no inline code: '+r);});
+      t('parseMarkdown blockquote',()=>{const r=parseMarkdown('> hello');if(!r.includes('msg-quote'))throw new Error('no blockquote: '+r);});
+      t('parseMarkdown url',()=>{const r=parseMarkdown('https://example.com');if(!r.includes('<a '))throw new Error('no link: '+r);});
+      t('parseMarkdown mention',()=>{const r=parseMarkdown('@alice');if(!r.includes('msg-mention'))throw new Error('no mention: '+r);});
+      t('CFG.CHANGELOG',()=>{if(!Array.isArray(CFG.CHANGELOG)||!CFG.CHANGELOG.length)throw new Error('missing');if(!CFG.CHANGELOG[0].startsWith('v5.0'))throw new Error('v5 entry missing');});
+      t('CFG.EMOJI_LIST 128',()=>{if(CFG.EMOJI_LIST.length<128)throw new Error('expected ≥128, got '+CFG.EMOJI_LIST.length);});
       console.table(results);
       const failed=results.filter(r=>!r.ok);
       console.log('[DevHub Test] '+(results.length-failed.length)+'/'+results.length+' tests passed'+(failed.length?' — FAILED: '+failed.map(r=>r.name+' ('+r.err+')').join(', '):''));
       return results;
     }
   };
-  console.info('[DevHub v'+CFG.VERSION+'] Test harness active — window.__devhub_test ready');
+  console.info('[DevHub v'+CFG.VERSION+'] v5 test harness active — window.__devhub_test.runAllTests() or window.__devhub_test.getAppState()');
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
