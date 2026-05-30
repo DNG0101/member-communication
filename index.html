@@ -2,33 +2,48 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f0f17">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="DevHub — Secure P2P Communication Hub">
 <title>DevHub — Member Communication</title>
 <style>
 :root{
   --bg:#0f0f17;--bg2:#16161f;--bg3:#1e1e2e;--bg4:#252535;
   --text:#e2e2f0;--text2:#9898b8;--muted:#666680;
-  --primary:#6366f1;--primary-h:#4f52d9;
+  --primary:#6366f1;--primary-h:#4f52d9;--primary-glow:rgba(99,102,241,.25);
   --green:#22c55e;--red:#ef4444;--yellow:#f59e0b;--cyan:#22d3ee;--orange:#f97316;
   --border:#2d2d44;--radius:10px;--radius-sm:6px;--shadow:0 4px 24px rgba(0,0,0,.45);
+  --sidebar-w:240px;--topbar-h:48px;--mob-nav-h:60px;
+  --touch-min:44px;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
 }
 .light{
   --bg:#f8f8ff;--bg2:#ededf8;--bg3:#e4e4f0;--bg4:#d8d8ec;
   --text:#16163a;--text2:#44446a;--muted:#8888aa;--border:#c8c8e8;
+  --primary-glow:rgba(99,102,241,.15);
 }
+/* Reduced motion */
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;}}
+/* High contrast */
+@media(forced-colors:active){:root{--primary:Highlight;--border:ButtonBorder;}}
 *{box-sizing:border-box;margin:0;padding:0;}
-html,body{height:100%;overflow:hidden;font-family:system-ui,-apple-system,sans-serif;font-size:14px;background:var(--bg);color:var(--text);}
-button{cursor:pointer;font-family:inherit;font-size:13px;border:none;outline:none;}
-input,textarea,select{font-family:inherit;font-size:13px;outline:none;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:7px 10px;}
-input:focus,textarea:focus,select:focus{border-color:var(--primary);}
+html,body{height:100%;overflow:hidden;font-family:var(--font);font-size:14px;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;}
+button{cursor:pointer;font-family:inherit;font-size:13px;border:none;outline:none;min-height:var(--touch-min);}
+button:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
+input,textarea,select{font-family:inherit;font-size:13px;outline:none;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:7px 10px;min-height:var(--touch-min);}
+input:focus,textarea:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-glow);}
+input::placeholder,textarea::placeholder{color:var(--muted);}
 a{color:var(--primary);text-decoration:none;}
+a:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
 /* ─── Layout ─────────────────────────────────────────── */
-#app{display:flex;height:100vh;overflow:hidden;}
-#sidebar{width:240px;min-width:48px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;transition:width .2s;overflow:hidden;position:relative;flex-shrink:0;}
+#app{display:flex;height:100vh;height:100dvh;overflow:hidden;}
+#sidebar{width:var(--sidebar-w);min-width:48px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;transition:width .2s;overflow:hidden;position:relative;flex-shrink:0;}
 #sidebar-drag{position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;z-index:10;}
 #sidebar-drag:hover{background:var(--primary);opacity:.3;}
-#main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
-#topbar{height:48px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;padding:0 12px;flex-shrink:0;}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+#topbar{height:var(--topbar-h);background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;padding:0 12px;flex-shrink:0;}
 #content{flex:1;display:flex;overflow:hidden;}
 /* ─── Sidebar ─────────────────────────────────────────── */
 #sb-header{padding:12px 10px 8px;border-bottom:1px solid var(--border);flex-shrink:0;}
@@ -165,7 +180,8 @@ a{color:var(--primary);text-decoration:none;}
 .vault-val{flex:1;font-size:12px;font-family:monospace;}
 /* ─── Group Video ─────────────────────────────────────── */
 #gv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;padding:12px;}
-.gv-tile{background:#000;border-radius:var(--radius);overflow:hidden;aspect-ratio:16/9;position:relative;}
+.gv-tile{background:#000;border-radius:var(--radius);overflow:hidden;aspect-ratio:16/9;position:relative;border:2px solid transparent;transition:border-color .2s;}
+.gv-tile.active-speaker{border-color:var(--green);}
 .gv-tile video{width:100%;height:100%;object-fit:cover;}
 .gv-tile-lbl{position:absolute;bottom:4px;left:6px;font-size:11px;color:#fff;background:rgba(0,0,0,.6);padding:2px 6px;border-radius:4px;}
 /* ─── History ────────────────────────────────────────── */
@@ -178,6 +194,24 @@ a{color:var(--primary);text-decoration:none;}
 .set-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
 .set-label{flex:1;font-size:13px;}
 .set-sub{font-size:11px;color:var(--muted);}
+/* ─── Improved peer card ─────────────────────────────── */
+.pc{background:var(--bg3);border-radius:var(--radius-sm);padding:7px 9px;cursor:pointer;transition:background .15s,border .15s;border:1px solid transparent;user-select:none;}
+.pc:hover{background:var(--bg4);}
+.pc.sel{border-color:var(--primary);background:var(--bg4);}
+/* ─── Chat improvements ──────────────────────────────── */
+.mb{background:var(--bg3);border-radius:12px 12px 12px 3px;padding:8px 12px;max-width:72%;word-break:break-word;font-size:13px;position:relative;}
+.mb.me{background:var(--primary);color:#fff;border-radius:12px 12px 3px 12px;}
+/* ─── Low-end device optimizations ──────────────────── */
+.is-low-end *{transition:none!important;animation:none!important;}
+/* ─── Safe area bottom ───────────────────────────────── */
+@supports(padding:env(safe-area-inset-bottom)){
+  #chatbar{padding-bottom:calc(10px + env(safe-area-inset-bottom));}
+  @media(max-width:700px){#mob-nav{padding-bottom:env(safe-area-inset-bottom);}}
+}
+/* ─── Drag zone improvements ─────────────────────────── */
+#dz:hover,#dz.over{border-color:var(--primary);background:rgba(99,102,241,.06);}
+/* ─── Focus ring ─────────────────────────────────────── */
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
 /* ─── Toggle ─────────────────────────────────────────── */
 .ff-toggle{position:relative;display:inline-block;width:36px;height:20px;}
 .ff-toggle input{opacity:0;width:0;height:0;}
@@ -250,14 +284,14 @@ a{color:var(--primary);text-decoration:none;}
 #img-viewer.on{display:flex;}
 #img-view-src{max-width:90vw;max-height:90vh;border-radius:var(--radius);}
 /* ─── Mobile ─────────────────────────────────────────── */
-#mob-nav{display:none;background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0;z-index:100;}
+#mob-nav{display:none;background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0;z-index:100;padding-bottom:env(safe-area-inset-bottom,0);}
 #mobile-peers{display:none;position:fixed;inset:0;background:var(--bg);z-index:500;flex-direction:column;}
 #mobile-peers.on{display:flex;}
-#mob-peers-list{flex:1;overflow-y:auto;padding:8px;}
-.mob-nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:8px 4px;background:none;color:var(--text2);font-size:10px;border-top:2px solid transparent;transition:color .15s;}
+#mob-peers-list{flex:1;overflow-y:auto;padding:8px;-webkit-overflow-scrolling:touch;}
+.mob-nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:10px 4px;background:none;color:var(--text2);font-size:10px;font-weight:600;border-top:2px solid transparent;transition:color .15s;min-height:var(--mob-nav-h);position:relative;}
 .mob-nav-btn.on{color:var(--primary);border-top-color:var(--primary);}
-.mob-nav-btn .mn-icon{font-size:18px;}
-.mob-badge{background:var(--red);color:#fff;font-size:9px;font-weight:700;border-radius:99px;padding:1px 4px;min-width:14px;text-align:center;display:none;}
+.mob-nav-btn .mn-icon{font-size:20px;line-height:1;}
+.mob-badge{background:var(--red);color:#fff;font-size:9px;font-weight:700;border-radius:99px;padding:1px 4px;min-width:14px;text-align:center;display:none;position:absolute;top:6px;right:50%;margin-right:-16px;}
 .mob-badge.on{display:inline-block;}
 /* ─── Presence Status ────────────────────────────────── */
 .presence-menu{display:none;position:absolute;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px;z-index:1000;box-shadow:var(--shadow);min-width:140px;}
@@ -267,8 +301,12 @@ a{color:var(--primary);text-decoration:none;}
 /* ─── Clipboard pill ────────────────────────────────── */
 .clippill{display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--bg2);border:1px solid var(--border);border-radius:99px;padding:6px 12px;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow);z-index:9000;font-size:12px;max-width:90vw;}
 .clippill.on{display:flex;}
-/* ─── aria-live ─────────────────────────────────────── */
-#msg-live{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;}
+/* ─── Mobile drawer ──────────────────────────────────── */
+.mob-drawer-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 4px;font-size:10px;font-weight:600;color:var(--text);min-height:64px;}
+.mob-drawer-btn:hover,.mob-drawer-btn:active{background:var(--bg4);}
+/* ─── Skip link ──────────────────────────────────────── */
+#skip-link{position:absolute;top:-40px;left:0;background:var(--primary);color:#fff;padding:8px 12px;z-index:99999;font-size:14px;font-weight:700;transition:top .15s;}
+#skip-link:focus{top:0;}
 /* ─── Boot ───────────────────────────────────────────── */
 #boot-overlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:99999;}
 #boot-overlay.gone{display:none;}
@@ -303,17 +341,43 @@ a{color:var(--primary);text-decoration:none;}
   #content{flex:1;overflow:hidden;}
   #tab-nav{display:none;}
   #lvid,#rvid{width:100%;height:160px;}
+  .btn{min-height:44px;}
+  #chatbar{padding:8px;}
+  #mi{font-size:16px;}/* prevent zoom on iOS */
+  .modal-box{max-height:92vh;width:96%;}
+  #gv-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));}
+}
+@media(max-width:400px){
+  #topbar{padding:0 8px;gap:4px;}
+  .btn-xs{padding:6px 8px;}
+}
+@media(min-width:701px) and (max-width:1024px){
+  #sidebar{width:200px;}
+}
+@media(orientation:landscape) and (max-width:900px){
+  #mob-nav{display:none;}
+  #sidebar{display:flex;width:160px;}
+  #tab-nav{display:flex;}
+}
+@media(hover:hover) and (pointer:fine){
+  /* Mouse/desktop hover states */
+  .pc:hover .pc-acts{opacity:1;}
+  .pc .pc-acts{opacity:.7;transition:opacity .15s;}
 }
 </style>
 </head>
 <body>
 
+<!-- Skip navigation link for accessibility -->
+<a id="skip-link" href="#content" class="sr-only">Skip to main content</a>
+
 <!-- Boot overlay -->
-<div id="boot-overlay">
-  <div class="boot-logo">💬</div>
+<div id="boot-overlay" role="status" aria-label="Loading DevHub">
+  <div class="boot-logo">🔗</div>
   <div class="boot-title">DevHub · Member Comms</div>
-  <div id="boot-bar"><div id="boot-fill"></div></div>
+  <div id="boot-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"><div id="boot-fill"></div></div>
   <div id="boot-msg">Starting…</div>
+  <div style="font-size:11px;color:var(--muted);margin-top:4px;opacity:.6">Secure P2P Communication</div>
 </div>
 
 <!-- Onboarding -->
@@ -419,34 +483,36 @@ a{color:var(--primary);text-decoration:none;}
 
   <!-- Main -->
   <div id="main">
-    <div id="topbar">
-      <span class="tb-title">💬 Member Hub</span>
+    <div id="topbar" role="banner">
+      <span class="tb-title">🔗 DevHub</span>
       <div class="tb-spacer"></div>
       <div id="heal-banner" style="margin:0;padding:4px 8px;font-size:11px">
         ⚡ Connection dropped
-        <button id="btn-heal-fix" class="btn btn-xs btn-s">Repair</button>
+        <button id="btn-heal-fix" class="btn btn-xs btn-s" aria-label="Repair connection">Repair</button>
       </div>
-      <button id="btn-offline-retry" class="btn btn-xs btn-s">↺ Retry</button>
-      <button id="btn-theme" class="btn btn-xs btn-s">🌙</button>
-      <button id="btn-search-top" class="btn btn-xs btn-s">🔍</button>
-      <button id="btn-qr-show" class="btn btn-xs btn-s">QR</button>
-      <button id="btn-settings-top" class="btn btn-xs btn-s">⚙️</button>
+      <span id="net-quality-badge" title="Network quality" style="font-size:10px;padding:2px 6px;border-radius:99px;background:var(--bg3);color:var(--muted);display:none"></span>
+      <button id="btn-offline-retry" class="btn btn-xs btn-s" aria-label="Retry connection" title="Retry connection">↺ Retry</button>
+      <button id="btn-cmd" class="btn btn-xs btn-s" aria-label="Command palette (Ctrl+K)" title="Command palette (Ctrl+K)">⌘</button>
+      <button id="btn-theme" class="btn btn-xs btn-s" aria-label="Toggle theme">🌙</button>
+      <button id="btn-search-top" class="btn btn-xs btn-s" aria-label="Search peers">🔍</button>
+      <button id="btn-qr-show" class="btn btn-xs btn-s" aria-label="QR connect">QR</button>
+      <button id="btn-settings-top" class="btn btn-xs btn-s" aria-label="Settings">⚙️</button>
     </div>
 
-    <div id="tab-nav">
-      <button class="tn on" data-tab="chat">💬 Chat</button>
-      <button class="tn" data-tab="files">📁 Files</button>
-      <button class="tn" data-tab="call">📞 Call</button>
-      <button class="tn" data-tab="group-video">📹 Group</button>
-      <button class="tn" data-tab="whiteboard">🎨 Board</button>
-      <button class="tn" data-tab="code">⌨️ Code</button>
-      <button class="tn" data-tab="tasks">✅ Tasks</button>
-      <button class="tn" data-tab="group">🏠 Room</button>
-      <button class="tn" data-tab="notes">📝 Notes</button>
-      <button class="tn" data-tab="vault">🔒 Vault</button>
-      <button class="tn" data-tab="notifications">🔔 Notifs</button>
-      <button class="tn" data-tab="history">📖 History</button>
-      <button class="tn" data-tab="settings">⚙️ Settings</button>
+    <div id="tab-nav" role="tablist" aria-label="Module tabs">
+      <button class="tn on" data-tab="chat" role="tab" aria-selected="true" aria-controls="tab-chat">💬 Chat</button>
+      <button class="tn" data-tab="files" role="tab" aria-selected="false" aria-controls="tab-files">📁 Files</button>
+      <button class="tn" data-tab="call" role="tab" aria-selected="false" aria-controls="tab-call">📞 Call</button>
+      <button class="tn" data-tab="group-video" role="tab" aria-selected="false" aria-controls="tab-group-video">📹 Group</button>
+      <button class="tn" data-tab="whiteboard" role="tab" aria-selected="false" aria-controls="tab-whiteboard">🎨 Board</button>
+      <button class="tn" data-tab="code" role="tab" aria-selected="false" aria-controls="tab-code">⌨️ Code</button>
+      <button class="tn" data-tab="tasks" role="tab" aria-selected="false" aria-controls="tab-tasks">✅ Tasks</button>
+      <button class="tn" data-tab="group" role="tab" aria-selected="false" aria-controls="tab-group">🏠 Room</button>
+      <button class="tn" data-tab="notes" role="tab" aria-selected="false" aria-controls="tab-notes">📝 Notes</button>
+      <button class="tn" data-tab="vault" role="tab" aria-selected="false" aria-controls="tab-vault">🔒 Vault</button>
+      <button class="tn" data-tab="notifications" role="tab" aria-selected="false" aria-controls="tab-notifications">🔔 Notifs</button>
+      <button class="tn" data-tab="history" role="tab" aria-selected="false" aria-controls="tab-history">📖 History</button>
+      <button class="tn" data-tab="settings" role="tab" aria-selected="false" aria-controls="tab-settings">⚙️ Settings</button>
     </div>
 
     <div id="content">
@@ -809,8 +875,26 @@ a{color:var(--primary);text-decoration:none;}
       </div>
     </div><!-- /content -->
 
-    <!-- Mobile nav -->
-    <div id="mob-nav">
+    <!-- Mobile More Drawer -->
+    <div id="mob-more-drawer" style="display:none;position:fixed;bottom:var(--mob-nav-h);left:0;right:0;background:var(--bg2);border-top:1px solid var(--border);z-index:200;padding:12px;border-radius:16px 16px 0 0;box-shadow:0 -4px 32px rgba(0,0,0,.5);">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">More Modules</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+        <button class="mob-drawer-btn" onclick="App.ui.setMobTab('whiteboard',null);App.ui.closeMobDrawer()"><span style="font-size:22px">✏️</span><span>Board</span></button>
+        <button class="mob-drawer-btn" onclick="App.ui.setMobTab('code',null);App.ui.closeMobDrawer()"><span style="font-size:22px">⌨️</span><span>Code</span></button>
+        <button class="mob-drawer-btn" onclick="App.ui.setMobTab('tasks',null);App.ui.closeMobDrawer()"><span style="font-size:22px">✅</span><span>Tasks</span></button>
+        <button class="mob-drawer-btn" onclick="App.ui.setMobTab('group',null);App.ui.closeMobDrawer()"><span style="font-size:22px">👥</span><span>Group</span></button>
+        <button class="mob-drawer-btn" onclick="App.ui.setMobTab('notes',null);App.ui.closeMobDrawer()"><span style="font-size:22px">📝</span><span>Notes</span></button>
+        <button class="mob-drawer-btn" onclick="App.ui.setMobTab('vault',null);App.ui.closeMobDrawer()"><span style="font-size:22px">🔒</span><span>Vault</span></button>
+        <button class="mob-drawer-btn" onclick="App.ui.setMobTab('group-video',null);App.ui.closeMobDrawer()"><span style="font-size:22px">📹</span><span>Group</span></button>
+        <button class="mob-drawer-btn" onclick="App.ui.setMobTab('notifications',null);App.ui.closeMobDrawer()"><span style="font-size:22px">🔔</span><span>Notifs</span></button>
+        <button class="mob-drawer-btn" onclick="App.ui.setMobTab('history',null);App.ui.closeMobDrawer()"><span style="font-size:22px">📖</span><span>History</span></button>
+        <button class="mob-drawer-btn" onclick="App.ui.setMobTab('settings',null);App.ui.closeMobDrawer()"><span style="font-size:22px">⚙️</span><span>Settings</span></button>
+        <button class="mob-drawer-btn" onclick="App.qr.showQR();App.ui.closeMobDrawer()"><span style="font-size:22px">📱</span><span>QR</span></button>
+        <button class="mob-drawer-btn" onclick="App.ui.closeMobDrawer()"><span style="font-size:22px">✕</span><span>Close</span></button>
+      </div>
+    </div>
+
+    <div id="mob-nav" role="navigation" aria-label="Main navigation">
       <button class="mob-nav-btn on" data-mobtab="chat" onclick="App.ui.setMobTab('chat',this)">
         <span class="mn-icon">💬</span>Chat<span class="mob-badge" id="nav-badge-chat"></span>
       </button>
@@ -823,7 +907,7 @@ a{color:var(--primary);text-decoration:none;}
       <button class="mob-nav-btn" data-mobtab="peers" onclick="App.ui.showMobPeers()">
         <span class="mn-icon">👥</span>Peers
       </button>
-      <button class="mob-nav-btn" data-mobtab="more" onclick="App.ui.setMobTab('more',this)">
+      <button class="mob-nav-btn" data-mobtab="more" onclick="App.ui.toggleMobDrawer(this)">
         <span class="mn-icon">⋯</span>More
       </button>
     </div>
@@ -897,7 +981,7 @@ a{color:var(--primary);text-decoration:none;}
 'use strict';
 /* ══════════════════════════ CONFIG ══════════════════════════ */
 const CFG={
-  VERSION:'2.0.0',
+  VERSION:'2.1.0',
   DB_NAME:'devhub-member-v1',DB_VERSION:4,
   CHUNK_SIZE:65536,MAX_CONCUR_SENDS:2,WINDOW_SIZE:6,MAX_BACKPRESSURE:4*1024*1024,
   PING_INTERVAL:8000,RECONNECT_MAX:8,
@@ -909,11 +993,55 @@ const CFG={
   STUN_SERVERS:[
     {urls:'stun:stun.l.google.com:19302'},
     {urls:'stun:stun1.l.google.com:19302'},
-    {urls:'stun:stun.cloudflare.com:3478'}
+    {urls:'stun:stun2.l.google.com:19302'},
+    {urls:'stun:stun.cloudflare.com:3478'},
+    {urls:'stun:stun.nextcloud.com:443'},
+    {urls:'stun:stun.relay.metered.ca:80'},
+    {urls:'stun:global.stun.twilio.com:3478'}
   ]
 };
 const SESSION_KEY='devhub-member-session-id';
 const TAB_NONCE=Math.random().toString(36).slice(2,6);
+
+/* ══════════════════════════ DEVICE DETECTION ══════════════════════════ */
+const Device={
+  _cache:{},
+  detect(){
+    if(this._cache.detected)return this._cache;
+    const ua=navigator.userAgent;
+    const d=this._cache;
+    d.isMobile=/Android|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+    d.isTablet=/iPad|Android(?!.*Mobile)|Tablet/i.test(ua)||
+      (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+    d.isDesktop=!d.isMobile&&!d.isTablet;
+    d.isTouch='ontouchstart' in window||navigator.maxTouchPoints>0;
+    d.hasMouse=window.matchMedia('(hover:hover)').matches;
+    d.isLowEnd=!!(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=2)||
+      !!(navigator.deviceMemory&&navigator.deviceMemory<=2);
+    d.isLandscape=window.innerWidth>window.innerHeight;
+    d.dpr=window.devicePixelRatio||1;
+    d.supportsWebRTC=!!(window.RTCPeerConnection||window.webkitRTCPeerConnection);
+    d.supportsMedia=!!navigator.mediaDevices;
+    d.supportsCamera=!!(navigator.mediaDevices?.getUserMedia);
+    d.supportsScreenShare=!!(navigator.mediaDevices?.getDisplayMedia);
+    d.supportsClipboard=!!navigator.clipboard;
+    d.isOnline=navigator.onLine;
+    d.browserName=ua.includes('Firefox')?'Firefox':ua.includes('Edge')?'Edge':ua.includes('Chrome')?'Chrome':ua.includes('Safari')?'Safari':'Unknown';
+    d.isSafari=/^((?!chrome|android).)*safari/i.test(ua);
+    d.isFirefox=/Firefox/i.test(ua);
+    d.detected=true;
+    // Apply device class to html
+    const html=document.documentElement;
+    html.classList.toggle('is-mobile',d.isMobile);
+    html.classList.toggle('is-tablet',d.isTablet);
+    html.classList.toggle('is-desktop',d.isDesktop);
+    html.classList.toggle('is-touch',d.isTouch);
+    html.classList.toggle('is-low-end',d.isLowEnd);
+    return d;
+  },
+  update(){this._cache.isLandscape=window.innerWidth>window.innerHeight;this._cache.isOnline=navigator.onLine;}
+};
+Device.detect();
 
 /* ══════════════════════════ UTILITIES ══════════════════════════ */
 const uid=(n=12)=>crypto.getRandomValues(new Uint8Array(Math.ceil(n/2))).reduce((s,b)=>s+b.toString(16).padStart(2,'0'),'').slice(0,n);
@@ -988,11 +1116,13 @@ class ToastManager{
     const el=document.createElement('div');
     const map={success:'toast-s',error:'toast-e',warning:'toast-w',info:'toast-i'};
     el.className='toast-item '+(map[type]||'toast-i');
+    el.setAttribute('role',type==='error'?'alert':'status');
+    el.setAttribute('aria-live',type==='error'?'assertive':'polite');
     el.innerHTML=esc(msg);
     if(!persist){
       const close=document.createElement('button');
-      close.style.cssText='background:none;color:var(--muted);font-size:14px;margin-left:auto;';
-      close.textContent='✕';close.onclick=()=>el.remove();
+      close.style.cssText='background:none;color:var(--muted);font-size:14px;margin-left:auto;min-height:auto;';
+      close.textContent='✕';close.setAttribute('aria-label','Dismiss');close.onclick=()=>el.remove();
       el.appendChild(close);
       setTimeout(()=>{try{el.remove();}catch(e){}},4000);
     }
@@ -1552,6 +1682,11 @@ class NetworkRecovery{
     window.addEventListener('online',()=>{App.toast?.show('Network restored — reconnecting…','info');Timers.timeout('net-reconnect',()=>{if(App.peer?.peer?.disconnected)App.peer.tryReconnect();},1200);});
     window.addEventListener('offline',()=>{App.toast?.show('Network offline','warning');App.ui?.setStatus('OFFLINE');});
     document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')Timers.timeout('tab-restore',()=>{if(navigator.onLine&&App.peer?.peer?.disconnected)App.peer.tryReconnect();App.stateStore?.reconcile();},1500);});
+    // Orientation change
+    window.addEventListener('orientationchange',()=>{Timers.timeout('orient',()=>{Device.update();App.board?._resize?.();},300);});
+    screen?.orientation?.addEventListener('change',()=>{Device.update();});
+    // Connection quality via Network Info API
+    if(navigator.connection){navigator.connection.addEventListener('change',()=>{const c=navigator.connection;if(c.effectiveType==='2g'||c.downlink<0.5){App.toast?.show('Slow network detected — low quality mode','warning');}});}
   }
 }
 
@@ -1617,8 +1752,10 @@ class PeerManager{
     if(this.peer&&!this.peer.destroyed){try{this.peer.destroy();}catch(e){}}
     this._destroyed=false;
     const iceConfig=[...CFG.STUN_SERVERS];
-    try{const turn=SafeStorage.getJSON('devhub-turn',null);if(turn?.url)iceConfig.push({urls:turn.url,username:turn.user,credential:turn.pass});}catch(e){}
-    try{this.peer=new Peer(id,{debug:0,config:{iceServers:iceConfig}});}
+    try{const turn=SafeStorage.getJSON('devhub-turn',null);if(turn?.url){iceConfig.push({urls:turn.url,username:turn.user||'',credential:turn.pass||''});// also try TURNS for better traversal
+    if(turn.url.startsWith('turn:'))iceConfig.push({urls:turn.url.replace('turn:','turns:')+'?transport=tcp',username:turn.user||'',credential:turn.pass||''});}}catch(e){}
+    const peerConfig={debug:0,config:{iceServers:iceConfig,iceCandidatePoolSize:10,iceTransportPolicy:'all',bundlePolicy:'max-bundle',rtcpMuxPolicy:'require'}};
+    try{this.peer=new Peer(id,peerConfig);}
     catch(e){App.log.error('PeerJS init failed: '+e.message);App.ui?.setStatus('OFFLINE');return;}
     this.peer.on('open',peerId=>{
       this.myId=peerId;sessionStorage.setItem(SESSION_KEY,peerId);
@@ -1919,8 +2056,14 @@ class MediaManager{
     if(!App.peer.peer||App.peer.peer.destroyed){App.toast.show('Not connected to server','warning');return;}
     try{
       this._cleanupMedia();let stream;
-      if(type==='voice')stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
-      else if(type==='video')stream=await navigator.mediaDevices.getUserMedia({audio:true,video:{width:{ideal:1280},height:{ideal:720}}});
+      if(type==='voice')stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,sampleRate:48000},video:false});
+      else if(type==='video'){
+        // Adaptive video quality based on network
+        const avgRtt=App.netq?.getAvg()||0;
+        const isLowBW=avgRtt>300||(navigator.connection&&(navigator.connection.effectiveType==='2g'||navigator.connection.downlink<1));
+        const vidConstraints=isLowBW?{width:{ideal:640},height:{ideal:360},frameRate:{max:15}}:{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30}};
+        stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:vidConstraints});
+      }
       else if(type==='screen'){if(!navigator.mediaDevices?.getDisplayMedia){App.toast.show('Screen share not supported','warning');return;}stream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});}
       try{App.streamReg?.register('call-stream',stream);}catch(e){}
       if(type==='screen'){this._screenStream=stream;this._localStream=stream;}
@@ -2275,7 +2418,7 @@ class VaultManager{
    GROUP VIDEO
 ═══════════════════════════════════════════════════════ */
 class GroupVideoManager{
-  constructor(){this._localStream=null;this._calls=new Map();}
+  constructor(){this._localStream=null;this._calls=new Map();this._audioContexts=new Map();this._activeSpeaker=null;}
   init(){
     document.getElementById('btn-gv-start')?.addEventListener('click',()=>this._startLocal());
     document.getElementById('btn-gv-stop')?.addEventListener('click',()=>this._stopLocal());
@@ -2283,17 +2426,67 @@ class GroupVideoManager{
   }
   async _startLocal(){
     try{
-      this._localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:{width:{ideal:640},height:{ideal:480}}});
+      const dev=Device.detect();
+      // Lower quality on mobile/low-end
+      const vidOpts=dev.isLowEnd||dev.isMobile?{width:{ideal:320},height:{ideal:240},frameRate:{max:15}}:{width:{ideal:640},height:{ideal:480},frameRate:{ideal:30}};
+      this._localStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:vidOpts});
       const vid=document.getElementById('gv-my-video');if(vid){vid.srcObject=this._localStream;try{await vid.play();}catch(e){}}
+      this._startActiveSpeakerDetection(this._localStream,'local');
       App.toast.show('Camera started — invite peers to join','success');
     }catch(e){App.toast.show('Camera error: '+e.message,'error');}
   }
-  _stopLocal(){if(this._localStream){this._localStream.getTracks().forEach(t=>t.stop());this._localStream=null;}const vid=document.getElementById('gv-my-video');if(vid)vid.srcObject=null;}
+  _startActiveSpeakerDetection(stream,id){
+    try{
+      if(!window.AudioContext&&!window.webkitAudioContext)return;
+      const ac=new(window.AudioContext||window.webkitAudioContext)();
+      const analyser=ac.createAnalyser();analyser.fftSize=256;
+      ac.createMediaStreamSource(stream).connect(analyser);
+      this._audioContexts.set(id,ac);
+      const data=new Uint8Array(analyser.frequencyBinCount);
+      const check=()=>{
+        if(!this._audioContexts.has(id))return;
+        analyser.getByteFrequencyData(data);
+        const vol=data.reduce((a,b)=>a+b,0)/data.length;
+        if(vol>20&&id!==this._activeSpeaker){
+          this._activeSpeaker=id;
+          document.querySelectorAll('.gv-tile').forEach(t=>t.classList.remove('active-speaker'));
+          const tile=id==='local'?document.getElementById('gv-local-tile'):document.querySelector(`.gv-tile[data-pid="${id}"]`);
+          tile?.classList.add('active-speaker');
+        }
+        Timers.timeout('gv-as-'+id,check,500);
+      };check();
+    }catch(e){}
+  }
+  _stopLocal(){
+    if(this._localStream){this._localStream.getTracks().forEach(t=>t.stop());this._localStream=null;}
+    const vid=document.getElementById('gv-my-video');if(vid)vid.srcObject=null;
+    this._audioContexts.forEach((ac,id)=>{try{ac.close();}catch(e){}});this._audioContexts.clear();
+    Timers.clear('gv-as-local');
+  }
   _inviteAll(){
     if(!this._localStream){App.toast.show('Start camera first','warning');return;}
     let invited=0;
     for(const[pid]of App.peer.dconns){App.media.video(pid);invited++;}
     App.toast.show(invited>0?`Inviting ${invited} peer(s) to group call`:'No peers connected','info');
+  }
+  addPeerVideo(pid,stream){
+    const grid=document.getElementById('gv-grid');if(!grid)return;
+    let tile=document.querySelector(`.gv-tile[data-pid="${pid}"]`);
+    if(!tile){tile=document.createElement('div');tile.className='gv-tile';tile.dataset.pid=pid;
+    const name=App.peer.peerName(pid);
+    tile.innerHTML=`<video autoplay playsinline></video><div class="gv-tile-lbl">${esc(name)}</div>`;
+    grid.appendChild(tile);}
+    const v=tile.querySelector('video');if(v){v.srcObject=stream;try{v.play();}catch(e){}}
+    this._startActiveSpeakerDetection(stream,pid);
+    // Pause hidden tiles to save CPU
+    if('IntersectionObserver' in window){
+      const obs=new IntersectionObserver(entries=>{entries.forEach(e=>{const v=e.target.querySelector('video');if(v){if(e.isIntersecting)v.play().catch(()=>{});else{v.pause();}}});});obs.observe(tile);
+    }
+  }
+  removePeerVideo(pid){
+    document.querySelector(`.gv-tile[data-pid="${pid}"]`)?.remove();
+    const ac=this._audioContexts.get(pid);if(ac){try{ac.close();}catch(e){}this._audioContexts.delete(pid);}
+    Timers.clear('gv-as-'+pid);
   }
   _onSignal(pid,msg){App.log.info('Group video signal from '+pid.substring(0,8));}
 }
@@ -2348,15 +2541,38 @@ class CommandPalette{
 class UIManager{
   constructor(){this.activePeer=null;this._unread=new Map();this._histFilter='peers';}
   init(){
-    this._bindTopbar();this._bindTabs();this._bindSidebar();this._bindChat();this._bindFiles();this._bindSettings();this._bindHistory();this._bindNotifications();this._bindMobile();this._bindModals();this._bindKeyboard();this._initSidebarResize();this._applyTheme();
+    this._bindTopbar();this._bindTabs();this._bindSidebar();this._bindChat();this._bindFiles();this._bindSettings();this._bindHistory();this._bindNotifications();this._bindMobile();this._bindModals();this._bindKeyboard();this._initSidebarResize();this._initMobileSwipeTabs();this._applyTheme();
   }
   _initSidebarResize(){
     const handle=document.getElementById('sidebar-drag');const sidebar=document.getElementById('sidebar');if(!handle||!sidebar)return;
     const saved=parseInt(SafeStorage.get('dh-sidebar-w','240'));sidebar.style.width=saved+'px';
     let dragging=false,startX=0,startW=0;
     handle.addEventListener('mousedown',e=>{dragging=true;startX=e.clientX;startW=sidebar.offsetWidth;e.preventDefault();});
-    document.addEventListener('mousemove',e=>{if(!dragging)return;const w=Math.max(48,Math.min(360,startW+(e.clientX-startX)));sidebar.style.width=w+'px';sidebar.style.overflow=w<60?'hidden':'';});
+    document.addEventListener('mousemove',e=>{if(!dragging)return;const w=Math.max(48,Math.min(400,startW+(e.clientX-startX)));sidebar.style.width=w+'px';sidebar.style.overflow=w<60?'hidden':'';});
     document.addEventListener('mouseup',()=>{if(!dragging)return;dragging=false;SafeStorage.set('dh-sidebar-w',document.getElementById('sidebar').offsetWidth);});
+    // Mobile swipe-from-left gesture to toggle sidebar (desktop only shown anyway)
+    let touchStartX=0;
+    document.addEventListener('touchstart',e=>{touchStartX=e.touches[0].clientX;},{passive:true});
+    document.addEventListener('touchend',e=>{
+      const diff=e.changedTouches[0].clientX-touchStartX;
+      // Swipe right from left edge to open mobile peers
+      if(touchStartX<30&&diff>50)document.getElementById('mobile-peers')?.classList.add('on');
+    },{passive:true});
+  }
+  _initMobileSwipeTabs(){
+    const dev=Device.detect();if(!dev.isMobile&&!dev.isTablet)return;
+    const tabOrder=['chat','files','call','more'];
+    let touchX=0;
+    const content=document.getElementById('content');if(!content)return;
+    content.addEventListener('touchstart',e=>{touchX=e.touches[0].clientX;},{passive:true});
+    content.addEventListener('touchend',e=>{
+      const diff=e.changedTouches[0].clientX-touchX;
+      if(Math.abs(diff)<60)return;
+      const btns=[...document.querySelectorAll('.mob-nav-btn')].filter(b=>b.dataset.mobtab);
+      const current=btns.findIndex(b=>b.classList.contains('on'));
+      if(diff<-60&&current<btns.length-1){btns[current+1]?.click();}
+      else if(diff>60&&current>0){btns[current-1]?.click();}
+    },{passive:true});
   }
   _bindTopbar(){
     document.getElementById('btn-qr-show')?.addEventListener('click',()=>App.qr.showQR());
@@ -2367,13 +2583,30 @@ class UIManager{
     document.getElementById('btn-offline-retry')?.addEventListener('click',()=>App.peer.tryReconnect());
     document.getElementById('btn-heal-fix')?.addEventListener('click',()=>App.healer.repair());
     document.getElementById('btn-clr-notifs')?.addEventListener('click',()=>{document.getElementById('notif-list').innerHTML='<div style="color:var(--muted);text-align:center;padding:20px">No notifications</div>';});
+    document.getElementById('btn-cmd')?.addEventListener('click',()=>App.cmdPalette.open());
+    // Periodically update network quality badge
+    Timers.interval('netq-badge',()=>{
+      const badge=document.getElementById('net-quality-badge');if(!badge)return;
+      const avg=App.netq?.getAvg()||0;if(!avg){badge.style.display='none';return;}
+      badge.style.display='';
+      if(avg<100){badge.textContent='● Excellent';badge.style.color='var(--green)';}
+      else if(avg<250){badge.textContent='● Good';badge.style.color='var(--yellow)';}
+      else if(avg<500){badge.textContent='● Fair';badge.style.color='var(--orange)';}
+      else{badge.textContent='● Poor';badge.style.color='var(--red)';}
+    },5000);
   }
   _bindTabs(){
     document.querySelectorAll('.tn').forEach(btn=>{btn.addEventListener('click',()=>{const tab=btn.dataset.tab;this.setTab(tab);if(tab==='whiteboard'){App.board.init();setTimeout(()=>App.board._resize(),50);}if(tab==='history')this._renderHistory();if(tab==='notifications')App.notifCenter.markAllRead();if(tab==='call')App.callHist.render();});});
   }
-  setTab(tab){document.querySelectorAll('.tn').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));document.querySelectorAll('.tabview').forEach(v=>v.classList.toggle('on',v.id==='tab-'+tab));if(tab==='chat'&&this.activePeer){this._unread.set(this.activePeer,0);this._updUnread(this.activePeer);}}
-  setMobTab(tab,btn){this.setTab(tab);document.querySelectorAll('.mob-nav-btn').forEach(b=>b.classList.toggle('on',b===btn));}
+  setTab(tab){
+    document.querySelectorAll('.tn').forEach(b=>{const on=b.dataset.tab===tab;b.classList.toggle('on',on);b.setAttribute('aria-selected',on?'true':'false');});
+    document.querySelectorAll('.tabview').forEach(v=>v.classList.toggle('on',v.id==='tab-'+tab));
+    if(tab==='chat'&&this.activePeer){this._unread.set(this.activePeer,0);this._updUnread(this.activePeer);}
+  }
+  setMobTab(tab,btn){this.setTab(tab);document.querySelectorAll('.mob-nav-btn').forEach(b=>b.classList.toggle('on',b===btn));this.closeMobDrawer();}
   showMobPeers(){document.getElementById('mobile-peers')?.classList.add('on');}
+  toggleMobDrawer(btn){const d=document.getElementById('mob-more-drawer');if(!d)return;const isOpen=d.style.display!=='none';d.style.display=isOpen?'none':'block';document.querySelectorAll('.mob-nav-btn').forEach(b=>b.classList.toggle('on',!isOpen&&b===btn));}
+  closeMobDrawer(){const d=document.getElementById('mob-more-drawer');if(d)d.style.display='none';}
   setStatus(status){const el=document.getElementById('my-status');if(!el)return;const map={ONLINE:'<span class="pill p-on"><span class="pdot"></span>Online</span>',OFFLINE:'<span class="pill p-off">Offline</span>',RECONNECTING:'<span class="pill p-con">Reconnecting…</span>'};el.innerHTML=map[status]||'';}
   _bindSidebar(){
     document.getElementById('btn-join')?.addEventListener('click',()=>{const v=document.getElementById('jin')?.value.trim();if(v){App.peer.connectTo(v);document.getElementById('jin').value='';}});
@@ -2392,7 +2625,13 @@ class UIManager{
       if(mi)mi.value='';this._adjustMI();
     };
     document.getElementById('btn-send')?.addEventListener('click',send);
-    mi?.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
+    mi?.addEventListener('keydown',e=>{
+      const dev=Device.detect();
+      const isMob=dev.isMobile||dev.isTablet;
+      if(e.key==='Enter'&&!e.shiftKey&&!isMob){e.preventDefault();send();}
+      // Ctrl/Cmd+Enter always sends
+      if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();send();}
+    });
     mi?.addEventListener('input',()=>{this._adjustMI();if(this.activePeer){const c=App.peer.conn(this.activePeer);if(c?.open)try{c.send(JSON.stringify({type:'typing'}));}catch(e){}}});
     document.getElementById('btn-emoji')?.addEventListener('click',()=>{
       const emojis=['😊','👍','❤️','😂','🎉','🔥','👏','🤔','😎','💯','🙏','✨','🚀','💡','✅','❌','⚠️','🎯','💬','🔗','📎','🖼️'];
@@ -2602,9 +2841,18 @@ App.groupVideo=new GroupVideoManager();
 ═══════════════════════════════════════════════════════ */
 async function boot(){
   const fill=document.getElementById('boot-fill');
-  const setProgress=async(pct,msg)=>{if(fill)fill.style.width=pct+'%';setEl('boot-msg',msg);await sleep(30);};
+  const setProgress=async(pct,msg)=>{
+    if(fill){fill.style.width=pct+'%';fill.parentElement?.setAttribute('aria-valuenow',pct);}
+    setEl('boot-msg',msg);await sleep(30);
+  };
 
   App.bootRecovery.markBootStart();
+  await setProgress(5,'Detecting device…');
+
+  // Device detection & capability check
+  const dev=Device.detect();
+  App.log.info(`Device: ${dev.isMobile?'mobile':dev.isTablet?'tablet':'desktop'} | Browser: ${dev.browserName} | Touch: ${dev.isTouch} | Low-end: ${dev.isLowEnd}`);
+
   await setProgress(10,'Loading dependencies…');
 
   // Wait for PeerJS
@@ -2620,6 +2868,8 @@ async function boot(){
   // Onboarding
   if(!SafeStorage.get('dh-name','')){
     document.getElementById('ob-modal')?.classList.add('on');
+    // Focus name input for accessibility
+    Timers.timeout('ob-focus',()=>document.getElementById('ob-name')?.focus(),100);
     await new Promise(r=>{
       let resolved=false;const resolve=()=>{if(!resolved){resolved=true;r();}};
       document.getElementById('btn-ob-start')?.addEventListener('click',()=>{const n=document.getElementById('ob-name')?.value.trim();if(n)SafeStorage.set('dh-name',n);else SafeStorage.set('dh-name','Peer');document.getElementById('ob-modal')?.classList.remove('on');resolve();},{once:true});
@@ -2668,9 +2918,22 @@ async function boot(){
 
   App.log.success('DevHub Member Communication loaded v'+CFG.VERSION);
 
+  // Close mobile drawer on outside click
+  document.addEventListener('click',e=>{
+    const drawer=document.getElementById('mob-more-drawer');
+    if(drawer&&drawer.style.display!=='none'){
+      if(!drawer.contains(e.target)&&!e.target.closest('[data-mobtab="more"]'))App.ui.closeMobDrawer();
+    }
+  });
+
   // Show welcome notification after 2s
   setTimeout(()=>{
-    App.notifCenter.add('DevHub Member Hub ready','Share your Peer ID or QR code to connect with peers','💬','success');
+    const dev=Device.detect();
+    const devStr=dev.isMobile?'📱 Mobile':dev.isTablet?'📲 Tablet':'🖥️ Desktop';
+    App.notifCenter.add('DevHub v'+CFG.VERSION+' ready',devStr+' · Share your QR code to connect with peers','🔗','success');
+    // Show capability warnings
+    if(!dev.supportsWebRTC)App.toast.show('⚠️ WebRTC not supported — calls unavailable','warning');
+    if(!dev.supportsMedia)App.toast.show('⚠️ Media API unavailable — limited functionality','warning');
   },2000);
 }
 
