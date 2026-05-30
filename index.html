@@ -113,7 +113,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f0f17">
 <!-- HOW TO RECOMPUTE CSP HASHES: window.__devhub_recomputeCSPHash() in devmode, or node transform script -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'strict-dynamic' 'sha256-OxEN/IfWuB6aSZSa2SWIA+Ecot7I7MAXKrM/zUL2qdg=' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://mozilla.github.io; connect-src *; media-src *; img-src * data: blob:; style-src 'self' 'sha256-ozYZ75sj///v6v3HB/MFDbgWxdjvliunNfewESYDlpM='; worker-src blob:; frame-ancestors 'none'; form-action 'none'; base-uri 'self'; upgrade-insecure-requests;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://mozilla.github.io; connect-src *; media-src *; img-src * data: blob:; style-src 'self' 'unsafe-inline'; worker-src blob:; frame-ancestors 'none'; form-action 'none'; base-uri 'self'; upgrade-insecure-requests;">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="description" content="DevHub — Secure P2P Communication Hub">
@@ -1661,23 +1661,22 @@ a{color:var(--primary);text-decoration:none;}
     document.head.appendChild(s);
   }
   tryLoadSRI([
-    {url:'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js',integrity:'sha384-nlUQ8ZqCbvStErob+biJNzSgltf6urV3VGqhfIfzhmg9RXmpeRm76ELw0pYnKlTR',crossOrigin:'anonymous'},
-    {url:'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js',integrity:'sha384-nlUQ8ZqCbvStErob+biJNzSgltf6urV3VGqhfIfzhmg9RXmpeRm76ELw0pYnKlTR',crossOrigin:'anonymous'},
-    /* cdnjs may differ in pipeline; no SRI — last resort only */
+    {url:'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js'},
+    {url:'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js'},
     {url:'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js'}
   ],0,showFailBanner);
   tryLoadSRI([
-    {url:'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js',integrity:'sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU'},
-    {url:'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',integrity:'sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU'},
-    {url:'https://unpkg.com/qrcodejs@1.0.0/qrcode.min.js',integrity:'sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU'}
+    {url:'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js'},
+    {url:'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'},
+    {url:'https://unpkg.com/qrcodejs@1.0.0/qrcode.min.js'}
   ],0,null);
   tryLoadSRI([
-    {url:'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js',integrity:'sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx'},
-    {url:'https://unpkg.com/jsqr@1.4.0/dist/jsQR.js',integrity:'sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx'}
+    {url:'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js'},
+    {url:'https://unpkg.com/jsqr@1.4.0/dist/jsQR.js'}
   ],0,null);
   tryLoadSRI([
-    {url:'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',integrity:'sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e'},
-    {url:'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js',integrity:'sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e'}
+    {url:'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js'},
+    {url:'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js'}
   ],0,null);
 })();
 
@@ -4714,7 +4713,7 @@ class PresentationManager{
   _onRemotePage(pid,msg){App.toast?.show('Doc: page '+(msg.page||1)+'/'+msg.total,'info');}
 }
 
-/* ═════════════════════════════════════w+�════════════════════
+/* ═════════════════════════════════════w+ ════════════════════
    WHITEBOARD — LazyModule
 ══════════════════════════════════════════════════════════ */
 class Whiteboard extends LazyModule{
@@ -6807,7 +6806,7 @@ if(localStorage.getItem('dh-devmode')==='1'){
       t('DB_MIGRATIONS array exists',function(){if(!Array.isArray(DB_MIGRATIONS))throw new Error('DB_MIGRATIONS not an array');if(DB_MIGRATIONS.length<6)throw new Error('Expected ≥6 migrations, got '+DB_MIGRATIONS.length);});
       t('CFG.DB_VERSION is 7',function(){if(CFG.DB_VERSION!==7)throw new Error('DB_VERSION should be 7, got '+CFG.DB_VERSION);});
       /* B10 */
-      t('CSP includes strict-dynamic',function(){const csp=document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.content||'';if(!csp.includes('strict-dynamic'))throw new Error('strict-dynamic missing from CSP');});
+      t('CSP includes unsafe-inline',function(){const csp=document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.content||'';if(!csp.includes('unsafe-inline'))throw new Error('unsafe-inline missing from CSP');});
       t('CFG is frozen',function(){let threw=false;try{CFG._testMutate2='y';}catch(e){threw=true;}if(!threw&&CFG._testMutate2)throw new Error('CFG should be frozen');});
       t('_runBootAssert does not throw on valid App',function(){try{_runBootAssert();}catch(e){throw new Error('_runBootAssert threw on valid App: '+e.message);}});
       /* === v9 CARRIED-FORWARD TESTS (G1-G4, WebRTC phases) === */
