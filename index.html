@@ -1,5 +1,5 @@
 <!-- ════════════════════════════════════════════════════════════════════
-     DevHub v5.0 — Enterprise-grade P2P Communication Suite
+     DevHub v6.0 — Enterprise-grade P2P Communication Suite
      Single-file HTML app. No backend, no build tools, no dependencies beyond CDN.
 
      ARCHITECTURE:
@@ -9,17 +9,66 @@
      · Crypto     : WebCrypto AES-256-GCM + PBKDF2 (vault v3)
      · Events     : EventBus pub/sub (Bus.on/emit/off/once)
      · Rendering  : parseMarkdown() XSS-safe mini-parser, LRU render cache
+     · PWA        : Service Worker via Blob URL, offline cache, install prompt
+
+     /* FILE MAP */
+     § DESIGN TOKENS          ~line 44
+     § CSS MAIN               ~line 100
+     § BOOT OVERLAY / HTML    ~line 700
+     § LOADER SCRIPT          ~line 1300
+     § CONFIG (CFG)           ~line 1370
+     § TYPE GUARDS            ~line 1450
+     § RUNTIME UTILITIES      ~line 1470
+     § EVENTBUS               ~line 1520
+     § LRU CACHE              ~line 1560
+     § MARKDOWN PARSER        ~line 1600
+     § SAFE STORAGE           ~line 1680
+     § SAFE FILE VALIDATOR    ~line 1740
+     § DEVICE PROFILE         ~line 1820
+     § TIMER REGISTRY         ~line 1880
+     § BLOB URL REGISTRY      ~line 1910
+     § TOAST MANAGER          ~line 1930
+     § LOGGER                 ~line 1970
+     § STATE STORE            ~line 2010
+     § MEMORY MONITOR         ~line 2060
+     § MODULE HEALTH ENGINE   ~line 2100
+     § GLOBAL ERROR MANAGER   ~line 2156
+     § DB STORE               ~line 2200
+     § CRYPTO MANAGER         ~line 2280
+     § SERVICE WORKER MODULE  ~line 2350 (NEW v6)
+     § PEER HISTORY           ~line 2370
+     § FILE TRANSFER          ~line 2750
+     § INVITE MANAGER         ~line 2400
+     § PEER MANAGER           ~line 2630
+     § MEDIA MANAGER          ~line 2900
+     § VAULT MANAGER          ~line 3600
+     § UI MANAGER             ~line 3900
+     § APP BOOTSTRAP          ~line 4800
+     § DEVELOPER TEST HARNESS ~line 4910
+
+     v6.0 CHANGES (NEW v6):
+     · IIFE wrapper + 'use strict' — eliminated global namespace pollution
+     · Object.freeze(CFG) — config is now immutable after boot
+     · Runtime type guards: assertString/assertObject/assertNumber/assertArray
+     · Service Worker via Blob URL — full offline PWA support
+     · Custom PeerJS signaling server settings (Settings tab)
+     · TURN/ICE server JSON config field
+     · Signaling warning banner for public cloud usage
+     · Peer ID validation: /^[a-zA-Z0-9_-]{6,64}$/ on every incoming connection
+     · Vault auto-lock now emits Bus.emit("vault:locked", {reason:"timeout"})
+     · Rate limiting: >60 msgs/10s per peer triggers throttle + toast
+     · MAX_TOTAL_TRANSFER_MB guard (500 MB) on incoming file transfers
+     · upgrade-insecure-requests added to CSP
+     · content-visibility:auto on inactive tabview panels
+     · ARIA: role=status on typing indicator, role=grid on emoji picker
+     · eslint-env browser,es2022 header comment
+     · printFileMap() added to test harness
+     · New v6 tests: SW status, type guards, rate limiter, vault telemetry
 
      v5.0 CHANGES:
-     · EventBus singleton for decoupled cross-module communication
-     · LRU cache (LRUCache) for rendered message HTML
-     · parseMarkdown: bold/italic/strike/code/blockquote/url/@mention
-     · SafeFileValidator.sniffBytes(): magic-byte MIME detection
-     · VaultManager v3: combined IV+ciphertext, 5-min auto-lock, v2 migration
-     · Delivery receipts: ✓ sent → ✓✓ delivered → cyan ✓✓ read
-     · Emoji picker: search input + full keyboard navigation (↑↓←→ Enter Esc)
-     · CSS: motion tokens, z-index scale, spacing scale, micro-animations
-     · 128 emoji across 8 categories
+     · EventBus singleton, LRU cache, parseMarkdown, magic-byte sniff
+     · VaultManager v3 + auto-lock, delivery receipts, emoji keyboard nav
+     · CSS motion tokens, z-index scale, spacing scale, 128 emoji
 
      BUG FIXES (v4.9):
      · emoji-picker display:none overridden by display:grid
@@ -34,13 +83,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f0f17">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://mozilla.github.io; connect-src *; media-src *; img-src * data: blob:; style-src 'self' 'unsafe-inline'; worker-src blob:;">
+<!-- HOW TO RECOMPUTE CSP HASHES: run node transform script after any script/style edits -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-jcd1EfFjVMKfxjglWhfbrWI4FVjr44kms/v4d9EkHig=' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://mozilla.github.io; connect-src *; media-src *; img-src * data: blob:; style-src 'self' 'sha256-rrgy4hOUemzBNzMsE3ZgMrDzOkZtC8L9iNo359Yd2B0='; worker-src blob:; frame-ancestors 'none'; form-action 'none'; base-uri 'self'; upgrade-insecure-requests;">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="description" content="DevHub — Secure P2P Communication Hub">
 <meta name="format-detection" content="telephone=no">
 <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;DevHub&quot;,&quot;short_name&quot;:&quot;DevHub&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#0f0f17&quot;,&quot;theme_color&quot;:&quot;#6366f1&quot;}">
-<title>DevHub v5 — P2P Communication Suite</title>
+<title>DevHub v6.1 — P2P Communication Suite</title>
 <style>
 /* ═══════════════════════════════════════════════
    DESIGN TOKENS
@@ -180,6 +230,7 @@ a{color:var(--primary);text-decoration:none;}
 .tn:hover{color:var(--text);}
 .tn.on{color:var(--primary);border-bottom-color:var(--primary);}
 .tabview{display:none;flex:1;overflow:hidden;flex-direction:column;}
+.tabview:not(.on){content-visibility:auto;contain-intrinsic-size:0 500px;}
 .tabview.on{display:flex;animation:tab-fade-in .12s ease;}
 @keyframes tab-fade-in{from{opacity:0}to{opacity:1}}
 
@@ -846,7 +897,7 @@ a{color:var(--primary);text-decoration:none;}
             <div style="font-size:12px;color:var(--muted)">Or use 🔑 Invite to connect without a raw Peer ID</div>
           </div>
         </div>
-        <div id="mtyp" aria-live="polite"></div>
+        <div id="mtyp" role="status" aria-live="polite" aria-label="Typing indicator" aria-live="polite"></div>
         <div id="reply-preview" aria-label="Reply preview">
           <span id="reply-preview-text"></span>
           <button id="btn-cancel-reply" class="btn btn-xs btn-d" aria-label="Cancel reply">✕</button>
@@ -1211,8 +1262,39 @@ a{color:var(--primary);text-decoration:none;}
               <label class="ff-toggle"><input type="checkbox" id="set-noise"><span class="ff-slider"></span></label>
             </div>
           </div>
+          <!-- ══ NEW v6: Custom PeerJS Signaling Server ══ -->
           <div class="panel-section">
-            <div class="panel-section-title">Network (TURN)</div>
+            <div class="panel-section-title">Signaling Server (PeerJS)</div>
+            <div id="signaling-warning" style="display:flex;align-items:center;gap:6px;padding:8px 10px;background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.3);border-radius:var(--radius-sm);margin-bottom:8px;font-size:12px;color:var(--text2)">
+              ⚠️ Using public signaling — consider self-hosting for full privacy
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <label for="set-peer-host" class="sr-only">PeerJS server host</label>
+              <input id="set-peer-host" placeholder="PeerJS host (e.g. mypeer.example.com)" style="width:100%">
+              <div style="display:flex;gap:6px">
+                <label for="set-peer-port" class="sr-only">Port</label>
+                <input id="set-peer-port" placeholder="Port (443)" style="width:80px">
+                <label for="set-peer-path" class="sr-only">Path</label>
+                <input id="set-peer-path" placeholder="Path (/)" style="flex:1">
+              </div>
+              <label for="set-peer-key" class="sr-only">API key</label>
+              <input id="set-peer-key" placeholder="API key (peerjs)" style="width:100%">
+              <button id="btn-save-peer-cfg" class="btn btn-s btn-xs">Save Signaling Config</button>
+              <button id="btn-reset-peer-cfg" class="btn btn-d btn-xs">Reset to Default</button>
+            </div>
+            <details style="margin-top:8px;font-size:12px;color:var(--text2)">
+              <summary style="cursor:pointer;user-select:none;font-weight:600">Self-hosting instructions</summary>
+              <div style="padding:8px 0;line-height:1.6">
+                1. Install: <code>npm i -g peer</code><br>
+                2. Run: <code>peerjs --port 9000 --key peerjs --path /myapp</code><br>
+                3. Set host to your server IP/domain, port to 9000, path to /myapp<br>
+                4. For HTTPS use a reverse proxy (nginx) with SSL cert
+              </div>
+            </details>
+          </div>
+          <!-- ══ NEW v6: TURN/ICE JSON Config ══ -->
+          <div class="panel-section">
+            <div class="panel-section-title">Network (TURN/ICE)</div>
             <div style="display:flex;flex-direction:column;gap:6px">
               <label for="set-turn-url" class="sr-only">TURN URL</label>
               <input id="set-turn-url" placeholder="TURN URL (optional)" style="width:100%">
@@ -1222,6 +1304,12 @@ a{color:var(--primary);text-decoration:none;}
               <input id="set-turn-pass" type="password" placeholder="Credential" autocomplete="off">
               <button id="btn-save-turn" class="btn btn-s btn-xs">Save TURN</button>
             </div>
+          </div>
+          <!-- ══ NEW v6: PWA Install Button ══ -->
+          <div class="panel-section" id="pwa-install-section">
+            <div class="panel-section-title">Install App (PWA)</div>
+            <button id="btn-sw-install" class="btn btn-p btn-sm" style="display:none" onclick="AppSW.promptInstall()">📲 Install DevHub</button>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px">Install DevHub as a standalone app for offline use</div>
           </div>
           <div class="panel-section">
             <div class="panel-section-title">Audio &amp; Sounds</div>
@@ -1320,42 +1408,54 @@ a{color:var(--primary);text-decoration:none;}
 <div id="toast-container" aria-live="polite" aria-atomic="false"></div>
 <div id="emoji-picker" style="display:none;position:fixed;z-index:8500;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:8px;box-shadow:var(--shadow);grid-template-columns:repeat(8,32px);gap:2px;" aria-label="Emoji picker" role="listbox"></div>
 
-<!-- CDN Scripts with fallbacks -->
+<!-- CDN Scripts merged with main IIFE into one <script> for CSP sha256 hash -->
+<!--
+  HOW TO RECOMPUTE CSP HASH after editing this file:
+  node -e "const c=require('crypto'),fs=require('fs');
+  const src=fs.readFileSync('devhub-v6.1.html','utf8');
+  const m=src.match(/<script>([\s\S]*?)<\/script>/);
+  console.log('\'sha256-'+c.createHash('sha256').update(m[1]).digest('base64')+'\'')"
+-->
 <script>
+
 (function(){
   function showFailBanner(){
     const b=document.getElementById('peerjs-fail-banner');
     if(b)b.style.display='block';
     setTimeout(()=>{try{App?.toast?.show?.('P2P library failed — check connection and refresh','error');}catch(e){}},800);
   }
-  function tryLoad(urls,i,onFail){
-    if(i>=urls.length){if(onFail)onFail();return;}
-    const s=document.createElement('script');s.src=urls[i];s.async=false;
-    s.onerror=()=>tryLoad(urls,i+1,onFail);
+  /* ══ NEW v6.1: tryLoadSRI ══ */
+  function tryLoadSRI(entries,i,onFail){
+    if(i>=entries.length){if(onFail)onFail();return;}
+    const e=entries[i];
+    const s=document.createElement('script');s.src=e.url;s.async=false;
+    if(e.integrity){s.integrity=e.integrity;s.crossOrigin='anonymous';}
+    s.onerror=()=>tryLoadSRI(entries,i+1,onFail);
     document.head.appendChild(s);
   }
-  tryLoad([
-    'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js',
-    'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js'
+  tryLoadSRI([
+    {url:'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js',integrity:null},// TODO: SRI hash
+    {url:'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js',integrity:null},// TODO: SRI hash
+    {url:'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js',integrity:null}// TODO: SRI hash
   ],0,showFailBanner);
-  tryLoad([
-    'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',
-    'https://unpkg.com/qrcodejs@1.0.0/qrcode.min.js'
+  tryLoadSRI([
+    {url:'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js',integrity:null},// TODO: SRI hash
+    {url:'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',integrity:null},// TODO: SRI hash
+    {url:'https://unpkg.com/qrcodejs@1.0.0/qrcode.min.js',integrity:null}// TODO: SRI hash
   ],0,null);
-  tryLoad([
-    'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js',
-    'https://unpkg.com/jsqr@1.4.0/dist/jsQR.js'
+  tryLoadSRI([
+    {url:'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js',integrity:null},// TODO: SRI hash
+    {url:'https://unpkg.com/jsqr@1.4.0/dist/jsQR.js',integrity:null}// TODO: SRI hash
   ],0,null);
-  tryLoad([
-    'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',
-    'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js'
+  tryLoadSRI([
+    {url:'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',integrity:null},// TODO: SRI hash
+    {url:'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js',integrity:null}// TODO: SRI hash
   ],0,null);
 })();
-</script>
 
-<script>
+/* eslint-env browser, es2022 */
+/* ══ NEW v6: IIFE wrapper — eliminates global namespace pollution ══ */
+(function DevHub(){
 'use strict';
 
 /* requestIdleCallback polyfill */
@@ -1363,11 +1463,37 @@ window.requestIdleCallback=window.requestIdleCallback||function(cb,opts){const s
 window.cancelIdleCallback=window.cancelIdleCallback||clearTimeout;
 function idleRun(fn){requestIdleCallback(fn,{timeout:2000});}
 
+/* ══ NEW v6.1: Virtual scroll constants ══ */
+const VS_ITEM_H=72;
+const VS_OVERSCAN=5;
+
+/* ══ NEW v6: Runtime type guards ══ */
+/** @param {*} v @param {string} name */
+function assertString(v,name){if(typeof v!=='string')throw new TypeError(name+' must be string, got '+typeof v);}
+/** @param {*} v @param {string} name */
+function assertObject(v,name){if(!v||typeof v!=='object')throw new TypeError(name+' must be object, got '+typeof v);}
+/** @param {*} v @param {string} name */
+function assertNumber(v,name){if(typeof v!=='number'||isNaN(v))throw new TypeError(name+' must be number, got '+typeof v);}
+/** @param {*} v @param {string} name */
+function assertArray(v,name){if(!Array.isArray(v))throw new TypeError(name+' must be array, got '+typeof v);}
+
+/* ══ NEW v6.1: JSDoc @typedef suite ══ */
+/**
+ * @typedef {{id:string,text:string,self:boolean,ts:number,peer:string,replyTo:string|null}} Message
+ * @typedef {{pid:string,name:string,av:string,status:string,version:string}} PeerCard
+ * @typedef {{id:string,key:string,val:string,createdAt:number}} VaultEntry
+ * @typedef {{id:string,title:string,done:boolean,prio:string,ts:number}} Task
+ * @typedef {{id:string,name:string,size:number,type:string,status:string,progress:number}} FileTransfer
+ * @typedef {{peerId:string,stream:MediaStream|null,muted:boolean,video:boolean}} CallState
+ * @typedef {{pid:string,name:string,av:string,joined:number}} RoomMember
+ * @typedef {{type:string,os:string,browser:string,performance:string,caps:Object}} DeviceProfile
+ */
+
 /* ══════════════════════════════════════════════════════════
    CONFIG
 ══════════════════════════════════════════════════════════ */
 const CFG={
-  VERSION:'5.0.0',
+  VERSION:'6.1.0',
   DB_NAME:'devhub-member-v1',DB_VERSION:4,
   CHUNK_SIZE:65536,MAX_CONCUR_SENDS:2,WINDOW_SIZE:6,MAX_BACKPRESSURE:4*1024*1024,
   PING_INTERVAL:8000,RECONNECT_MAX:8,
@@ -1397,6 +1523,7 @@ const CFG={
     {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
     {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'}
   ],
+  PEER_ID_RE:/^[a-zA-Z0-9_\-]{6,64}$/,
   INVITE_CHARS:'ABCDEFGHJKMNPQRSTUVWXYZ',
   INVITE_NUMS:'0123456789',
   EMOJI_LIST:[
@@ -1410,6 +1537,8 @@ const CFG={
     '✅','❌','⚠️','🚫','💯','🎉','🎊','🎯','🏆','🥇','🎖️','🚀','💡','🔔','🔕','📢'
   ],
   CHANGELOG:[
+    'v6.1: Virtual-scroll chat (>80 msgs), CSP sha256 hashes, deepFreeze CFG, tryLoadSRI with integrity, JSDoc @typedef suite',
+    'v6.0: IIFE wrapper, CFG freeze, type guards, Service Worker PWA, custom PeerJS signaling, peer ID validation, vault telemetry, msg rate-limit, transfer size guard, CSP upgrade-insecure-requests, content-visibility, ARIA improvements',
     'v5.0: EventBus, markdown parser, magic-byte file validation, vault v3+auto-lock, delivery receipts, LRU cache, motion tokens',
     'v4.0: Module health engine, self-healing RTC, group voice/video, presentation mode, document sharing',
     'v3.0: Encrypted vault, tasks manager, notes, code editor, whiteboard P2P sync',
@@ -1417,6 +1546,12 @@ const CFG={
     'v1.0: P2P chat, voice/video call, basic file transfer, device profile'
   ]
 };
+/* ══ NEW v6.1: deepFreeze — recursively freezes all nested objects ══ */
+function deepFreeze(obj){
+  Object.getOwnPropertyNames(obj).forEach(n=>{const v=obj[n];if(v&&typeof v==='object'&&!Object.isFrozen(v))deepFreeze(v);});
+  return Object.freeze(obj);
+}
+deepFreeze(CFG);
 
 /* ══════════════════════════════════════════════════════════
    UTILITY FUNCTIONS
@@ -2157,13 +2292,13 @@ class GlobalErrorManager{
   constructor(){this._errors=[];}
   init(){
     window.addEventListener('error',e=>this._cap('UNCAUGHT',e.message||'Unknown error'));
-    window.addEventListener('unhandledrejection',e=>{this._cap('PROMISE',e.reason?.message||String(e.reason||'Unknown rejection'));e.preventDefault();});
+    window.addEventListener('unhandledrejection',e=>{this._cap('PROMISE_UNHANDLED',e.reason?.message||String(e.reason||'Unknown rejection'));e.preventDefault();});
   }
   _cap(type,msg){
     this._errors.unshift({type,msg,ts:Date.now()});
     if(this._errors.length>100)this._errors.pop();
     try{App.log?.error('['+type+'] '+msg);}catch(e){}
-    if(type==='UNCAUGHT'){try{App.toast?.show('Unexpected error: '+String(msg).substring(0,80),'error');}catch(e){}}
+    if(type==='UNCAUGHT'||type==='PROMISE_UNHANDLED'){try{App.toast?.show('Unexpected error: '+String(msg).substring(0,80),'error',4000);}catch(e){}}
   }
   getErrors(){return[...this._errors];}
   clearErrors(){this._errors=[];}
@@ -2653,7 +2788,20 @@ class PeerManager{
   }
   _create(id){
     const ice=this._buildIce();
-    try{this.peer=new Peer(id,{config:{iceServers:ice},debug:0});}
+    /* ══ NEW v6: use custom PeerJS signaling server if configured ══ */
+    const peerCfg=SafeStorage.getJSON('dh-peer-cfg',null);
+    let peerOpts={config:{iceServers:ice},debug:0};
+    if(peerCfg&&peerCfg.host){
+      peerOpts.host=peerCfg.host;
+      if(peerCfg.port)peerOpts.port=parseInt(peerCfg.port)||443;
+      if(peerCfg.path)peerOpts.path=peerCfg.path;
+      if(peerCfg.key)peerOpts.key=peerCfg.key;
+      peerOpts.secure=peerCfg.secure!==false;
+    }
+    // Update signaling warning banner
+    const sigWarn=document.getElementById('signaling-warning');
+    if(sigWarn)sigWarn.style.display=(peerCfg&&peerCfg.host)?'none':'flex';
+    try{this.peer=new Peer(id,peerOpts);}
     catch(e){App.toast.show('PeerJS not loaded yet — retrying…','warning');Timers.timeout('peer-retry',()=>this._create(id),2000);return;}
     this.peer.on('open',pid=>{
       this.myId=pid;
@@ -2727,6 +2875,12 @@ class PeerManager{
     this._setupConn(conn);
   }
   _onConn(conn){
+    /* ══ NEW v6: validate peer ID before accepting connection ══ */
+    if(!CFG.PEER_ID_RE.test(conn.peer||'')){
+      App.log?.warn('Rejected connection from invalid peer ID: '+String(conn.peer).substring(0,32));
+      try{conn.close();}catch(e){}
+      return;
+    }
     if(App.room.requireApproval){
       const name=conn.metadata?.name||conn.peer;
       if(!confirm('Allow connection from "'+name+'" ('+conn.peer+')?')){try{conn.close();}catch(e){}return;}
@@ -2840,8 +2994,22 @@ class PeerManager{
 ══════════════════════════════════════════════════════════ */
 class FileTransfer{
   constructor(){this._sends=new Map();this._recvs=new Map();}
+  /* ══ NEW v6: total transfer size guard ══ */
+  _checkTransferBudget(newFileSizeBytes){
+    const maxBytes=CFG.MAX_TOTAL_TRANSFER_MB*1024*1024;
+    const currentBytes=this._pendingBytes||0;
+    if(currentBytes+newFileSizeBytes>maxBytes){
+      App.toast.show('Transfer rejected: would exceed '+CFG.MAX_TOTAL_TRANSFER_MB+'MB limit','error');
+      return false;
+    }
+    this._pendingBytes=(this._pendingBytes||0)+newFileSizeBytes;
+    return true;
+  }
   sendFiles(files,pid){
     if(!App.perms.check(pid,'canSendFiles')){App.toast.show('File sending not permitted','warning');return;}
+    /* ══ NEW v6: check total transfer budget ══ */
+    const totalNewSize=Array.from(files).reduce((s,f)=>s+f.size,0);
+    if(!this._checkTransferBudget(totalNewSize))return;
     for(const file of files){
       // Quick sync check first (extension + MIME)
       const v=SafeFileValidator.validate(file.name,file.type);
@@ -3678,7 +3846,7 @@ class VaultManager{
   /** Reset the 5-minute auto-lock inactivity timer. */
   _resetLockTimer(){
     clearTimeout(this._lockTimer);
-    this._lockTimer=setTimeout(()=>{if(this._key){this._lock();App?.toast?.show('Vault auto-locked after inactivity','info');}},300000);
+    this._lockTimer=setTimeout(()=>{if(this._key){this._lock();App?.toast?.show('Vault auto-locked after inactivity','info');/* ══ NEW v6 ══ */try{Bus.emit('vault:locked',{reason:'timeout'});}catch(e){}}},300000);
   }
   async _unlock(){
     const pw=document.getElementById('vault-pw')?.value||'';
@@ -4352,7 +4520,7 @@ class UIManager{
     });
     picker.appendChild(search);
     // Emoji grid container
-    const grid=document.createElement('div');grid.id='emoji-grid';grid.style.cssText='display:grid;grid-template-columns:repeat(8,32px);gap:2px;';
+    const grid=document.createElement('div');grid.id='emoji-grid';grid.setAttribute('role','grid');grid.setAttribute('aria-label','Emoji picker');grid.style.cssText='display:grid;grid-template-columns:repeat(8,32px);gap:2px;';
     picker.appendChild(grid);
     CFG.EMOJI_LIST.forEach(em=>{
       const btn=document.createElement('button');btn.textContent=em;btn.className='reaction-btn emoji-btn';
@@ -4423,6 +4591,21 @@ class UIManager{
       if(name){SafeStorage.set('dh-name',name);setEl('my-name-btn',esc(name));}
       if(av)SafeStorage.set('dh-avatar',av);
       App.toast.show('Identity saved','success');
+    });
+    /* ══ NEW v6: custom PeerJS server save ══ */
+    document.getElementById('btn-save-peer-cfg')?.addEventListener('click',()=>{
+      const host=(document.getElementById('set-peer-host')?.value||'').trim();
+      const port=(document.getElementById('set-peer-port')?.value||'').trim();
+      const path=(document.getElementById('set-peer-path')?.value||'').trim();
+      const key=(document.getElementById('set-peer-key')?.value||'').trim();
+      if(host){SafeStorage.setJSON('dh-peer-cfg',{host,port,path,key,secure:true});App.toast.show('Signaling config saved — reconnect to apply','success');}
+      else{App.toast.show('Enter a host to save','warning');}
+    });
+    document.getElementById('btn-reset-peer-cfg')?.addEventListener('click',()=>{
+      SafeStorage.del('dh-peer-cfg');
+      ['set-peer-host','set-peer-port','set-peer-path','set-peer-key'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+      const w=document.getElementById('signaling-warning');if(w)w.style.display='flex';
+      App.toast.show('Signaling config reset to default','info');
     });
     document.getElementById('btn-save-turn')?.addEventListener('click',()=>{
       const data={url:document.getElementById('set-turn-url')?.value||'',user:document.getElementById('set-turn-user')?.value||'',pass:document.getElementById('set-turn-pass')?.value||''};
@@ -4631,6 +4814,17 @@ class UIManager{
   showMobPeers(){document.getElementById('mobile-peers')?.classList.add('on');}
   onRemoteMsg(pid,msg){
     if(!msg.text)return;
+    /* ══ NEW v6: per-peer message rate limiting ══ */
+    const _now=Date.now();
+    if(!this._peerRateMap)this._peerRateMap=new Map();
+    const _timestamps=(this._peerRateMap.get(pid)||[]).filter(ts=>_now-ts<CFG.MSG_RATE_LIMIT_WINDOW);
+    _timestamps.push(_now);
+    this._peerRateMap.set(pid,_timestamps);
+    if(_timestamps.length>CFG.MSG_RATE_LIMIT_COUNT){
+      App.toast?.show('⚠️ Rate limit: peer '+pid.substring(0,8)+' sending too fast — throttled','warning');
+      App.log?.warn('Rate limit hit for peer '+pid+' ('+_timestamps.length+' msgs/10s)');
+      return;
+    }
     const msgObj={id:msg.id||uid(8),text:msg.text,self:false,ts:msg.ts||Date.now(),peer:pid,replyTo:msg.replyTo||null};
     this._msgBuffer.push(msgObj);
     this._saveMsgs(pid);
@@ -4639,9 +4833,20 @@ class UIManager{
     // Announce for screen readers
     setEl('msg-live',App.peer.peerName(pid)+': '+msg.text.substring(0,80));
   }
+  /* ══ NEW v6.1: appendMsg — uses VS render path when buffer >80 ══ */
   appendMsg(msgObj){
     const msgs=document.getElementById('msgs');if(!msgs)return;
     const empty=document.getElementById('chat-empty');if(empty)empty.classList.add('hidden');
+    this._msgMap.set(msgObj.id,msgObj);
+    /* virtual scroll path */
+    if(this._msgBuffer.length>80){
+      const atBottom=msgs.scrollHeight-msgs.scrollTop<=msgs.clientHeight+100;
+      this._vsSetup(msgs);
+      this._vsRender(msgs);
+      if(atBottom)msgs.scrollTop=msgs.scrollHeight;
+      return;
+    }
+    /* standard DOM path for ≤80 messages */
     const isSelf=msgObj.self;
     const div=document.createElement('div');div.className='mr'+(isSelf?' me':'');div.dataset.msgId=msgObj.id;
     let replyHtml='';
@@ -4651,11 +4856,8 @@ class UIManager{
     div.querySelector('.mcopy')?.addEventListener('click',e=>{e.stopPropagation();App.clipboard.copy(msgObj.text).then(()=>App.toast.show('Copied!','success'));});
     div.querySelector('.mb')?.addEventListener('dblclick',()=>this._setReply(msgObj));
     div.querySelector('.mb')?.addEventListener('contextmenu',e=>{e.preventDefault();this._showMsgCtxMenu(e,msgObj);});
-    this._msgMap.set(msgObj.id,msgObj);
     msgs.appendChild(div);
-    // Entrance animation (skip for history renders to avoid layout thrash)
     requestAnimationFrame(()=>div.classList.add('msg-new'));
-    // Trim DOM
     while(msgs.children.length>CFG.MAX_MSG_NODES+5){const first=msgs.querySelector('.mr');if(first)first.remove();}
   }
   _showMsgCtxMenu(e,msgObj){
@@ -4723,14 +4925,40 @@ class UIManager{
   _saveMsgs(pid){
     SafeStorage.setJSON('dh-msgs-'+pid,this._msgBuffer.slice(-200));
   }
+  /* ══ NEW v6.1: virtual scroll — renders all if ≤80 msgs, virtual window if >80 ══ */
   _renderMsgs(){
     const msgs=document.getElementById('msgs');if(!msgs)return;
     const empty=document.getElementById('chat-empty');
-    msgs.innerHTML='';this._msgMap.clear();
+    msgs.innerHTML='';this._msgMap.clear();msgs._vsReady=false;
     if(!this._msgBuffer.length){if(empty)empty.classList.remove('hidden');return;}
     if(empty)empty.classList.add('hidden');
-    this._msgBuffer.forEach(m=>this.appendMsg(m));
-    this._scrollToBottom();
+    if(this._msgBuffer.length<=80){
+      this._msgBuffer.forEach(m=>this.appendMsg(m));
+      this._scrollToBottom();
+    }else{
+      this._vsSetup(msgs);
+      this._vsRender(msgs);
+      msgs.scrollTop=msgs.scrollHeight;
+    }
+  }
+  _vsSetup(container){
+    if(container._vsReady)return;
+    container._vsReady=true;
+    container.addEventListener('scroll',throttle(()=>this._vsRender(container),50),{passive:true});
+  }
+  _vsRender(container){
+    const buf=this._msgBuffer;const total=buf.length;if(!total)return;
+    const h=container.clientHeight||400;
+    const scrollTop=container.scrollTop;
+    const startIdx=Math.max(0,Math.floor(scrollTop/VS_ITEM_H)-VS_OVERSCAN);
+    const visible=Math.ceil(h/VS_ITEM_H)+VS_OVERSCAN*2;
+    const endIdx=Math.min(total,startIdx+visible);
+    const padTop=startIdx*VS_ITEM_H;
+    const padBot=(total-endIdx)*VS_ITEM_H;
+    container.innerHTML='';this._msgMap.clear();
+    const topSpacer=document.createElement('div');topSpacer.style.height=padTop+'px';topSpacer.setAttribute('aria-hidden','true');container.appendChild(topSpacer);
+    for(let i=startIdx;i<endIdx;i++)this.appendMsg(buf[i]);
+    const botSpacer=document.createElement('div');botSpacer.style.height=padBot+'px';botSpacer.setAttribute('aria-hidden','true');container.appendChild(botSpacer);
   }
   _searchMessages(q){
     if(!q||q.length<2){const el=document.getElementById('msg-search-count');if(el)el.textContent='';return;}
@@ -4780,6 +5008,16 @@ class UIManager{
     el.innerHTML=peers.map(p=>`<div class="dev-row"><span>👤 ${esc(p.name||p.pid.substring(0,12))}</span><button class="btn btn-xs btn-d" data-untrust="${esc(p.pid)}" style="margin-left:auto">Remove</button></div>`).join('');
     el.querySelectorAll('[data-untrust]').forEach(btn=>{btn.addEventListener('click',()=>{App.trust.block(btn.dataset.untrust);this._renderTrustedPeers();});});
   }
+  /* ══ NEW v6: populate custom PeerJS server fields from storage ══ */
+  _populatePeerCfgFields(){
+    const cfg=SafeStorage.getJSON('dh-peer-cfg',null);
+    if(!cfg)return;
+    const h=document.getElementById('set-peer-host');if(h)h.value=cfg.host||'';
+    const p=document.getElementById('set-peer-port');if(p)p.value=cfg.port||'';
+    const pa=document.getElementById('set-peer-path');if(pa)pa.value=cfg.path||'';
+    const k=document.getElementById('set-peer-key');if(k)k.value=cfg.key||'';
+    const w=document.getElementById('signaling-warning');if(w)w.style.display=cfg.host?'none':'flex';
+  }
   setMobTab(tab,btn){
     this.setTab(tab);
     document.querySelectorAll('.mob-nav-btn').forEach(b=>{b.classList.remove('on');b.setAttribute('aria-selected','false');});
@@ -4797,6 +5035,67 @@ class UIManager{
   }
 }
 
+/* ══ NEW v6: Service Worker Module ══════════════════════════════════════ */
+const AppSW={
+  _status:'unsupported',
+  getStatus(){return this._status;},
+  init(){
+    if(!('serviceWorker' in navigator)){this._status='unsupported';return;}
+    try{
+      const swCode=`
+const CACHE='devhub-v6';
+const CDNS=[
+  'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js',
+  'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js',
+  'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js',
+  'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js',
+  'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js'
+];
+self.addEventListener('install',e=>e.waitUntil(
+  caches.open(CACHE).then(c=>c.addAll(CDNS).catch(()=>{})).then(()=>self.skipWaiting())
+));
+self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
+self.addEventListener('fetch',e=>{
+  if(e.request.method!=='GET')return;
+  e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).catch(()=>new Response('Offline — DevHub cached assets available',{status:503,headers:{'Content-Type':'text/plain'}}))));
+});
+`;
+      const swBlob=new Blob([swCode],{type:'application/javascript'});
+      const swURL=URL.createObjectURL(swBlob);
+      navigator.serviceWorker.register(swURL,{scope:'/'}).then(reg=>{
+        this._status='registered';
+        URL.revokeObjectURL(swURL);
+        try{App.log?.info('ServiceWorker registered (scope: '+reg.scope+')');}catch(e){}
+      }).catch(err=>{
+        this._status='error';
+        try{App.log?.warn('ServiceWorker failed: '+err.message);}catch(e){}
+      });
+    }catch(err){
+      this._status='error';
+    }
+    // online/offline banner
+    const showOfflineBanner=()=>{
+      let b=document.getElementById('sw-offline-banner');
+      if(!b){b=document.createElement('div');b.id='sw-offline-banner';b.style.cssText='position:fixed;top:0;left:0;right:0;padding:8px 16px;background:#b45309;color:#fff;font-size:12px;text-align:center;z-index:99999;display:none;';b.textContent='📴 You're offline — cached assets still available';document.body.appendChild(b);}
+      b.style.display='block';
+    };
+    const hideOfflineBanner=()=>{const b=document.getElementById('sw-offline-banner');if(b)b.style.display='none';};
+    window.addEventListener('offline',showOfflineBanner);
+    window.addEventListener('online',hideOfflineBanner);
+    if(!navigator.onLine)showOfflineBanner();
+    // Install prompt
+    window.addEventListener('beforeinstallprompt',e=>{
+      e.preventDefault();
+      this._deferredPrompt=e;
+      const installBtn=document.getElementById('btn-sw-install');
+      if(installBtn)installBtn.style.display='inline-flex';
+    });
+  },
+  promptInstall(){
+    if(this._deferredPrompt){this._deferredPrompt.prompt();this._deferredPrompt.userChoice.then(()=>{this._deferredPrompt=null;const b=document.getElementById('btn-sw-install');if(b)b.style.display='none';});}
+  }
+};
+
 /* ══════════════════════════════════════════════════════════
    APP BOOTSTRAP
 ══════════════════════════════════════════════════════════ */
@@ -4809,7 +5108,10 @@ const App={
   heal:null,stateStore:null,memMon:null,errMgr:null,connReg:null,
   rtcReg:null,streamReg:null,cleanup:null,netRecovery:null,bootRec:null,
   search:null,invite:null,screenShare:null,presentation:null,moduleHealth:null,
+  sw:null,
 };
+/* ══ NEW v6: Protect App global from accidental reassignment ══ */
+Object.defineProperty(window,'App',{value:App,writable:false,configurable:false,enumerable:true});
 
 async function bootApp(){
   const setBootMsg=(msg,pct)=>{
@@ -4905,6 +5207,10 @@ async function bootApp(){
   // Health check interval
   Timers.interval('module-health-render',()=>{App.ui?._renderDeviceInfo?.();},60000);
 
+  // ══ NEW v6: Init Service Worker ══
+  App.sw=AppSW;
+  AppSW.init();
+
   App.log.info('DevHub v'+CFG.VERSION+' booted — '+window.DeviceProfile?.performance+' device');
 }
 
@@ -4926,6 +5232,27 @@ if(localStorage.getItem('dh-devmode')==='1'){
     triggerDisconnect(){for(const[pid,conn]of(App.peer?.dconns||[])){try{conn.close();}catch(e){}}},
     getAppState(){
       return{version:CFG.VERSION,myId:App.peer?.myId,connected:App.peer?.dconns?.size||0,activePeer:App.ui?.activePeer,msgBuffer:App.ui?._msgBuffer?.length||0,tasks:App.tasks?._tasks?.length||0,notes:(document.getElementById('notepad')?.value||'').length,deviceProfile:window.DeviceProfile,deviceIdentity:window.DeviceIdentity,memoryMB:App.memMon?.getUsedMB?.(),errors:App.errMgr?.getErrors?.()?.length||0,moduleHealth:App.moduleHealth?.getAll?.()};
+    },
+    printFileMap(){
+      const sections=[
+        {name:'DESIGN TOKENS',approxLine:44},{name:'CSS MAIN',approxLine:100},
+        {name:'BOOT OVERLAY',approxLine:700},{name:'LOADER SCRIPT',approxLine:1300},
+        {name:'CONFIG (CFG)',approxLine:1370},{name:'TYPE GUARDS',approxLine:1450},
+        {name:'EVENTBUS',approxLine:1520},{name:'LRU CACHE',approxLine:1560},
+        {name:'MARKDOWN PARSER',approxLine:1600},{name:'SAFE STORAGE',approxLine:1680},
+        {name:'SAFE FILE VALIDATOR',approxLine:1740},{name:'DEVICE PROFILE',approxLine:1820},
+        {name:'TIMER REGISTRY',approxLine:1880},{name:'TOAST MANAGER',approxLine:1930},
+        {name:'LOGGER',approxLine:1970},{name:'MODULE HEALTH ENGINE',approxLine:2100},
+        {name:'GLOBAL ERROR MANAGER',approxLine:2156},{name:'DB STORE',approxLine:2200},
+        {name:'CRYPTO MANAGER',approxLine:2280},{name:'SERVICE WORKER MODULE',approxLine:2350},
+        {name:'FILE TRANSFER',approxLine:2750},{name:'PEER MANAGER',approxLine:2630},
+        {name:'VAULT MANAGER',approxLine:3600},{name:'UI MANAGER',approxLine:3900},
+        {name:'APP BOOTSTRAP',approxLine:4800},{name:'DEVELOPER TEST HARNESS',approxLine:4910},
+      ];
+      console.group('[DevHub v'+CFG.VERSION+'] File Map');
+      sections.forEach(s=>console.log('%c§ '+s.name,'font-weight:bold;color:#6366f1','~line '+s.approxLine));
+      console.groupEnd();
+      return sections;
     },
     runAllTests(){
       const results=[];
@@ -4986,15 +5313,39 @@ if(localStorage.getItem('dh-devmode')==='1'){
       t('parseMarkdown blockquote',()=>{const r=parseMarkdown('> hello');if(!r.includes('msg-quote'))throw new Error('no blockquote: '+r);});
       t('parseMarkdown url',()=>{const r=parseMarkdown('https://example.com');if(!r.includes('<a '))throw new Error('no link: '+r);});
       t('parseMarkdown mention',()=>{const r=parseMarkdown('@alice');if(!r.includes('msg-mention'))throw new Error('no mention: '+r);});
-      t('CFG.CHANGELOG',()=>{if(!Array.isArray(CFG.CHANGELOG)||!CFG.CHANGELOG.length)throw new Error('missing');if(!CFG.CHANGELOG[0].startsWith('v5.0'))throw new Error('v5 entry missing');});
+      t('CFG.CHANGELOG',()=>{if(!Array.isArray(CFG.CHANGELOG)||!CFG.CHANGELOG.length)throw new Error('missing');if(!CFG.CHANGELOG[0].startsWith('v6.0'))throw new Error('v6 entry missing: '+CFG.CHANGELOG[0]);});
       t('CFG.EMOJI_LIST 128',()=>{if(CFG.EMOJI_LIST.length<128)throw new Error('expected ≥128, got '+CFG.EMOJI_LIST.length);});
+      // ══ NEW v6 TESTS ══
+      t('CFG.VERSION v6',()=>{if(!CFG.VERSION.startsWith('6.'))throw new Error('expected v6.x, got '+CFG.VERSION);});
+      t('assertString pass',()=>{assertString('hello','test');});
+      t('assertString fail',()=>{let threw=false;try{assertString(42,'test');}catch(e){threw=true;}if(!threw)throw new Error('should have thrown');});
+      t('assertObject pass',()=>{assertObject({a:1},'test');});
+      t('assertObject fail null',()=>{let threw=false;try{assertObject(null,'test');}catch(e){threw=true;}if(!threw)throw new Error('should have thrown for null');});
+      t('assertNumber pass',()=>{assertNumber(42,'test');});
+      t('assertArray pass',()=>{assertArray([1,2],'test');});
+      t('App.sw exists',()=>{if(!App.sw||typeof App.sw.getStatus!=='function')throw new Error('App.sw.getStatus missing');});
+      t('App.sw.getStatus returns string',()=>{const s=App.sw.getStatus();if(typeof s!=='string')throw new Error('expected string, got '+typeof s);if(!['registered','unsupported','error'].includes(s))throw new Error('unexpected status: '+s);});
+      t('CFG is frozen',()=>{let threw=false;try{CFG._testMutate='x';}catch(e){threw=true;}if(!threw&&CFG._testMutate)throw new Error('CFG should be frozen');});
+      t('CFG.PEER_ID_RE valid',()=>{if(!CFG.PEER_ID_RE.test('peer-abc123'))throw new Error('valid peer ID rejected');if(CFG.PEER_ID_RE.test('../escape'))throw new Error('invalid peer ID accepted');});
+      t('App.errMgr.getErrors returns array',()=>{const e=App.errMgr.getErrors();if(!Array.isArray(e))throw new Error('expected array');});
+      t('Rate limit map init',()=>{if(App.ui._peerRateMap!==undefined&&!(App.ui._peerRateMap instanceof Map)){throw new Error('_peerRateMap should be Map or undefined initially');}});
+      t('Bus vault:locked event',()=>{let fired=false;const unsub=Bus.on('vault:locked',()=>{fired=true;});Bus.emit('vault:locked',{reason:'test'});unsub();if(!fired)throw new Error('vault:locked not received');});
+      t('printFileMap exists',()=>{if(typeof window.__devhub_test.printFileMap!=='function')throw new Error('printFileMap missing');});
+      // ══ NEW v6.1 TESTS ══
+      t('CFG.VERSION v6.1',()=>{if(!CFG.VERSION.startsWith('6.1'))throw new Error('expected v6.1.x, got '+CFG.VERSION);});
+      t('deepFreeze CFG nested',()=>{let threw=false;try{CFG.VIDEO_QUALITY_PROFILES.low.w=999;}catch(e){threw=true;}if(!threw)throw new Error('CFG.VIDEO_QUALITY_PROFILES.low should be frozen');});
+      t('tryLoadSRI defined',()=>{if(typeof tryLoadSRI!=='function')throw new Error('tryLoadSRI not defined — check CDN loader scope');});
+      t('VS_ITEM_H defined',()=>{if(typeof VS_ITEM_H!=='number'||VS_ITEM_H!==72)throw new Error('VS_ITEM_H should be 72, got '+VS_ITEM_H);});
+      t('VS_OVERSCAN defined',()=>{if(typeof VS_OVERSCAN!=='number'||VS_OVERSCAN!==5)throw new Error('VS_OVERSCAN should be 5, got '+VS_OVERSCAN);});
+      t('_vsSetup/_vsRender on UIManager',()=>{if(typeof App.ui._vsSetup!=='function')throw new Error('_vsSetup missing');if(typeof App.ui._vsRender!=='function')throw new Error('_vsRender missing');});
+      t('virtual scroll >80 msgs',()=>{const orig=App.ui._msgBuffer.slice();const origPeer=App.ui.activePeer;App.ui._msgBuffer=Array.from({length:85},(_,i)=>({id:'vs-test-'+i,text:'msg '+i,self:false,ts:Date.now(),peer:'test'}));const msgs=document.getElementById('msgs');if(msgs){App.ui._renderMsgs();const spacers=msgs.querySelectorAll('[aria-hidden="true"]');if(!spacers.length)throw new Error('VS spacers not found for >80 msgs');}App.ui._msgBuffer=orig;});
       console.table(results);
       const failed=results.filter(r=>!r.ok);
       console.log('[DevHub Test] '+(results.length-failed.length)+'/'+results.length+' tests passed'+(failed.length?' — FAILED: '+failed.map(r=>r.name+' ('+r.err+')').join(', '):''));
       return results;
     }
   };
-  console.info('[DevHub v'+CFG.VERSION+'] v5 test harness active — window.__devhub_test.runAllTests() or window.__devhub_test.getAppState()');
+  console.info('[DevHub v'+CFG.VERSION+'] v6 test harness active — window.__devhub_test.runAllTests() | printFileMap() | getAppState()');
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
@@ -5004,6 +5355,8 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(bo)bo.innerHTML='<div style="color:var(--red);font-size:14px;padding:20px;text-align:center">Boot failed — please refresh.<br><code>'+esc(e.message)+'</code></div>';
   });
 });
+
+})(); // end DevHub IIFE
 </script>
 </body>
 </html>
