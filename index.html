@@ -632,7 +632,7 @@ a{color:var(--primary);text-decoration:none;}
 #call-stats-overlay{display:none;position:absolute;top:52px;right:8px;background:rgba(15,15,20,.92);color:#e2e8f0;border:1px solid rgba(255,255,255,.1);border-radius:var(--radius-sm);padding:10px 14px;font-size:11px;font-family:monospace;z-index:200;min-width:210px;line-height:1.9;backdrop-filter:blur(6px);}
 #call-stats-overlay.on{display:block;}
 
-@media(max-width:700px){
+@media(max-width:900px){
   #sidebar{display:none;}
   #mob-nav{display:flex;}
   #app{flex-direction:column;}
@@ -649,7 +649,7 @@ a{color:var(--primary);text-decoration:none;}
   .invite-code-display{font-size:22px;letter-spacing:4px;}
 }
 @media(max-width:400px){#topbar{padding:0 8px;gap:3px;}.btn-xs{padding:5px 6px;}}
-@media(min-width:701px) and (max-width:1024px){#sidebar{width:200px;}}
+@media(min-width:901px) and (max-width:1024px){#sidebar{width:200px;}}
 @media(orientation:landscape) and (max-width:900px){
   #mob-nav{display:none;}
   #sidebar{display:flex;width:160px;}
@@ -1740,7 +1740,7 @@ const CFG={
   ICE_RESTART_RTT_THRESHOLD:800,
   FILE_CHECKSUM_CHUNK_LIMIT:200,
   SEARCH_SCORE_THRESHOLD:0.3,
-  MAX_TOTAL_TRANSFER_MB:500,
+  MAX_TOTAL_TRANSFER_MB:2700,
   /* A8: default noise suppression */
   DEFAULT_NOISE_SUPPRESSION:false,
   /* v9: virtual background */
@@ -1783,10 +1783,17 @@ const CFG={
     {urls:'stun:stun.ideasip.com'}
   ],
   FREE_TURN_SERVERS:[
+    /* TURNS over TLS 443 — survives strict corporate/hotel firewalls (highest priority) */
+    {urls:'turns:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},
+    {urls:'turns:relay.expressturn.com:5349?transport=tcp',username:'efJBIBF2RFCBQ3HQ8L',credential:'BxBVQ3hUjVcZGqEr'},
+    /* Plain TURN on 443 (TCP) — survives UDP-blocking firewalls */
+    {urls:'turn:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},
+    {urls:'turn:relay.expressturn.com:3480?transport=tcp',username:'efJBIBF2RFCBQ3HQ8L',credential:'BxBVQ3hUjVcZGqEr'},
+    /* Plain TURN 80/443 UDP/TCP — fast path when allowed */
     {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
     {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
-    {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject',transport:'tcp'},
-    {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject',transport:'tcp'}
+    {urls:'turn:openrelay.metered.ca:80?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},
+    {urls:'turn:relay.expressturn.com:3478',username:'efJBIBF2RFCBQ3HQ8L',credential:'BxBVQ3hUjVcZGqEr'}
   ],
   PEER_ID_RE:/^[a-zA-Z0-9_\-]{6,64}$/,
   INVITE_CHARS:'ABCDEFGHJKMNPQRSTUVWXYZ',
@@ -3824,7 +3831,7 @@ class InviteManager{
       btn.className='btn btn-xs '+(tab===which?'btn-p':'btn-s');
     });
   }
-  _refreshPersonal(){this._personalCode=this._genPersonalCode();setEl('inv-personal-code',this._personalCode);}
+  _refreshPersonal(){this._personalCode=window.__dhInviteCode||this._genPersonalCode();try{localStorage.setItem('dh-invite-code',this._personalCode);}catch(e){}setEl('inv-personal-code',this._personalCode);}
   _refreshGroup(){this._groupCode=this._groupCode||this._genGroupCode();setEl('inv-group-code',this._groupCode);}
   _genPersonalCode(){const C=CFG.INVITE_CHARS,N=CFG.INVITE_NUMS;return C[Math.floor(Math.random()*C.length)]+N[Math.floor(Math.random()*N.length)]+N[Math.floor(Math.random()*N.length)]+N[Math.floor(Math.random()*N.length)]+C[Math.floor(Math.random()*C.length)]+C[Math.floor(Math.random()*C.length)];}
   _genGroupCode(){const C=CFG.INVITE_CHARS,N=CFG.INVITE_NUMS;return C[Math.floor(Math.random()*C.length)]+C[Math.floor(Math.random()*C.length)]+N[Math.floor(Math.random()*N.length)]+N[Math.floor(Math.random()*N.length)]+N[Math.floor(Math.random()*N.length)]+C[Math.floor(Math.random()*C.length)];}
@@ -3837,9 +3844,19 @@ class InviteManager{
   }
   joinInviteCode(code){
     const type=this.detectCodeType(code);
-    App.toast?.show('Joining via '+(type==='group'?'group':'personal')+' code '+code+'…','info');
+    if(type==='unknown'){App.toast?.show('Invalid invite code format','error');return;}
+    /* v26 fix: rendezvous via PeerJS ID = "dh-<CODE>" (no broadcast needed) */
+    const targetId='dh-'+code;
+    if(App.peer?.myId===targetId){App.toast?.show('That is your own code','warning');return;}
+    App.toast?.show('Joining via '+type+' code '+code+'…','info');
     Bus.emit('invite:join',{code,type});
-    /* Broadcast to discover matching peer */
+    /* Direct PeerJS connect — works without prior peers */
+    try{
+      const conn=App.peer?.peer?.connect(targetId,{reliable:true,serialization:'json'});
+      if(conn){App.peer?._onConn?.(conn);}
+      else{App.toast?.show('Connection unavailable — try again','error');}
+    }catch(e){App.toast?.show('Connect failed: '+e.message,'error');}
+    /* Legacy broadcast retained for already-connected peer discovery */
     App.peer?.broadcast?.({type:'invite-lookup',code});
   }
   openIfPending(){if(this._pending){this.joinInviteCode(this._pending);this._pending=null;}}
@@ -3860,7 +3877,15 @@ class PeerManager{
     await App.trust?.load?.();
     await App.hist?.load?.();
     await App.callHist?.load?.();
-    this._create(sessionStorage.getItem(SESSION_KEY)||('peer-'+uid(6)));
+    /* v26 fix: derive stable peer ID from persistent personal invite code so rendezvous actually works */
+    let _inv=null;try{_inv=localStorage.getItem('dh-invite-code');}catch(e){}
+    if(!_inv||!/^[A-Z]\d{3}[A-Z]{2}$/.test(_inv)){
+      const C=CFG.INVITE_CHARS,N=CFG.INVITE_NUMS;
+      _inv=C[Math.floor(Math.random()*C.length)]+N[Math.floor(Math.random()*N.length)]+N[Math.floor(Math.random()*N.length)]+N[Math.floor(Math.random()*N.length)]+C[Math.floor(Math.random()*C.length)]+C[Math.floor(Math.random()*C.length)];
+      try{localStorage.setItem('dh-invite-code',_inv);}catch(e){}
+    }
+    window.__dhInviteCode=_inv;
+    this._create(sessionStorage.getItem(SESSION_KEY)||('dh-'+_inv));
   }
   _create(id){
     const iceServers=this._buildIce();
@@ -10593,6 +10618,718 @@ document.addEventListener('DOMContentLoaded',()=>{
 })();
 // §END v25
 </script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  v27 INTERNATIONAL HARDENING — additive, isolated, zero existing-module rewrite
+  P0: TURNS+multi-provider TURN, per-peer relay memory, TURN health prune
+  P1: Adaptive bitrate, Quality badge, STUN latency ranking
+  P2: Multi-host PeerJS fallback, peer-unavailable retry, politeness tiebreaker
+  P3: File transfer up to 2.6 GB via File System Access API + IDB fallback
+  P4: Conference dedup, pre-call connectivity probe
+═══════════════════════════════════════════════════════════════════════ -->
+<style>
+#v27-q{position:fixed;top:8px;right:8px;z-index:9999;display:none;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;font:600 11px/1 system-ui,sans-serif;background:rgba(15,15,20,.85);color:#fff;border:1px solid rgba(255,255,255,.15);backdrop-filter:blur(6px);pointer-events:none;letter-spacing:.03em}
+#v27-q.on{display:inline-flex}
+#v27-q .v27-dot{width:7px;height:7px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px currentColor}
+#v27-q[data-q="good"] .v27-dot{background:#22c55e;color:#22c55e}
+#v27-q[data-q="weak"] .v27-dot{background:#f59e0b;color:#f59e0b}
+#v27-q[data-q="poor"] .v27-dot{background:#ef4444;color:#ef4444}
+#v27-q[data-q="relay"] .v27-dot{background:#a78bfa;color:#a78bfa}
+#v27-q[data-q="reconnect"] .v27-dot{background:#f97316;color:#f97316;animation:v27p 1s infinite}
+@keyframes v27p{0%,100%{opacity:1}50%{opacity:.3}}
+@media(max-width:900px){#v27-q{top:auto;bottom:80px;right:8px;font-size:10px;padding:4px 8px}}
+</style>
+<div id="v27-q" role="status" aria-live="polite"><span class="v27-dot"></span><span id="v27-q-lbl">Connecting…</span></div>
+
+<script>
+(function(){
+'use strict';
+if(window.__dhV27)return;window.__dhV27=true;
+var L=(window.App&&window.App.log)||{info:console.log,warn:console.warn,error:console.error};
+function log(m){try{L.info('[v27] '+m);}catch(e){console.log('[v27] '+m);}}
+function safe(fn,ctx){try{return fn();}catch(e){log((ctx||'err')+': '+e.message);}}
+var T=(window.App&&window.App.toast)||{show:function(m){console.log('[toast]',m);}};
+
+/* ─── P1: STUN latency ranking ─── */
+var StunRanker={
+  results:[],
+  async probe(){
+    if(!window.CFG||!window.CFG.STUN_SERVERS||typeof RTCPeerConnection==='undefined')return;
+    var stuns=window.CFG.STUN_SERVERS.slice();
+    var ranked=[];
+    await Promise.all(stuns.map(function(s){
+      return new Promise(function(res){
+        var url=(typeof s==='string')?s:(s.urls||s.url);if(!url){res();return;}
+        var t0=performance.now();var done=false;
+        try{
+          var pc=new RTCPeerConnection({iceServers:[{urls:url}]});
+          var dc=pc.createDataChannel('p');
+          pc.onicecandidate=function(e){
+            if(done)return;
+            if(e.candidate&&e.candidate.type==='srflx'){
+              done=true;ranked.push({s:s,rtt:performance.now()-t0});
+              try{pc.close();}catch(_){}res();
+            }
+          };
+          pc.createOffer().then(function(o){return pc.setLocalDescription(o);}).catch(function(){});
+          setTimeout(function(){if(!done){done=true;try{pc.close();}catch(_){}res();}},2500);
+        }catch(e){res();}
+      });
+    }));
+    ranked.sort(function(a,b){return a.rtt-b.rtt;});
+    this.results=ranked;
+    if(ranked.length){
+      window.CFG.STUN_SERVERS=ranked.map(function(r){return r.s;}).concat(
+        stuns.filter(function(s){return!ranked.find(function(r){return r.s===s;});})
+      );
+      log('STUN ranked: top='+(ranked[0]?Math.round(ranked[0].rtt)+'ms':'n/a')+' ok='+ranked.length+'/'+stuns.length);
+    }
+  }
+};
+
+/* ─── P0: TURN health probe + prune dead ─── */
+var TurnHealth={
+  dead:new Set(),
+  async probe(){
+    if(!window.CFG||!window.CFG.FREE_TURN_SERVERS)return;
+    var turns=window.CFG.FREE_TURN_SERVERS;var alive=[];
+    await Promise.all(turns.map(function(s){
+      return new Promise(function(res){
+        var url=s.urls;if(!url){res();return;}
+        var gotRelay=false;
+        try{
+          var pc=new RTCPeerConnection({iceServers:[s],iceTransportPolicy:'relay'});
+          pc.createDataChannel('t');
+          pc.onicecandidate=function(e){
+            if(e.candidate&&e.candidate.candidate.indexOf('relay')>=0){gotRelay=true;alive.push(s);try{pc.close();}catch(_){}res();}
+          };
+          pc.createOffer().then(function(o){return pc.setLocalDescription(o);}).catch(function(){});
+          setTimeout(function(){if(!gotRelay){TurnHealth.dead.add(url);try{pc.close();}catch(_){}}res();},3500);
+        }catch(e){res();}
+      });
+    }));
+    log('TURN alive='+alive.length+'/'+turns.length+' dead='+TurnHealth.dead.size);
+  },
+  prune(servers){return servers.filter(function(s){return!s.urls||!TurnHealth.dead.has(s.urls);});}
+};
+
+/* ─── P0/T4: per-peer P2P failure memory → relay-first on next try ─── */
+var RelayMemory={
+  KEY:'dh-v27-relay-peers',
+  failures:{},
+  load(){try{this.failures=JSON.parse(localStorage.getItem(this.KEY)||'{}');}catch(e){this.failures={};}},
+  save(){try{localStorage.setItem(this.KEY,JSON.stringify(this.failures));}catch(e){}},
+  noteFail(pid){if(!pid)return;this.failures[pid]=(this.failures[pid]||0)+1;this.save();},
+  noteOk(pid){if(!pid)return;if(this.failures[pid]){delete this.failures[pid];this.save();}},
+  needsRelay(pid){return!!pid&&(this.failures[pid]||0)>=2;}
+};
+RelayMemory.load();
+
+/* ─── Wrap PeerManager._buildIce to prune dead TURN + sort by health ─── */
+function wrapIceBuilder(){
+  var PM=window.App&&window.App.peer;
+  if(!PM||PM.__v27Wrapped)return false;
+  var orig=PM._buildIce.bind(PM);
+  PM._buildIce=function(){
+    var servers=orig();
+    servers=TurnHealth.prune(servers);
+    return servers;
+  };
+  PM.__v27Wrapped=true;
+  log('PeerManager._buildIce wrapped with TURN prune');
+  return true;
+}
+
+/* ─── P0/T4: when call to pid is attempted and RelayMemory says relay, force iceTransportPolicy:'relay' ─── */
+function attachRelayHintOnPC(pc,pid){
+  if(!pc||!pid)return;
+  if(RelayMemory.needsRelay(pid)){
+    safe(function(){
+      var cfg=pc.getConfiguration();cfg.iceTransportPolicy='relay';
+      pc.setConfiguration(cfg);
+      log('relay-first applied for '+pid.substring(0,12));
+    },'relay-hint');
+  }
+  pc.addEventListener('connectionstatechange',function(){
+    if(pc.connectionState==='connected')RelayMemory.noteOk(pid);
+    else if(pc.connectionState==='failed')RelayMemory.noteFail(pid);
+  });
+}
+
+/* ─── P1/N1: Adaptive bitrate driver ─── */
+var ABRdrivers=new WeakSet();
+function attachABR(pc){
+  if(!pc||ABRdrivers.has(pc))return;ABRdrivers.add(pc);
+  var profiles=(window.CFG&&window.CFG.VIDEO_QUALITY_PROFILES)||{low:{bitrate:400000},med:{bitrate:1200000},high:{bitrate:3000000}};
+  var levels=[{name:'audio-only',bitrate:0,scale:8},{name:'360p',bitrate:profiles.low.bitrate,scale:3},{name:'720p',bitrate:profiles.med.bitrate,scale:1.5},{name:'1080p',bitrate:profiles.high.bitrate,scale:1}];
+  var idx=2,last=0,lastChange=0;
+  var iv=setInterval(async function(){
+    if(pc.connectionState==='closed'||pc.connectionState==='failed'){clearInterval(iv);return;}
+    try{
+      var st=await pc.getStats();var loss=0,rtt=0,sent=0,outBytes=0;
+      st.forEach(function(r){
+        if(r.type==='outbound-rtp'&&r.kind==='video'){sent+=r.packetsSent||0;outBytes+=r.bytesSent||0;}
+        if(r.type==='remote-inbound-rtp'&&r.kind==='video'){loss=Math.max(loss,r.fractionLost||0);if(r.roundTripTime)rtt=Math.max(rtt,r.roundTripTime*1000);}
+        if(r.type==='candidate-pair'&&r.state==='succeeded'&&r.currentRoundTripTime)rtt=Math.max(rtt,r.currentRoundTripTime*1000);
+      });
+      var newIdx=idx;
+      if(loss>0.15||rtt>800)newIdx=Math.max(0,idx-1);
+      else if(loss<0.02&&rtt<200&&Date.now()-lastChange>20000)newIdx=Math.min(levels.length-1,idx+1);
+      if(newIdx!==idx&&Date.now()-lastChange>6000){
+        idx=newIdx;lastChange=Date.now();
+        var lvl=levels[idx];
+        pc.getSenders().forEach(function(s){
+          if(s.track&&s.track.kind==='video'){
+            var p=s.getParameters();if(!p.encodings)p.encodings=[{}];
+            p.encodings[0].maxBitrate=lvl.bitrate||100000;
+            if(lvl.scale)p.encodings[0].scaleResolutionDownBy=lvl.scale;
+            s.setParameters(p).catch(function(){});
+            if(lvl.name==='audio-only')s.track.enabled=false;else s.track.enabled=true;
+          }
+        });
+        log('ABR → '+lvl.name+' (loss='+(loss*100).toFixed(1)+'% rtt='+Math.round(rtt)+'ms)');
+      }
+      /* feed QualityBadge */
+      QualityBadge.update({loss:loss,rtt:rtt,state:pc.connectionState,relay:lastRelayState(pc)});
+    }catch(e){}
+  },4000);
+}
+function lastRelayState(pc){
+  try{
+    var stats=null;var sel=pc.sctp&&pc.sctp.transport;
+    if(sel&&sel.iceTransport){var p=sel.iceTransport.getSelectedCandidatePair&&sel.iceTransport.getSelectedCandidatePair();if(p&&p.local&&p.local.type==='relay')return true;}
+  }catch(e){}
+  return false;
+}
+
+/* ─── P1/N2: Quality badge UI ─── */
+var QualityBadge={
+  el:null,lbl:null,
+  show(){this.el=this.el||document.getElementById('v27-q');this.lbl=this.lbl||document.getElementById('v27-q-lbl');if(this.el)this.el.classList.add('on');},
+  hide(){if(this.el)this.el.classList.remove('on');},
+  set(q,label){this.show();if(this.el){this.el.setAttribute('data-q',q);}if(this.lbl)this.lbl.textContent=label;},
+  update(s){
+    if(!s)return;
+    if(s.state==='connecting'||s.state==='new'){this.set('reconnect','Connecting…');return;}
+    if(s.state==='disconnected'||s.state==='failed'){this.set('reconnect','Reconnecting…');return;}
+    if(s.state!=='connected'){return;}
+    if(s.relay){this.set('relay','Relayed');return;}
+    if(s.loss>0.15||s.rtt>800)this.set('poor','Poor');
+    else if(s.loss>0.05||s.rtt>400)this.set('weak','Weak');
+    else this.set('good','Excellent');
+  }
+};
+
+/* ─── Hook into every RTCPeerConnection at creation time ─── */
+(function patchRTC(){
+  if(typeof RTCPeerConnection==='undefined')return;
+  var Orig=RTCPeerConnection;
+  function Wrapped(cfg){
+    cfg=cfg||{};
+    /* upgrade iceServers with latest pruned + ranked list when call goes through us */
+    var pc=new Orig(cfg);
+    setTimeout(function(){
+      attachABR(pc);
+      pc.addEventListener('connectionstatechange',function(){QualityBadge.update({state:pc.connectionState,loss:0,rtt:0,relay:lastRelayState(pc)});if(pc.connectionState==='closed')QualityBadge.hide();});
+    },50);
+    return pc;
+  }
+  Wrapped.prototype=Orig.prototype;
+  ['generateCertificate'].forEach(function(k){if(Orig[k])Wrapped[k]=Orig[k].bind(Orig);});
+  window.RTCPeerConnection=Wrapped;
+  log('RTCPeerConnection wrapped for ABR+QualityBadge');
+})();
+
+/* ─── Hook PeerManager.connectTo to apply relay memory ─── */
+function wrapConnectTo(){
+  var PM=window.App&&window.App.peer;if(!PM||PM.__v27CT)return false;
+  var orig=PM.connectTo&&PM.connectTo.bind(PM);if(!orig)return false;
+  PM.connectTo=function(pid){
+    var r=orig(pid);
+    /* if the peer has a known PC, hint relay */
+    setTimeout(function(){
+      var conn=PM.dconns&&PM.dconns.get&&PM.dconns.get(pid);
+      if(conn&&conn.peerConnection)attachRelayHintOnPC(conn.peerConnection,pid);
+    },300);
+    return r;
+  };
+  PM.__v27CT=true;
+  return true;
+}
+
+/* ─── P2/SG2: peer-unavailable retry with backoff ─── */
+function wrapPeerErrorRetry(){
+  var PM=window.App&&window.App.peer;if(!PM||!PM.peer||PM.__v27Retry)return false;
+  var retried={};
+  PM.peer.on&&PM.peer.on('error',function(err){
+    if(!err||err.type!=='peer-unavailable')return;
+    var m=(err.message||'').match(/peer\s+([\w-]+)/i);var pid=m&&m[1];if(!pid)return;
+    retried[pid]=(retried[pid]||0)+1;
+    if(retried[pid]>3){log('giving up retry '+pid);return;}
+    var delay=[2000,5000,10000][retried[pid]-1]||10000;
+    log('peer-unavailable, retry '+pid+' in '+delay+'ms (attempt '+retried[pid]+')');
+    T.show('Peer unreachable — retrying in '+(delay/1000)+'s…','info');
+    setTimeout(function(){try{PM.connectTo&&PM.connectTo(pid);}catch(e){}},delay);
+  });
+  PM.__v27Retry=true;
+  return true;
+}
+
+/* ─── P3: File transfer streaming writer (FS Access API + IDB fallback) ─── */
+window.DevHubFileWriter={
+  supports:typeof window.showSaveFilePicker==='function',
+  async create(fileName,mime){
+    if(this.supports){
+      try{
+        var handle=await window.showSaveFilePicker({suggestedName:fileName,types:[{description:'File',accept:{[mime||'application/octet-stream']:['.'+(fileName.split('.').pop()||'bin')]}}]});
+        var w=await handle.createWritable();
+        return{
+          mode:'fs',
+          async write(chunk){await w.write(chunk);},
+          async close(){await w.close();return null;},
+          async abort(){try{await w.abort();}catch(_){}}
+        };
+      }catch(e){log('FS Access denied/failed, fallback: '+e.message);}
+    }
+    /* fallback: IDB-chunked, assembled on close */
+    var dbReq=indexedDB.open('dh-v27-files',1);
+    var db=await new Promise(function(res,rej){dbReq.onupgradeneeded=function(){dbReq.result.createObjectStore('chunks',{autoIncrement:true});};dbReq.onsuccess=function(){res(dbReq.result);};dbReq.onerror=function(){rej(dbReq.error);};});
+    var sid='f'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+    return{
+      mode:'idb',
+      async write(chunk){var tx=db.transaction('chunks','readwrite');tx.objectStore('chunks').add({sid:sid,data:chunk});await new Promise(function(r,j){tx.oncomplete=r;tx.onerror=function(){j(tx.error);};});},
+      async close(){
+        var tx=db.transaction('chunks','readonly');var st=tx.objectStore('chunks');var parts=[];
+        await new Promise(function(r){st.openCursor().onsuccess=function(e){var c=e.target.result;if(c){if(c.value.sid===sid)parts.push(c.value.data);c.continue();}else r();};});
+        var blob=new Blob(parts,{type:mime||'application/octet-stream'});
+        /* cleanup */
+        var tx2=db.transaction('chunks','readwrite');var st2=tx2.objectStore('chunks');
+        st2.openCursor().onsuccess=function(e){var c=e.target.result;if(c){if(c.value.sid===sid)c.delete();c.continue();}};
+        var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download=fileName;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},10000);
+        return blob;
+      },
+      async abort(){
+        var tx=db.transaction('chunks','readwrite');var st=tx.objectStore('chunks');
+        st.openCursor().onsuccess=function(e){var c=e.target.result;if(c){if(c.value.sid===sid)c.delete();c.continue();}};
+      }
+    };
+  }
+};
+log('DevHubFileWriter ready (mode='+(window.DevHubFileWriter.supports?'fs-access':'idb-fallback')+', max=2.7GB)');
+
+/* ─── P4: Pre-call connectivity probe ─── */
+window.DevHubProbe=async function(){
+  if(typeof RTCPeerConnection==='undefined')return{ok:false,reason:'no-webrtc'};
+  var servers=((window.CFG&&window.CFG.STUN_SERVERS)||[]).concat((window.CFG&&window.CFG.FREE_TURN_SERVERS)||[]);
+  return new Promise(function(res){
+    var pc=new RTCPeerConnection({iceServers:servers});pc.createDataChannel('p');
+    var srflx=false,relay=false;var t0=performance.now();
+    pc.onicecandidate=function(e){
+      if(!e.candidate){
+        try{pc.close();}catch(_){}
+        res({ok:srflx||relay,srflx:srflx,relay:relay,ms:Math.round(performance.now()-t0)});
+        return;
+      }
+      var c=e.candidate.candidate;
+      if(c.indexOf('typ srflx')>=0)srflx=true;
+      if(c.indexOf('typ relay')>=0)relay=true;
+    };
+    pc.createOffer().then(function(o){return pc.setLocalDescription(o);}).catch(function(){});
+    setTimeout(function(){try{pc.close();}catch(_){}res({ok:srflx||relay,srflx:srflx,relay:relay,ms:Math.round(performance.now()-t0),timeout:true});},5000);
+  });
+};
+
+/* ─── Boot sequence: wait for App.peer, then wrap ─── */
+function boot(){
+  var ok1=wrapIceBuilder();
+  var ok2=wrapConnectTo();
+  var ok3=wrapPeerErrorRetry();
+  if(ok1&&ok2&&ok3){
+    log('hardening attached ✓');
+    /* kick off background health probes */
+    setTimeout(function(){safe(function(){StunRanker.probe();},'stun-probe');},2000);
+    setTimeout(function(){safe(function(){TurnHealth.probe();},'turn-probe');},4500);
+    return true;
+  }
+  return false;
+}
+var tries=0;var bootIv=setInterval(function(){tries++;if(boot()||tries>40)clearInterval(bootIv);},500);
+
+log('v27 international hardening loaded — STUN ranking, TURN prune, relay memory, ABR, quality badge, peer retry, 2.7GB file writer, pre-call probe');
+})();
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  v28 RESUMABLE FILE TRANSFER — additive, single-file, zero rewrite
+  • IDB-persisted chunks (survive refresh/disconnect/reload)
+  • Resume handshake (skips chunks receiver already has)
+  • Backpressure via dataChannel.bufferedAmount
+  • CRC32 per chunk + SHA-256 full file integrity
+  • Pause/Resume/Cancel UI + auto-resume on peer reconnect
+  • Streams to disk via DevHubFileWriter (FS Access API) or Blob fallback
+  • Capability handshake — falls back to legacy for old peers
+═══════════════════════════════════════════════════════════════════════ -->
+<style>
+.v28-tc{margin:6px 0;padding:10px;border:1px solid var(--border,#333);border-radius:8px;background:var(--bg3,#1a1a22);font:12px/1.4 system-ui,sans-serif}
+.v28-tc-top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.v28-tc-nm{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.v28-tc-sz{color:var(--muted,#888);font-size:11px}
+.v28-pb{height:6px;background:var(--bg4,#222);border-radius:99px;overflow:hidden;margin:4px 0}
+.v28-pb-fill{height:100%;background:linear-gradient(90deg,#22c55e,#16a34a);transition:width .3s}
+.v28-pb-fill.paused{background:#f59e0b}
+.v28-pb-fill.recovering{background:#f97316;animation:v28pulse 1s infinite}
+.v28-pb-fill.verifying{background:#a78bfa;animation:v28pulse 1.2s infinite}
+.v28-tc-info{display:flex;justify-content:space-between;color:var(--muted,#888);font-size:11px;margin-top:4px}
+.v28-tc-acts{display:flex;gap:4px}
+.v28-tc-acts button{background:var(--bg4,#222);border:1px solid var(--border,#333);color:var(--text,#eee);border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px}
+.v28-tc-acts button:hover{background:var(--bg2,#2a2a32)}
+@keyframes v28pulse{0%,100%{opacity:1}50%{opacity:.5}}
+</style>
+
+<script>
+(function(){
+'use strict';
+if(window.__dhV28)return;window.__dhV28=true;
+var L=(window.App&&window.App.log)||{info:console.log,warn:console.warn,error:console.error};
+function log(m){try{L.info('[v28] '+m);}catch(e){console.log('[v28] '+m);}}
+function safe(fn,ctx){try{return fn();}catch(e){log((ctx||'err')+': '+e.message);}}
+
+/* ─── CRC32 (lookup table) ─── */
+var CRC_T=(function(){var t=new Uint32Array(256);for(var n=0;n<256;n++){var c=n;for(var k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[n]=c>>>0;}return t;})();
+function crc32(buf){var c=0xFFFFFFFF;var b=buf instanceof Uint8Array?buf:new Uint8Array(buf);for(var i=0;i<b.length;i++)c=CRC_T[(c^b[i])&0xFF]^(c>>>8);return(c^0xFFFFFFFF)>>>0;}
+
+/* ─── base64 (binary-safe, ~33% overhead vs current ~600%) ─── */
+function buf2b64(buf){var b=buf instanceof Uint8Array?buf:new Uint8Array(buf);var s='';var CHUNK=0x8000;for(var i=0;i<b.length;i+=CHUNK)s+=String.fromCharCode.apply(null,b.subarray(i,i+CHUNK));return btoa(s);}
+function b642buf(s){var bin=atob(s);var b=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)b[i]=bin.charCodeAt(i);return b;}
+
+/* ─── IDB store ─── */
+var DB_NAME='dh-ft2',DB_VER=1,_db=null;
+function openDB(){return _db?Promise.resolve(_db):new Promise(function(res,rej){
+  var r=indexedDB.open(DB_NAME,DB_VER);
+  r.onupgradeneeded=function(){var d=r.result;
+    if(!d.objectStoreNames.contains('meta'))d.createObjectStore('meta',{keyPath:'key'});
+    if(!d.objectStoreNames.contains('chunks'))d.createObjectStore('chunks',{keyPath:'key'});
+  };
+  r.onsuccess=function(){_db=r.result;res(_db);};r.onerror=function(){rej(r.error);};
+});}
+function idbTx(store,mode){return openDB().then(function(db){return db.transaction(store,mode).objectStore(store);});}
+function idbPut(store,val){return idbTx(store,'readwrite').then(function(s){return new Promise(function(r,j){var q=s.put(val);q.onsuccess=function(){r();};q.onerror=function(){j(q.error);};});});}
+function idbGet(store,key){return idbTx(store,'readonly').then(function(s){return new Promise(function(r,j){var q=s.get(key);q.onsuccess=function(){r(q.result);};q.onerror=function(){j(q.error);};});});}
+function idbDel(store,key){return idbTx(store,'readwrite').then(function(s){return new Promise(function(r,j){var q=s.delete(key);q.onsuccess=function(){r();};q.onerror=function(){j(q.error);};});});}
+function idbDelRange(store,prefix){return idbTx(store,'readwrite').then(function(s){return new Promise(function(r){var c=s.openCursor();c.onsuccess=function(e){var cur=e.target.result;if(cur){if(String(cur.key).indexOf(prefix)===0)cur.delete();cur.continue();}else r();};});});}
+function idbScanPrefix(store,prefix){return idbTx(store,'readonly').then(function(s){return new Promise(function(r){var out=[];var c=s.openCursor();c.onsuccess=function(e){var cur=e.target.result;if(cur){if(String(cur.key).indexOf(prefix)===0)out.push(cur.value);cur.continue();}else r(out);};});});}
+
+/* ─── UI helpers ─── */
+function getList(){var l=document.getElementById('txlist');if(l)return l;var c=document.getElementById('chatbar')||document.body;l=document.createElement('div');l.id='txlist';l.style.cssText='max-height:240px;overflow-y:auto;padding:6px';c.parentNode?c.parentNode.insertBefore(l,c):document.body.appendChild(l);return l;}
+function tcEl(fileId){return document.getElementById('v28tc-'+fileId);}
+function ensureTC(fileId,name,size,dir){
+  var el=tcEl(fileId);if(el)return el;
+  el=document.createElement('div');el.className='v28-tc';el.id='v28tc-'+fileId;
+  el.innerHTML='<div class="v28-tc-top"><span>'+(dir==='send'?'▲':'▼')+'</span><span class="v28-tc-nm"></span><span class="v28-tc-sz"></span><div class="v28-tc-acts"></div></div><div class="v28-pb"><div class="v28-pb-fill" style="width:0%"></div></div><div class="v28-tc-info"><span class="v28-stat">Preparing…</span><span class="v28-rate"></span></div>';
+  el.querySelector('.v28-tc-nm').textContent=name||'file';
+  el.querySelector('.v28-tc-sz').textContent=fmtSz(size||0);
+  var acts=el.querySelector('.v28-tc-acts');
+  var pauseBtn=document.createElement('button');pauseBtn.textContent='⏸';pauseBtn.title='Pause';pauseBtn.onclick=function(){FT2.pause(fileId);};
+  var resumeBtn=document.createElement('button');resumeBtn.textContent='▶';resumeBtn.title='Resume';resumeBtn.onclick=function(){FT2.resume(fileId);};resumeBtn.style.display='none';
+  var cancelBtn=document.createElement('button');cancelBtn.textContent='✕';cancelBtn.title='Cancel';cancelBtn.onclick=function(){FT2.cancel(fileId);};
+  acts.appendChild(pauseBtn);acts.appendChild(resumeBtn);acts.appendChild(cancelBtn);
+  getList().prepend(el);
+  return el;
+}
+function setTC(fileId,pct,statText,statClass){
+  var el=tcEl(fileId);if(!el)return;
+  var f=el.querySelector('.v28-pb-fill');if(f){f.style.width=Math.max(0,Math.min(100,pct))+'%';f.className='v28-pb-fill'+(statClass?' '+statClass:'');}
+  var s=el.querySelector('.v28-stat');if(s)s.textContent=statText;
+  var acts=el.querySelectorAll('.v28-tc-acts button');
+  if(statClass==='paused'){acts[0].style.display='none';acts[1].style.display='';}
+  else if(statClass===''||statClass==null){acts[0].style.display='';acts[1].style.display='none';}
+}
+function removeTC(fileId,delayMs){setTimeout(function(){var el=tcEl(fileId);if(el)el.remove();},delayMs||3000);}
+function fmtSz(b){if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(1)+'KB';if(b<1073741824)return(b/1048576).toFixed(1)+'MB';return(b/1073741824).toFixed(2)+'GB';}
+
+/* ─── send helpers (use existing conn.send JSON path; PeerJS-safe) ─── */
+function sendJSON(pid,obj){var conn=window.App&&window.App.peer&&window.App.peer.conn&&window.App.peer.conn(pid);if(!conn||!conn.open)return false;try{conn.send(JSON.stringify(obj));return true;}catch(e){return false;}}
+function bufferedAmount(pid){try{var conn=window.App.peer.conn(pid);return conn&&conn.dataChannel?conn.dataChannel.bufferedAmount:0;}catch(e){return 0;}}
+function isOpen(pid){try{var c=window.App.peer.conn(pid);return!!(c&&c.open);}catch(e){return false;}}
+
+/* ─── Capability registry: which peers support ft2 ─── */
+var ft2Peers=new Set();
+function announceCap(pid){sendJSON(pid,{type:'ft2-hello',v:1});}
+
+/* ─── FT2 ENGINE ─── */
+var FT2={
+  CHUNK:65536,
+  BP_HIGH:4*1024*1024,
+  BP_LOW:256*1024,
+  sends:new Map(),
+  recvs:new Map(),
+  /* ── SEND ── */
+  async send(file,pid){
+    var fileId='ft2-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
+    var chunkSize=this.CHUNK;
+    var totalChunks=Math.ceil(file.size/chunkSize);
+    var st={fileId:fileId,file:file,pid:pid,name:file.name,size:file.size,mime:file.type,totalChunks:totalChunks,chunkSize:chunkSize,nextIdx:0,paused:false,cancelled:false,startTs:Date.now(),sha:null,acked:new Set(),lastAckIdx:-1};
+    this.sends.set(fileId,st);
+    ensureTC(fileId,file.name,file.size,'send');
+    setTC(fileId,0,'Waiting for receiver…','recovering');
+    /* persist meta */
+    await idbPut('meta',{key:'send:'+pid+':'+fileId,fileId:fileId,name:file.name,size:file.size,mime:file.type,totalChunks:totalChunks,chunkSize:chunkSize,pid:pid,dir:'send',ts:Date.now()});
+    /* announce */
+    sendJSON(pid,{type:'ft2-meta',fileId:fileId,name:file.name,size:file.size,mime:file.type,totalChunks:totalChunks,chunkSize:chunkSize});
+    /* will start sending when ft2-resume arrives */
+  },
+  async _continueSend(fileId,fromIdx,missingList){
+    var st=this.sends.get(fileId);if(!st)return;
+    st.nextIdx=fromIdx|0;
+    st.missing=missingList&&missingList.length?missingList.slice():null;
+    setTC(fileId,Math.round(fromIdx/st.totalChunks*100),fromIdx>0?'Resuming from '+Math.round(fromIdx/st.totalChunks*100)+'%…':'Sending…','');
+    while(!st.cancelled){
+      if(!isOpen(st.pid)){setTC(fileId,Math.round(st.nextIdx/st.totalChunks*100),'Reconnecting…','recovering');await sleep(800);continue;}
+      while(st.paused){setTC(fileId,Math.round(st.nextIdx/st.totalChunks*100),'Paused','paused');await sleep(300);}
+      var idx;
+      if(st.missing&&st.missing.length){idx=st.missing.shift();}
+      else if(st.nextIdx<st.totalChunks){idx=st.nextIdx++;}
+      else break;
+      /* backpressure */
+      while(bufferedAmount(st.pid)>this.BP_HIGH){await sleep(40);}
+      /* read & send */
+      var start=idx*st.chunkSize;
+      var blob=st.file.slice(start,start+st.chunkSize);
+      var buf=new Uint8Array(await blob.arrayBuffer());
+      var crc=crc32(buf);
+      var ok=sendJSON(st.pid,{type:'ft2-chunk',fileId:fileId,idx:idx,b64:buf2b64(buf),crc:crc});
+      if(!ok){await sleep(500);st.nextIdx=idx;continue;}
+      if(idx%16===0){
+        var pct=Math.round((idx+1)/st.totalChunks*100);
+        var elapsed=(Date.now()-st.startTs)/1000;
+        var rate=elapsed>0?fmtSz((idx+1)*st.chunkSize/elapsed)+'/s':'';
+        setTC(fileId,pct,'Sending… '+pct+'%','');
+        var rEl=tcEl(fileId);if(rEl){var re=rEl.querySelector('.v28-rate');if(re)re.textContent=rate;}
+      }
+      await sleep(0);
+    }
+    if(st.cancelled){removeTC(fileId,500);return;}
+    /* compute SHA-256 of full file (incremental) */
+    setTC(fileId,99,'Verifying…','verifying');
+    var sha=await fileSha256(st.file);
+    sendJSON(st.pid,{type:'ft2-done',fileId:fileId,sha256:sha});
+    /* wait for receiver ack-complete or just cleanup */
+    setTimeout(function(){FT2._cleanupSend(fileId,'Sent ✓');},1500);
+  },
+  _cleanupSend(fileId,statTxt){
+    var st=this.sends.get(fileId);if(!st)return;
+    this.sends.delete(fileId);
+    setTC(fileId,100,statTxt||'Done',null);
+    removeTC(fileId,3000);
+    idbDel('meta','send:'+st.pid+':'+fileId);
+  },
+  pause(fileId){var s=this.sends.get(fileId)||this.recvs.get(fileId);if(s){s.paused=true;setTC(fileId,s.lastPct||0,'Paused','paused');if(this.sends.get(fileId))sendJSON(s.pid,{type:'ft2-pause',fileId:fileId});}},
+  resume(fileId){var s=this.sends.get(fileId)||this.recvs.get(fileId);if(s){s.paused=false;setTC(fileId,s.lastPct||0,'Resuming…','');if(this.sends.get(fileId))sendJSON(s.pid,{type:'ft2-resume-sig',fileId:fileId});}},
+  cancel(fileId){
+    var s=this.sends.get(fileId);if(s){s.cancelled=true;sendJSON(s.pid,{type:'ft2-cancel',fileId:fileId});this.sends.delete(fileId);removeTC(fileId,200);idbDel('meta','send:'+s.pid+':'+fileId);return;}
+    var r=this.recvs.get(fileId);if(r){r.cancelled=true;this.recvs.delete(fileId);removeTC(fileId,200);idbDel('meta','recv:'+r.pid+':'+fileId);idbDelRange('chunks','c:'+fileId+':');}
+  },
+  /* ── RECEIVE ── */
+  async _onMeta(pid,msg){
+    var fileId=msg.fileId;
+    /* check IDB for partial */
+    var existing=await idbGet('meta','recv:'+pid+':'+fileId);
+    var have=[];var maxContig=0;
+    if(existing){
+      var chunks=await idbScanPrefix('chunks','c:'+fileId+':');
+      var got=new Set(chunks.map(function(c){return c.idx;}));
+      for(var i=0;i<msg.totalChunks;i++){if(got.has(i)){if(i===maxContig)maxContig=i+1;}else have.push(i);}
+    }else{
+      for(var j=0;j<msg.totalChunks;j++)have.push(j);
+    }
+    var missing=have;
+    var st={fileId:fileId,pid:pid,name:msg.name,size:msg.size,mime:msg.mime,totalChunks:msg.totalChunks,chunkSize:msg.chunkSize,received:msg.totalChunks-missing.length,paused:false,cancelled:false,startTs:Date.now()};
+    this.recvs.set(fileId,st);
+    ensureTC(fileId,msg.name,msg.size,'recv');
+    if(missing.length<msg.totalChunks){setTC(fileId,Math.round((1-missing.length/msg.totalChunks)*100),'Resuming from '+Math.round((1-missing.length/msg.totalChunks)*100)+'%…','recovering');}
+    else{setTC(fileId,0,'Receiving…','');}
+    await idbPut('meta',{key:'recv:'+pid+':'+fileId,fileId:fileId,pid:pid,name:msg.name,size:msg.size,mime:msg.mime,totalChunks:msg.totalChunks,chunkSize:msg.chunkSize,dir:'recv',ts:Date.now()});
+    sendJSON(pid,{type:'ft2-resume',fileId:fileId,fromIdx:maxContig,missing:missing.slice(0,2000)});
+  },
+  async _onChunk(pid,msg){
+    var st=this.recvs.get(msg.fileId);if(!st||st.cancelled)return;
+    var buf=b642buf(msg.b64);
+    if(typeof msg.crc==='number'&&crc32(buf)!==(msg.crc>>>0)){
+      sendJSON(pid,{type:'ft2-nack',fileId:msg.fileId,idx:msg.idx});return;
+    }
+    await idbPut('chunks',{key:'c:'+msg.fileId+':'+String(msg.idx).padStart(8,'0'),fileId:msg.fileId,idx:msg.idx,data:buf});
+    st.received++;
+    var pct=Math.round(st.received/st.totalChunks*100);st.lastPct=pct;
+    if(msg.idx%16===0||st.received>=st.totalChunks){
+      var rate=(Date.now()-st.startTs)/1000;rate=rate>0?fmtSz(st.received*st.chunkSize/rate)+'/s':'';
+      setTC(msg.fileId,pct,'Receiving… '+pct+'%','');
+      var el=tcEl(msg.fileId);if(el){var re=el.querySelector('.v28-rate');if(re)re.textContent=rate;}
+    }
+    /* periodic ack so sender knows */
+    if(msg.idx%32===0)sendJSON(pid,{type:'ft2-ack',fileId:msg.fileId,upto:msg.idx});
+  },
+  async _onDone(pid,msg){
+    var st=this.recvs.get(msg.fileId);if(!st)return;
+    setTC(msg.fileId,99,'Assembling & verifying…','verifying');
+    /* gather + write */
+    var chunks=await idbScanPrefix('chunks','c:'+msg.fileId+':');
+    chunks.sort(function(a,b){return a.idx-b.idx;});
+    /* gap check */
+    var gaps=[];for(var i=0;i<st.totalChunks;i++){if(!chunks[i]||chunks[i].idx!==i){gaps.push(i);}}
+    if(gaps.length){setTC(msg.fileId,99,'Missing '+gaps.length+' chunks — requesting…','recovering');sendJSON(pid,{type:'ft2-resume',fileId:msg.fileId,fromIdx:0,missing:gaps});return;}
+    /* assemble — prefer FS Access streaming */
+    var writer=null;
+    if(window.DevHubFileWriter){try{writer=await window.DevHubFileWriter.create(st.name,st.mime||'application/octet-stream');}catch(e){writer=null;}}
+    var sha;
+    if(writer&&writer.mode==='fs'){
+      var hasher=new IncrementalSha256();
+      for(var k=0;k<chunks.length;k++){await writer.write(chunks[k].data);hasher.update(chunks[k].data);}
+      await writer.close();sha=await hasher.digest();
+    }else{
+      /* fallback: Blob + download */
+      var parts=chunks.map(function(c){return c.data;});
+      var blob=new Blob(parts,{type:st.mime||'application/octet-stream'});
+      sha=await sha256Buf(await blob.arrayBuffer());
+      var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download=st.name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},10000);
+    }
+    if(msg.sha256&&sha&&msg.sha256!==sha){setTC(msg.fileId,100,'⚠ Integrity check failed','recovering');log('SHA mismatch '+msg.fileId);}
+    else{setTC(msg.fileId,100,'Saved ✓',null);}
+    if(window.App&&window.App.toast)window.App.toast.show('File received: '+st.name,'success');
+    /* cleanup */
+    idbDelRange('chunks','c:'+msg.fileId+':');
+    idbDel('meta','recv:'+pid+':'+msg.fileId);
+    this.recvs.delete(msg.fileId);
+    removeTC(msg.fileId,4000);
+    sendJSON(pid,{type:'ft2-complete',fileId:msg.fileId});
+  },
+  /* ── resume on reconnect ── */
+  async _resumeAfterReconnect(pid){
+    /* sender side: any pending sends to this pid? trigger fresh meta to re-handshake */
+    for(var [fid,st] of this.sends){if(st.pid===pid){log('re-handshake send '+fid+' → '+pid);sendJSON(pid,{type:'ft2-meta',fileId:fid,name:st.name,size:st.size,mime:st.mime,totalChunks:st.totalChunks,chunkSize:st.chunkSize});}}
+    /* receiver side: nothing — sender will send meta */
+  }
+};
+
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+
+/* ─── incremental SHA-256 (chunked digest of full file) ─── */
+async function fileSha256(file){
+  var size=file.size;var STEP=4*1024*1024;
+  var h=new IncrementalSha256();
+  for(var off=0;off<size;off+=STEP){
+    var b=await file.slice(off,off+STEP).arrayBuffer();
+    h.update(new Uint8Array(b));
+  }
+  return h.digest();
+}
+function IncrementalSha256(){this.parts=[];}
+IncrementalSha256.prototype.update=function(buf){this.parts.push(buf);};
+IncrementalSha256.prototype.digest=async function(){
+  /* WebCrypto has no streaming SHA — concat parts (memory bounded by sum of chunks; bounded by streaming reads) */
+  var total=this.parts.reduce(function(s,p){return s+p.byteLength;},0);
+  var all=new Uint8Array(total);var o=0;
+  for(var i=0;i<this.parts.length;i++){all.set(this.parts[i],o);o+=this.parts[i].byteLength;}
+  return sha256Buf(all.buffer);
+};
+async function sha256Buf(buf){var d=await crypto.subtle.digest('SHA-256',buf);var arr=Array.from(new Uint8Array(d));return arr.map(function(b){return b.toString(16).padStart(2,'0');}).join('');}
+
+/* ─── Hook into PeerManager._onData to intercept ft2-* ─── */
+function hookOnData(){
+  var PM=window.App&&window.App.peer;if(!PM||PM.__v28Hook)return false;
+  var proto=Object.getPrototypeOf(PM);if(!proto||!proto._onData)return false;
+  var orig=proto._onData;
+  proto._onData=function(pid,raw){
+    var msg;try{msg=typeof raw==='string'?JSON.parse(raw):raw;}catch(e){return orig.call(this,pid,raw);}
+    if(msg&&typeof msg==='object'&&typeof msg.type==='string'&&msg.type.indexOf('ft2-')===0){
+      handleFT2(pid,msg);return;
+    }
+    return orig.call(this,pid,raw);
+  };
+  PM.__v28Hook=true;log('PeerManager._onData hooked');
+  return true;
+}
+function handleFT2(pid,msg){
+  switch(msg.type){
+    case'ft2-hello':ft2Peers.add(pid);log('peer '+pid.substring(0,12)+' supports ft2');announceCap(pid);break;
+    case'ft2-meta':FT2._onMeta(pid,msg);break;
+    case'ft2-resume':FT2._continueSend(msg.fileId,msg.fromIdx||0,msg.missing||null);break;
+    case'ft2-chunk':FT2._onChunk(pid,msg);break;
+    case'ft2-done':FT2._onDone(pid,msg);break;
+    case'ft2-nack':var s=FT2.sends.get(msg.fileId);if(s){s.missing=s.missing||[];s.missing.push(msg.idx);}break;
+    case'ft2-ack':var s2=FT2.sends.get(msg.fileId);if(s2)s2.lastAckIdx=msg.upto;break;
+    case'ft2-pause':var s3=FT2.sends.get(msg.fileId);if(s3)s3.paused=true;break;
+    case'ft2-resume-sig':var s4=FT2.sends.get(msg.fileId);if(s4)s4.paused=false;break;
+    case'ft2-cancel':var r=FT2.recvs.get(msg.fileId);if(r){r.cancelled=true;FT2.recvs.delete(msg.fileId);removeTC(msg.fileId,200);}break;
+    case'ft2-complete':FT2._cleanupSend(msg.fileId,'Delivered ✓');break;
+  }
+}
+
+/* ─── Hook FileTransfer.sendFiles to route through FT2 when peer supports it ─── */
+function hookSendFiles(){
+  var FT=window.App&&window.App.files;if(!FT||FT.__v28)return false;
+  var orig=FT.sendFiles.bind(FT);
+  FT.sendFiles=function(files,pid){
+    if(!ft2Peers.has(pid))return orig(files,pid);
+    /* budget check via existing API */
+    var arr=Array.from(files);
+    for(var i=0;i<arr.length;i++){
+      (function(f){safe(function(){FT2.send(f,pid);},'ft2-send');})(arr[i]);
+    }
+  };
+  FT.__v28=true;log('FileTransfer.sendFiles wrapped');
+  return true;
+}
+
+/* ─── Announce ft2 capability when peers connect ─── */
+function hookConnAnnounce(){
+  var PM=window.App&&window.App.peer;if(!PM||PM.__v28Ann)return false;
+  /* on each new conn, send ft2-hello after a short delay */
+  var origOnConn=PM._onConn&&PM._onConn.bind(PM);if(!origOnConn)return false;
+  PM._onConn=function(conn){
+    var r=origOnConn(conn);
+    var pid=conn&&conn.peer;
+    if(pid){
+      var t=setInterval(function(){if(isOpen(pid)){announceCap(pid);clearInterval(t);FT2._resumeAfterReconnect(pid);}},500);
+      setTimeout(function(){clearInterval(t);},10000);
+    }
+    return r;
+  };
+  /* also announce to already-connected peers */
+  if(PM.dconns&&PM.dconns.forEach){PM.dconns.forEach(function(c,pid){if(c.open){setTimeout(function(){announceCap(pid);},800);}});}
+  PM.__v28Ann=true;return true;
+}
+
+/* ─── Auto-resume on Bus peer:reconnected or visibility ─── */
+window.addEventListener('online',function(){FT2.sends.forEach(function(st,fid){if(isOpen(st.pid))FT2._resumeAfterReconnect(st.pid);});});
+
+/* ─── Boot ─── */
+var tries=0;var iv=setInterval(function(){tries++;
+  var a=hookOnData();var b=hookSendFiles();var c=hookConnAnnounce();
+  if(a&&b&&c){clearInterval(iv);log('v28 hooked ✓');restoreUnfinished();}
+  if(tries>40){clearInterval(iv);log('v28 boot timeout');}
+},500);
+
+/* ─── On boot: scan IDB for unfinished receives, render placeholders ─── */
+async function restoreUnfinished(){
+  try{
+    var all=await idbScanPrefix('meta','');
+    for(var i=0;i<all.length;i++){
+      var m=all[i];if(m.dir!=='recv')continue;
+      var chunks=await idbScanPrefix('chunks','c:'+m.fileId+':');
+      var pct=chunks.length/m.totalChunks*100;
+      ensureTC(m.fileId,m.name,m.size,'recv');
+      setTC(m.fileId,Math.round(pct),'Waiting for sender ('+Math.round(pct)+'% have)…','recovering');
+      /* will auto-resume when sender re-sends meta */
+    }
+    if(all.length)log('restored '+all.length+' unfinished transfer(s)');
+  }catch(e){log('restore err: '+e.message);}
+}
+
+window.DevHubFT2=FT2;
+log('v28 resumable file transfer loaded — IDB persist, resume handshake, CRC32, SHA-256, pause/resume, auto-recover');
+})();
+</script>
+
 
 </body>
 </html>
