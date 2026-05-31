@@ -11507,6 +11507,830 @@ log('v29 loaded — permissions, RTC media routing, invite URLs, group join, mob
 })();
 </script>
 
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   v30 PERSISTENT PEER SESSION — additive, single-file, zero rewrite
+   Remembers connected peers across refresh/restart and auto-reconnects.
+   Convenience: recent-peer chips, reconnect toasts, online/visibility retry.
+   No modules removed. All hooks are guarded with __v30 flags.
+   ════════════════════════════════════════════════════════════════════ */
+(function(){
+'use strict';
+var TAG='[v30]';
+var KEY='dh-known-peers-v1';
+var MAX=24;
+function log(m){try{(window.App&&App.log&&App.log.info)?App.log.info(TAG+' '+m):console.log(TAG,m);}catch(e){}}
+function S(){try{return window.SafeStorage;}catch(e){return null;}}
+function load(){var s=S();if(!s)return [];try{return s.getJSON(KEY,[])||[];}catch(e){return [];}}
+function _save(arr){var s=S();if(!s)return;try{s.setJSON(KEY,arr.slice(-MAX));}catch(e){}}
+function save(arr){_save(arr); try{renderChips();}catch(e){}}
+function remember(pid,name){
+  if(!pid||pid==='self'||(window.App&&App.peer&&App.peer.myId===pid))return;
+  var arr=load(); var now=Date.now();
+  var i=arr.findIndex(function(p){return p.id===pid;});
+  if(i>=0){arr[i].lastSeen=now; if(name)arr[i].name=name;}
+  else arr.push({id:pid,name:name||'',lastSeen:now,added:now});
+  save(arr);
+}
+function bumpAllOpen(){
+  try{var dc=window.App&&App.peer&&App.peer.dconns; if(!dc)return;
+    dc.forEach(function(conn,pid){if(conn&&conn.open){var nm=(App.peer.peerMap&&App.peer.peerMap.get(pid))||''; remember(pid,nm);}});
+  }catch(e){}
+}
+function hookConnect(){
+  var A=window.App; if(!A||!A.peer||A.peer.__v30Connect)return false;
+  var PM=A.peer; var orig=PM.connectTo&&PM.connectTo.bind(PM); if(!orig)return false;
+  PM.connectTo=function(idOrUrl){
+    try{
+      var pid=String(idOrUrl||'').trim();
+      if(pid.indexOf('http')===0){try{var u=new URL(pid);var p=u.searchParams.get('peer');if(p)pid=p;}catch(e){}}
+      if(pid)remember(pid,'');
+    }catch(e){}
+    return orig(idOrUrl);
+  };
+  PM.__v30Connect=true; return true;
+}
+function hookOpen(){
+  var A=window.App; if(!A||!A.peer||A.peer.__v30Open)return false;
+  var PM=A.peer;
+  try{
+    var dc=PM.dconns; if(dc&&typeof dc.set==='function'&&!dc.__v30){
+      var origSet=dc.set.bind(dc);
+      dc.set=function(pid,conn){
+        try{
+          if(conn&&typeof conn.on==='function'){
+            conn.on('open',function(){remember(pid,(PM.peerMap&&PM.peerMap.get(pid))||''); try{A.toast&&A.toast.show&&A.toast.show('Connected to '+pid.substring(0,10)+'…','success');}catch(e){}});
+            conn.on('close',function(){scheduleRetry();});
+          }
+        }catch(e){}
+        return origSet(pid,conn);
+      };
+      dc.__v30=true;
+    }
+  }catch(e){}
+  PM.__v30Open=true; return true;
+}
+var retryTimer=null, attempt=0;
+function scheduleRetry(){
+  if(retryTimer)return;
+  var delay=Math.min(30000, 2000*Math.pow(1.6,attempt++));
+  retryTimer=setTimeout(function(){retryTimer=null; reconnectKnown();}, delay);
+}
+function reconnectKnown(){
+  try{
+    var A=window.App; if(!A||!A.peer||!A.peer.peer||A.peer.peer.disconnected||A.peer.peer.destroyed)return;
+    var dc=A.peer.dconns; var known=load();
+    if(!known.length){attempt=0;return;}
+    var pending=0;
+    known.sort(function(a,b){return (b.lastSeen||0)-(a.lastSeen||0);}).slice(0,8).forEach(function(p){
+      if(!p.id||p.id===A.peer.myId)return;
+      var existing=dc&&dc.get(p.id);
+      if(existing&&existing.open)return;
+      try{A.peer.connectTo(p.id); pending++;}catch(e){}
+    });
+    if(pending===0)attempt=0; else scheduleRetry();
+  }catch(e){}
+}
+function hookPeerReady(){
+  var A=window.App; if(!A||!A.peer||A.peer.__v30Ready)return false;
+  var PM=A.peer;
+  function go(){setTimeout(function(){attempt=0; reconnectKnown();},800);}
+  if(PM.peer&&PM.peer.id&&!PM.peer.disconnected){go();}
+  if(PM.peer&&typeof PM.peer.on==='function'){PM.peer.on('open',go);}
+  PM.__v30Ready=true; return true;
+}
+function injectRecentChips(){
+  try{
+    var host=document.getElementById('peers-list')||document.querySelector('.peers-panel');
+    if(!host||document.getElementById('v30-recent'))return;
+    var bar=document.createElement('div'); bar.id='v30-recent';
+    bar.style.cssText='display:flex;flex-wrap:wrap;gap:6px;padding:6px 4px;margin-bottom:6px;border-bottom:1px solid var(--border,#2d2d44)';
+    host.parentNode.insertBefore(bar,host);
+    renderChips();
+  }catch(e){}
+}
+function renderChips(){
+  var bar=document.getElementById('v30-recent'); if(!bar)return;
+  var arr=load().slice().sort(function(a,b){return (b.lastSeen||0)-(a.lastSeen||0);}).slice(0,6);
+  if(!arr.length){bar.style.display='none';return;}
+  bar.style.display='flex';
+  bar.innerHTML='<span style="font-size:11px;color:var(--muted,#888);align-self:center;margin-right:4px">Recent:</span>'+
+    arr.map(function(p){var lbl=((p.name||p.id||'')+'').substring(0,12);
+      return '<button class="v30-chip" data-pid="'+(p.id+'').replace(/"/g,'')+'" title="Reconnect '+p.id+'" style="background:var(--bg3,#1e1e2e);border:1px solid var(--border,#2d2d44);color:var(--text,#e2e2f0);border-radius:14px;padding:3px 10px;font-size:11px;cursor:pointer;min-height:28px">↻ '+lbl+'</button>';
+    }).join('')+
+    '<button id="v30-clear" title="Clear recent peers" style="background:transparent;border:none;color:var(--muted,#888);font-size:11px;cursor:pointer;margin-left:auto">clear</button>';
+  bar.querySelectorAll('.v30-chip').forEach(function(b){b.onclick=function(){var pid=b.dataset.pid; if(window.App&&App.peer&&App.peer.connectTo){App.peer.connectTo(pid);}};});
+  var clr=bar.querySelector('#v30-clear'); if(clr)clr.onclick=function(){save([]);};
+}
+window.addEventListener('online',function(){attempt=0; setTimeout(reconnectKnown,600);});
+document.addEventListener('visibilitychange',function(){if(!document.hidden){attempt=0; setTimeout(reconnectKnown,400);}});
+setInterval(bumpAllOpen, 25000);
+var tries=0, iv=setInterval(function(){
+  tries++;
+  var a=hookConnect(), b=hookOpen(), c=hookPeerReady();
+  if((a&&b&&c)||tries>80){clearInterval(iv); injectRecentChips(); setTimeout(reconnectKnown,1500); log('booted');}
+},400);
+log('v30 persistent peer session loaded');
+})();
+</script>
+
+<style>
+#v31-diag{position:fixed;right:12px;bottom:12px;z-index:9999;background:var(--bg2,#15151f);color:var(--text,#e2e2f0);border:1px solid var(--border,#2d2d44);border-radius:10px;font:12px system-ui;max-width:340px;box-shadow:0 6px 24px rgba(0,0,0,.4)}
+#v31-diag .v31-h{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border,#2d2d44);cursor:pointer;user-select:none}
+#v31-diag .v31-h b{flex:1}
+#v31-diag .v31-body{max-height:50vh;overflow:auto;padding:8px 10px;display:none}
+#v31-diag.on .v31-body{display:block}
+#v31-diag .v31-row{display:flex;align-items:center;gap:6px;padding:2px 0;font-size:11px}
+#v31-diag .v31-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+#v31-diag .v31-ok{background:#2ecc71}#v31-diag .v31-bad{background:#e74c3c}#v31-diag .v31-warn{background:#f39c12}
+#v31-diag .v31-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px solid var(--border,#2d2d44)}
+#v31-diag button{background:var(--bg3,#1e1e2e);border:1px solid var(--border,#2d2d44);color:var(--text,#e2e2f0);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer}
+#v31-diag button:hover{background:var(--bg4,#2a2a3e)}
+#v31-sync-bar{position:fixed;top:8px;right:8px;z-index:9998;background:var(--bg2,#15151f);border:1px solid var(--border,#2d2d44);border-radius:20px;padding:4px 10px;font:11px system-ui;color:var(--text,#e2e2f0);display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
+#v31-sync-bar .v31-pulse{width:8px;height:8px;border-radius:50%;background:#2ecc71;animation:v31pulse 1.6s infinite}
+#v31-sync-bar.off .v31-pulse{background:#666;animation:none}
+@keyframes v31pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@media(max-width:600px){#v31-diag{right:6px;bottom:64px;max-width:88vw;font-size:11px}#v31-sync-bar{top:6px;right:6px;font-size:10px}}
+</style>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   v31 SELF-DEBUG + LIVE SYNC + CALL FIX — additive, single-file
+   - Polyfills SafeStorage global if undefined (root-cause of "not enabled")
+   - Adds Live Sync toggle: broadcasts chat/tasks/messages over data channels
+   - Floating self-diagnostic panel auto-checks every module + auto-repairs
+   - Call connect hardening: waits for peer "open" before placing call
+   ════════════════════════════════════════════════════════════════════ */
+(function(){
+'use strict';
+var TAG='[v31]';
+function log(m){try{console.log(TAG,m);}catch(e){}}
+function toast(m,k){try{window.App&&App.toast&&App.toast.show&&App.toast.show(m,k||'info');}catch(e){}}
+
+/* ---------- SAFE STORAGE GUARANTEE ---------- */
+if(typeof window.SafeStorage==='undefined'||!window.SafeStorage||typeof window.SafeStorage.get!=='function'){
+  window.SafeStorage={
+    get:function(k,d){try{var v=localStorage.getItem(k);return v===null?(d||''):v;}catch(e){return d||'';}},
+    set:function(k,v){try{localStorage.setItem(k,String(v));}catch(e){}},
+    del:function(k){try{localStorage.removeItem(k);}catch(e){}},
+    getJSON:function(k,d){try{var v=localStorage.getItem(k);return v===null?(d===undefined?null:d):JSON.parse(v);}catch(e){return d===undefined?null:d;}},
+    setJSON:function(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+  };
+  log('SafeStorage polyfilled');
+}
+/* Test SafeStorage; if it throws (private mode, disabled), wrap into memory shim */
+try{window.SafeStorage.set('__v31_t','1');window.SafeStorage.del('__v31_t');}
+catch(e){
+  var _mem={};
+  window.SafeStorage={
+    get:function(k,d){return k in _mem?_mem[k]:(d||'');},
+    set:function(k,v){_mem[k]=String(v);},
+    del:function(k){delete _mem[k];},
+    getJSON:function(k,d){return k in _mem?JSON.parse(_mem[k]):(d===undefined?null:d);},
+    setJSON:function(k,v){_mem[k]=JSON.stringify(v);}
+  };
+  toast('Storage disabled — using memory only','warning');
+  log('SafeStorage memory shim engaged');
+}
+
+/* ---------- LIVE SYNC ---------- */
+var SYNC_KEY='dh-livesync-v1';
+var syncOn=window.SafeStorage.get(SYNC_KEY,'1')!=='0';
+var lastSync=0;
+function syncEnabled(){return syncOn;}
+function setSync(on){syncOn=!!on;window.SafeStorage.set(SYNC_KEY,on?'1':'0');updateSyncBar();toast('Live sync '+(on?'enabled':'disabled'),on?'success':'info');if(on)broadcastSnapshot();}
+function snapshot(){
+  var s={t:Date.now(),name:window.SafeStorage.get('dh-name',''),av:window.SafeStorage.get('dh-avatar','👤')};
+  try{s.tasks=window.SafeStorage.getJSON('dh-tasks-v2',[])||[];}catch(e){}
+  try{var App=window.App;if(App&&App.group&&App.group._room)s.room=App.group._room;}catch(e){}
+  return s;
+}
+function broadcastSnapshot(){
+  if(!syncOn)return;var App=window.App;if(!App||!App.peer||!App.peer.dconns)return;
+  var n=0;App.peer.dconns.forEach(function(c){if(c&&c.open){try{c.send(JSON.stringify({type:'v31-sync',data:snapshot()}));n++;}catch(e){}}});
+  lastSync=Date.now();return n;
+}
+function applySnapshot(pid,data){
+  if(!data)return;
+  try{
+    if(Array.isArray(data.tasks)){
+      var local=window.SafeStorage.getJSON('dh-tasks-v2',[])||[];
+      var map={};local.forEach(function(t){if(t&&t.id)map[t.id]=t;});
+      data.tasks.forEach(function(t){if(t&&t.id&&(!map[t.id]||(map[t.id].ts||0)<(t.ts||0)))map[t.id]=t;});
+      var merged=Object.values(map);
+      window.SafeStorage.setJSON('dh-tasks-v2',merged);
+      try{window.App&&App.tasks&&App.tasks._render&&(App.tasks._tasks=merged,App.tasks._render());}catch(e){}
+    }
+  }catch(e){}
+}
+function hookSyncReceive(){
+  var A=window.App;if(!A||!A.peer||A.peer.__v31Sync)return false;
+  var PM=A.peer;var orig=PM._onData&&PM._onData.bind(PM);if(!orig)return false;
+  PM._onData=function(pid,raw){
+    var msg;try{msg=typeof raw==='string'?JSON.parse(raw):raw;}catch(e){}
+    if(msg&&msg.type==='v31-sync'){applySnapshot(pid,msg.data);return;}
+    if(msg&&msg.type==='v31-ping'){try{var c=PM.conn&&PM.conn(pid);if(c&&c.open)c.send(JSON.stringify({type:'v31-pong',t:Date.now(),from:msg.t}));}catch(e){}return;}
+    return orig(pid,raw);
+  };
+  PM.__v31Sync=true;return true;
+}
+setInterval(function(){if(syncOn)broadcastSnapshot();},15000);
+
+/* ---------- CALL CONNECT HARDENING ---------- */
+function hookCallReady(){
+  var A=window.App;if(!A||!A.media||A.media.__v31Call)return false;
+  var M=A.media;var orig=M._startCall&&M._startCall.bind(M);if(!orig)return false;
+  M._startCall=async function(video){
+    var pid=A.ui&&A.ui.activePeer;if(!pid){toast('Select a peer first','warning');return;}
+    if(!A.peer||!A.peer.peer){toast('Peer not ready','warning');return;}
+    // wait up to 5s for peer "open"
+    if(A.peer.peer.disconnected||!A.peer.peer.open){
+      toast('Reconnecting to network…','info');
+      try{A.peer.peer.reconnect&&A.peer.peer.reconnect();}catch(e){}
+      var waited=0;while(waited<5000&&(!A.peer.peer.open||A.peer.peer.disconnected)){await new Promise(function(r){setTimeout(r,200);});waited+=200;}
+    }
+    // ensure data conn exists or open one
+    var dc=A.peer.dconns&&A.peer.dconns.get(pid);
+    if(!dc||!dc.open){toast('Opening data channel…','info');try{A.peer.connectTo(pid);}catch(e){}var w2=0;while(w2<4000&&(!(dc=A.peer.dconns&&A.peer.dconns.get(pid))||!dc.open)){await new Promise(function(r){setTimeout(r,200);});w2+=200;}}
+    return orig(video);
+  };
+  M.__v31Call=true;return true;
+}
+
+/* ---------- SELF DEBUG PANEL ---------- */
+var REQUIRED=['toast','crypto','streamReg','sounds','groupVideo','group','groupVoice','files','media','invite','callState','directCall','peer','ui'];
+function check(){
+  var A=window.App||{};
+  var rows=[];
+  rows.push({k:'Secure ctx',v:(location.protocol==='https:'||location.hostname==='localhost'),warn:'HTTPS required for media'});
+  rows.push({k:'getUserMedia',v:!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)});
+  rows.push({k:'RTCPeerConnection',v:!!window.RTCPeerConnection});
+  rows.push({k:'SafeStorage',v:!!(window.SafeStorage&&typeof window.SafeStorage.get==='function')});
+  rows.push({k:'IndexedDB',v:!!window.indexedDB});
+  rows.push({k:'Peer ID',v:!!(A.peer&&A.peer.myId),detail:A.peer&&A.peer.myId||'—'});
+  rows.push({k:'Peer open',v:!!(A.peer&&A.peer.peer&&A.peer.peer.open)});
+  rows.push({k:'Connections',v:!!(A.peer&&A.peer.dconns&&A.peer.dconns.size>0),detail:(A.peer&&A.peer.dconns&&A.peer.dconns.size||0)+' open'});
+  REQUIRED.forEach(function(m){rows.push({k:'mod.'+m,v:!!A[m]});});
+  rows.push({k:'Live Sync',v:syncOn,detail:syncOn?'broadcasting':'off'});
+  return rows;
+}
+function autoRepair(){
+  var fixed=[];
+  try{hookCallReady()&&fixed.push('call');}catch(e){}
+  try{hookSyncReceive()&&fixed.push('sync');}catch(e){}
+  try{var A=window.App;if(A&&A.peer&&A.peer.peer&&A.peer.peer.disconnected){A.peer.peer.reconnect&&A.peer.peer.reconnect();fixed.push('peer-reconnect');}}catch(e){}
+  try{if(window.App&&App.ui&&App.ui._syncMobPeers)App.ui._syncMobPeers();}catch(e){}
+  toast('Auto-repair: '+(fixed.length?fixed.join(', '):'nothing to fix'),'success');
+  setTimeout(render,400);
+}
+function ensurePanel(){
+  if(document.getElementById('v31-diag'))return;
+  var d=document.createElement('div');d.id='v31-diag';
+  d.innerHTML='<div class="v31-h"><b>🔍 Self-Debug</b><span id="v31-summary" style="font-size:11px;color:var(--muted,#888)"></span><span id="v31-tog">▾</span></div><div class="v31-body"><div id="v31-rows"></div><div class="v31-actions"><button id="v31-recheck">↻ Re-check</button><button id="v31-fix">🔧 Auto-repair</button><button id="v31-sync-broadcast">📡 Sync now</button><button id="v31-reconnect">🔌 Reconnect peers</button><button id="v31-hide">✕ Hide</button></div></div>';
+  document.body.appendChild(d);
+  d.querySelector('.v31-h').onclick=function(){d.classList.toggle('on');};
+  d.querySelector('#v31-recheck').onclick=function(e){e.stopPropagation();render();};
+  d.querySelector('#v31-fix').onclick=function(e){e.stopPropagation();autoRepair();};
+  d.querySelector('#v31-sync-broadcast').onclick=function(e){e.stopPropagation();var n=broadcastSnapshot();toast('Synced to '+(n||0)+' peer(s)','success');};
+  d.querySelector('#v31-reconnect').onclick=function(e){e.stopPropagation();try{var A=window.App;if(A&&A.peer){if(A.peer.peer&&A.peer.peer.reconnect)A.peer.peer.reconnect();var known=window.SafeStorage.getJSON('dh-known-peers-v1',[])||[];known.forEach(function(p){try{A.peer.connectTo(p.id);}catch(e){}});toast('Reconnecting to '+known.length+' peer(s)','info');}}catch(e){}};
+  d.querySelector('#v31-hide').onclick=function(e){e.stopPropagation();d.style.display='none';};
+}
+function ensureSyncBar(){
+  if(document.getElementById('v31-sync-bar'))return;
+  var b=document.createElement('div');b.id='v31-sync-bar';b.title='Click to toggle live sync (auto-broadcasts state to all connected peers)';
+  b.innerHTML='<span class="v31-pulse"></span><span class="v31-lbl">Live Sync</span>';
+  document.body.appendChild(b);
+  b.onclick=function(){setSync(!syncOn);};
+  updateSyncBar();
+}
+function updateSyncBar(){var b=document.getElementById('v31-sync-bar');if(!b)return;b.classList.toggle('off',!syncOn);var l=b.querySelector('.v31-lbl');if(l)l.textContent='Live Sync: '+(syncOn?'ON':'OFF');}
+function render(){
+  ensurePanel();ensureSyncBar();
+  var rows=check();var host=document.getElementById('v31-rows');if(!host)return;
+  var okN=rows.filter(function(r){return r.v;}).length;
+  document.getElementById('v31-summary').textContent=okN+'/'+rows.length+' OK';
+  host.innerHTML=rows.map(function(r){var cls=r.v?'v31-ok':(r.warn?'v31-warn':'v31-bad');return '<div class="v31-row"><span class="v31-dot '+cls+'"></span><span style="flex:1">'+r.k+'</span><span style="color:var(--muted,#888);font-size:10px">'+(r.detail||(r.v?'ok':'fail'))+'</span></div>';}).join('');
+}
+window.DevHubV31={check:check,render:render,repair:autoRepair,sync:broadcastSnapshot,setSync:setSync,snapshot:snapshot};
+
+/* ---------- BOOT ---------- */
+var tries=0,iv=setInterval(function(){
+  tries++;
+  hookSyncReceive();hookCallReady();
+  if(window.App&&App.peer&&App.peer.myId){render();}
+  if(tries>60){clearInterval(iv);render();}
+},500);
+setInterval(render,8000);
+window.addEventListener('online',function(){setTimeout(function(){autoRepair();},800);});
+log('v31 loaded — self-debug, live sync, call hardening');
+})();
+</script>
+
+<style>
+/* ===== v32 polish: realistic call UI + chat + transfer + mobile ===== */
+/* Better fmtSize chip + percent label on existing .pb */
+.pb{position:relative}
+.pb .pb-pct{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:10px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.7);pointer-events:none;white-space:nowrap}
+.tc-meta{display:flex;gap:8px;font-size:10px;color:var(--muted,#888);padding:0 8px 4px}
+.tc-meta span{display:inline-flex;align-items:center;gap:3px}
+.tc-acts2{display:flex;gap:4px;margin-left:auto}
+.tc-acts2 button{background:var(--bg3,#1e1e2e);border:1px solid var(--border,#2d2d44);color:var(--text,#e2e2f0);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;min-height:28px}
+
+/* WhatsApp/Teams-style call overlay */
+#vwrap.v32-call{background:linear-gradient(135deg,#0a0a14,#000)!important}
+#vwrap.v32-call #rvid{border-radius:12px}
+#vwrap.v32-call #lvid{border-radius:12px!important;box-shadow:0 8px 24px rgba(0,0,0,.6)!important;border:2px solid rgba(255,255,255,.15)!important;transition:transform .2s;cursor:grab}
+#vwrap.v32-call #lvid:active{cursor:grabbing}
+#vwrap.v32-call::before{content:'';position:absolute;top:0;left:0;right:0;height:80px;background:linear-gradient(180deg,rgba(0,0,0,.55),transparent);pointer-events:none;z-index:2;border-radius:12px 12px 0 0}
+#v32-call-top{position:absolute;top:10px;left:14px;right:14px;z-index:3;display:flex;align-items:center;gap:10px;color:#fff;font:600 13px system-ui;pointer-events:none;text-shadow:0 1px 3px rgba(0,0,0,.7)}
+#v32-call-top .v32-av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+#v32-call-top .v32-nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#v32-call-top .v32-tm{font-variant-numeric:tabular-nums;background:rgba(0,0,0,.5);padding:3px 10px;border-radius:12px;font-size:12px}
+#v32-call-top .v32-q{display:inline-flex;gap:2px}
+#v32-call-top .v32-q i{width:3px;background:#2ecc71;border-radius:1px;display:inline-block}
+#v32-call-top .v32-q i:nth-child(1){height:5px}#v32-call-top .v32-q i:nth-child(2){height:8px}#v32-call-top .v32-q i:nth-child(3){height:11px}
+#v32-call-bot{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:3;display:flex;gap:10px;background:rgba(20,20,30,.7);backdrop-filter:blur(12px);padding:10px 14px;border-radius:32px;border:1px solid rgba(255,255,255,.1);box-shadow:0 8px 24px rgba(0,0,0,.4)}
+#v32-call-bot button{width:46px;height:46px;border-radius:50%;border:none;background:rgba(255,255,255,.12);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+#v32-call-bot button:hover{background:rgba(255,255,255,.22);transform:scale(1.08)}
+#v32-call-bot button.v32-on{background:#fff;color:#000}
+#v32-call-bot button.v32-end{background:#e74c3c;width:54px}
+#v32-call-bot button.v32-end:hover{background:#c0392b}
+@media(max-width:600px){#v32-call-bot{padding:8px 10px;gap:6px}#v32-call-bot button{width:42px;height:42px;font-size:16px}#v32-call-bot button.v32-end{width:50px}}
+
+/* Realistic chat bubbles polish */
+.chat-msgs .msg-bubble,.chat-msgs .cm-bubble{position:relative}
+.v32-msg-acts{position:absolute;top:-6px;right:-6px;display:none;gap:2px;background:var(--bg2,#15151f);border:1px solid var(--border,#2d2d44);border-radius:12px;padding:2px;box-shadow:0 4px 10px rgba(0,0,0,.3);z-index:5}
+.chat-msgs [data-mid]:hover .v32-msg-acts{display:flex}
+.v32-msg-acts button{background:none;border:none;color:var(--text,#e2e2f0);font-size:12px;cursor:pointer;padding:2px 6px;border-radius:8px}
+.v32-msg-acts button:hover{background:var(--bg3,#1e1e2e)}
+
+/* Mobile chat keyboard fix — keep input visible */
+@media(max-width:900px){
+  #tab-chat{padding-bottom:0!important}
+  .chat-input,[data-chat-input]{position:sticky;bottom:0;background:var(--bg,#0a0a14);z-index:10;padding-bottom:max(8px,env(safe-area-inset-bottom));border-top:1px solid var(--border,#2d2d44)}
+  #tab-chat .chat-msgs{padding-bottom:8px}
+  /* prevent mobile nav from covering input */
+  body.v32-chat-focus #mobnav{transform:translateY(110%);transition:transform .2s}
+  body.v32-chat-focus #tab-chat{padding-bottom:0!important}
+}
+
+/* Delete-all toolbar */
+#v32-cleanup-fab{position:fixed;left:12px;bottom:78px;z-index:9000;background:var(--bg2,#15151f);border:1px solid var(--border,#2d2d44);color:var(--text,#e2e2f0);border-radius:50%;width:42px;height:42px;cursor:pointer;font-size:18px;box-shadow:0 4px 12px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center}
+#v32-cleanup-fab:hover{background:var(--bg3,#1e1e2e)}
+#v32-cleanup-menu{position:fixed;left:12px;bottom:128px;z-index:9001;background:var(--bg2,#15151f);border:1px solid var(--border,#2d2d44);border-radius:10px;padding:6px;display:none;flex-direction:column;gap:2px;min-width:200px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+#v32-cleanup-menu.on{display:flex}
+#v32-cleanup-menu button{background:transparent;border:none;color:var(--text,#e2e2f0);text-align:left;padding:8px 12px;font-size:13px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:8px}
+#v32-cleanup-menu button:hover{background:var(--bg3,#1e1e2e)}
+#v32-cleanup-menu button.v32-danger:hover{background:#e74c3c;color:#fff}
+@media(max-width:600px){#v32-cleanup-fab{bottom:84px;left:8px;width:38px;height:38px;font-size:16px}#v32-cleanup-menu{left:8px;bottom:130px}}
+</style>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   v32 — realistic UI + delete-all + transfer percent + mobile fixes
+   Additive only. No module removed.
+   ════════════════════════════════════════════════════════════════════ */
+(function(){
+'use strict';
+var TAG='[v32]';
+function log(m){try{console.log(TAG,m);}catch(e){}}
+function qs(id){return document.getElementById(id);}
+function toast(m,k){try{window.App&&App.toast&&App.toast.show&&App.toast.show(m,k||'info');}catch(e){}}
+function fmtBytes(b){if(!b&&b!==0)return'—';if(b<1024)return b+'B';var k=b/1024;if(k<1024)return k.toFixed(1)+'KB';var m=k/1024;if(m<1024)return m.toFixed(1)+'MB';return(m/1024).toFixed(2)+'GB';}
+function fmtDur(ms){if(!ms||ms<0)return'—';var s=Math.round(ms/1000);if(s<60)return s+'s';var m=Math.floor(s/60);return m+'m '+(s%60)+'s';}
+
+/* ============== TRANSFER PERCENT + SPEED + ETA ============== */
+var _xfer={};/* id -> {start, lastBytes, lastTs, total} */
+function ensureTransferMeta(id){
+  var card=document.querySelector('[id$="-'+id+'"]')||document.getElementById('tc-stat-'+id);
+  var host=qs('pb-'+id);if(!host)return null;
+  var pb=host.parentElement;
+  if(pb&&!pb.querySelector('.pb-pct')){var lbl=document.createElement('div');lbl.className='pb-pct';lbl.id='pbpct-'+id;lbl.textContent='0%';pb.appendChild(lbl);}
+  var stat=qs('tc-stat-'+id);
+  if(stat&&!document.getElementById('tc-meta-'+id)){
+    var meta=document.createElement('div');meta.id='tc-meta-'+id;meta.className='tc-meta';
+    meta.innerHTML='<span id="tc-sent-'+id+'">0B</span><span>•</span><span id="tc-spd-'+id+'">0KB/s</span><span>•</span><span id="tc-eta-'+id+'">ETA —</span>';
+    stat.parentElement&&stat.parentElement.parentElement&&stat.parentElement.parentElement.appendChild(meta);
+  }
+  return true;
+}
+function updateTransferLabel(id,bytesDone,total){
+  ensureTransferMeta(id);
+  var pct=total?Math.min(100,Math.round(bytesDone/total*100)):0;
+  var lbl=qs('pbpct-'+id);if(lbl)lbl.textContent=pct+'%';
+  var sent=qs('tc-sent-'+id);if(sent)sent.textContent=fmtBytes(bytesDone)+' / '+fmtBytes(total);
+  var st=_xfer[id]=_xfer[id]||{start:Date.now(),lastBytes:0,lastTs:Date.now()};
+  var now=Date.now(),dt=Math.max(50,now-st.lastTs);
+  if(dt>500){
+    var dB=bytesDone-st.lastBytes;var bps=dB/dt*1000;
+    var spd=qs('tc-spd-'+id);if(spd)spd.textContent=fmtBytes(Math.round(bps))+'/s';
+    var rem=total-bytesDone;var eta=bps>0?(rem/bps*1000):0;
+    var et=qs('tc-eta-'+id);if(et)et.textContent='ETA '+fmtDur(eta);
+    st.lastBytes=bytesDone;st.lastTs=now;
+  }
+  if(pct>=100){var et2=qs('tc-eta-'+id);if(et2)et2.textContent='Done';delete _xfer[id];}
+}
+/* Observe .pb-fill width changes to derive %. Also hook v28 ft2 if present */
+function watchAllTransfers(){
+  document.querySelectorAll('[id^="pb-"]').forEach(function(fill){
+    var id=fill.id.replace(/^pb-/,'');if(fill.__v32)return;fill.__v32=true;
+    var mo=new MutationObserver(function(){
+      var w=parseFloat(fill.style.width)||0;
+      // try to get total from sibling .tc-sz text
+      var card=fill.closest('.tc')||fill.closest('[data-tid]');
+      var sz=card&&card.querySelector('.tc-sz');var total=0;
+      if(sz){var txt=sz.textContent||'';var m=txt.match(/([\d.]+)\s*(B|KB|MB|GB)/i);if(m){var n=parseFloat(m[1]);var u=m[2].toUpperCase();total=n*(u==='B'?1:u==='KB'?1024:u==='MB'?1048576:1073741824);}}
+      var done=Math.round(total*w/100);
+      updateTransferLabel(id,done,total||1);
+    });
+    mo.observe(fill,{attributes:true,attributeFilter:['style']});
+    ensureTransferMeta(id);
+  });
+}
+setInterval(watchAllTransfers,1000);
+
+/* ============== REALISTIC CALL OVERLAY ============== */
+function ensureCallOverlay(){
+  var w=qs('vwrap');if(!w)return;
+  w.classList.add('v32-call');
+  if(!qs('v32-call-top')){
+    var top=document.createElement('div');top.id='v32-call-top';
+    top.innerHTML='<div class="v32-av">👤</div><div class="v32-nm" id="v32-nm">Connecting…</div><div class="v32-q" title="Signal"><i></i><i></i><i></i></div><div class="v32-tm" id="v32-tm">00:00</div>';
+    w.appendChild(top);
+  }
+  if(!qs('v32-call-bot')){
+    var bot=document.createElement('div');bot.id='v32-call-bot';
+    bot.innerHTML=
+      '<button id="v32-mute" title="Mute">🎤</button>'+
+      '<button id="v32-cam" title="Camera">📹</button>'+
+      '<button id="v32-flip" title="Flip camera">🔄</button>'+
+      '<button id="v32-spk" title="Speaker">🔊</button>'+
+      '<button id="v32-chat" title="Chat">💬</button>'+
+      '<button id="v32-end" class="v32-end" title="End call">📵</button>';
+    w.appendChild(bot);
+    bot.querySelector('#v32-mute').onclick=function(){this.classList.toggle('v32-on');qs('btn-mute')&&qs('btn-mute').click();};
+    bot.querySelector('#v32-cam').onclick=function(){this.classList.toggle('v32-on');qs('btn-vid-toggle')&&qs('btn-vid-toggle').click();};
+    bot.querySelector('#v32-flip').onclick=async function(){try{var M=window.App&&App.media;if(!M||!M._localStream)return;var vt=M._localStream.getVideoTracks()[0];if(!vt)return;var cur=vt.getSettings&&vt.getSettings().facingMode||'user';var next=cur==='user'?'environment':'user';vt.stop();var s=await navigator.mediaDevices.getUserMedia({video:{facingMode:next},audio:false});var nt=s.getVideoTracks()[0];M._localStream.removeTrack(vt);M._localStream.addTrack(nt);var pc=M._call&&M._call.peerConnection;if(pc){var sender=pc.getSenders().find(function(s){return s.track&&s.track.kind==='video';});if(sender)sender.replaceTrack(nt);}var lv=qs('lvid');if(lv)lv.srcObject=M._localStream;toast('Camera flipped to '+next,'success');}catch(e){toast('Flip failed: '+e.message,'error');}};
+    bot.querySelector('#v32-spk').onclick=function(){var v=qs('vol-slider');if(v){v.value=v.value==='0'?'1':'0';v.dispatchEvent(new Event('input'));var rv=qs('rvid');if(rv)rv.volume=parseFloat(v.value);this.classList.toggle('v32-on',v.value==='0');toast('Speaker '+(v.value==='0'?'muted':'on'),'info');}};
+    bot.querySelector('#v32-chat').onclick=function(){window.App&&App.ui&&App.ui.setTab&&App.ui.setTab('chat');};
+    bot.querySelector('#v32-end').onclick=function(){qs('btn-hang')&&qs('btn-hang').click();};
+  }
+  // sync state
+  var nm=qs('v32-nm'),tm=qs('v32-tm');
+  if(nm){var ct=qs('call-peer-nm');if(ct&&ct.textContent)nm.textContent=ct.textContent;}
+  if(tm){var ti=qs('call-timer');if(ti&&ti.textContent)tm.textContent=ti.textContent;}
+  // drag local PiP
+  var lv=qs('lvid');if(lv&&!lv.__v32drag){lv.__v32drag=true;var sx,sy,ox,oy,drag=false;
+    function down(e){drag=true;var t=e.touches?e.touches[0]:e;sx=t.clientX;sy=t.clientY;var r=lv.getBoundingClientRect();ox=r.left;oy=r.top;lv.style.transition='none';}
+    function move(e){if(!drag)return;var t=e.touches?e.touches[0]:e;var dx=t.clientX-sx,dy=t.clientY-sy;lv.style.left=(ox+dx)+'px';lv.style.top=(oy+dy)+'px';lv.style.right='auto';lv.style.bottom='auto';lv.style.position='fixed';e.preventDefault();}
+    function up(){drag=false;}
+    lv.addEventListener('mousedown',down);lv.addEventListener('touchstart',down,{passive:true});
+    window.addEventListener('mousemove',move);window.addEventListener('touchmove',move,{passive:false});
+    window.addEventListener('mouseup',up);window.addEventListener('touchend',up);
+  }
+}
+new MutationObserver(function(){var w=qs('vwrap');if(w&&w.style.display!=='none')ensureCallOverlay();}).observe(document.body,{attributes:true,subtree:true,attributeFilter:['style','class']});
+setInterval(function(){var w=qs('vwrap');if(w&&getComputedStyle(w).display!=='none')ensureCallOverlay();},1500);
+
+/* ============== DELETE-ALL MENU ============== */
+function ensureCleanupFab(){
+  if(qs('v32-cleanup-fab'))return;
+  var fab=document.createElement('button');fab.id='v32-cleanup-fab';fab.title='Cleanup / Delete';fab.textContent='🗑';
+  document.body.appendChild(fab);
+  var menu=document.createElement('div');menu.id='v32-cleanup-menu';
+  menu.innerHTML=
+    '<button data-act="msg-active">💬 Clear chat (active peer)</button>'+
+    '<button data-act="msg-all">💬 Clear ALL chat history</button>'+
+    '<button data-act="files">📁 Clear file transfer list</button>'+
+    '<button data-act="ft-idb">🗄 Clear saved transfers (IDB)</button>'+
+    '<button data-act="peers">👥 Forget all known peers</button>'+
+    '<button data-act="callhist">📞 Clear call history</button>'+
+    '<button data-act="tasks">✅ Clear tasks</button>'+
+    '<button data-act="notif">🔔 Clear notifications</button>'+
+    '<button class="v32-danger" data-act="all">⚠ Reset everything</button>';
+  document.body.appendChild(menu);
+  fab.onclick=function(e){e.stopPropagation();menu.classList.toggle('on');};
+  document.addEventListener('click',function(e){if(!menu.contains(e.target)&&e.target!==fab)menu.classList.remove('on');});
+  menu.addEventListener('click',function(e){var b=e.target.closest('button[data-act]');if(!b)return;menu.classList.remove('on');doCleanup(b.dataset.act);});
+}
+async function doCleanup(act){
+  try{
+    if(act==='msg-active'){var pid=App.ui&&App.ui.activePeer;if(!pid){toast('Select a peer first','warning');return;}var all=SafeStorage.getJSON('dh-msgs-v1',{})||{};delete all[pid];SafeStorage.setJSON('dh-msgs-v1',all);App.chat&&App.chat._render&&App.chat._render();toast('Chat cleared for active peer','success');}
+    else if(act==='msg-all'){if(!confirm('Delete ALL chat history with every peer?'))return;SafeStorage.setJSON('dh-msgs-v1',{});App.chat&&App.chat._render&&App.chat._render();toast('All chat history cleared','success');}
+    else if(act==='files'){document.querySelectorAll('[id^="pb-"]').forEach(function(p){var c=p.closest('.tc')||p.closest('[data-tid]');if(c)c.remove();});toast('Transfer list cleared','success');}
+    else if(act==='ft-idb'){try{indexedDB.deleteDatabase('dh-ft2');toast('Saved transfer chunks cleared','success');}catch(e){toast('IDB clear failed','error');}}
+    else if(act==='peers'){SafeStorage.setJSON('dh-known-peers-v1',[]);var bar=qs('v30-recent');if(bar)bar.innerHTML='';toast('Known peers forgotten','success');}
+    else if(act==='callhist'){SafeStorage.setJSON('dh-call-hist',[]);try{App.callHist&&App.callHist.load&&App.callHist.load();}catch(e){}toast('Call history cleared','success');}
+    else if(act==='tasks'){SafeStorage.setJSON('dh-tasks-v2',[]);try{App.tasks&&(App.tasks._tasks=[],App.tasks._render&&App.tasks._render());}catch(e){}toast('Tasks cleared','success');}
+    else if(act==='notif'){document.querySelectorAll('.toast,.notif,#toasts > *').forEach(function(n){n.remove();});toast('Notifications cleared','success');}
+    else if(act==='all'){if(!confirm('Wipe ALL local data (chat, peers, tasks, vault, transfers)? This cannot be undone.'))return;
+      ['dh-msgs-v1','dh-known-peers-v1','dh-call-hist','dh-tasks-v2','dh-hist-v2','dh-trust-v1','dh-offline-q'].forEach(function(k){SafeStorage.del(k);});
+      try{indexedDB.deleteDatabase('dh-ft2');}catch(e){}
+      try{indexedDB.deleteDatabase('devhub-files');}catch(e){}
+      toast('All data wiped. Reloading…','warning');setTimeout(function(){location.reload();},900);
+    }
+  }catch(e){toast('Cleanup failed: '+e.message,'error');}
+}
+
+/* ============== MOBILE CHAT INPUT FOCUS FIX ============== */
+function hookChatFocus(){
+  var inputs=document.querySelectorAll('.chat-input input,.chat-input textarea,[data-chat-input] input,[data-chat-input] textarea,#chat-input,#gc-input');
+  inputs.forEach(function(el){
+    if(el.__v32)return;el.__v32=true;
+    el.addEventListener('focus',function(){document.body.classList.add('v32-chat-focus');setTimeout(function(){el.scrollIntoView({block:'center',behavior:'smooth'});},250);});
+    el.addEventListener('blur',function(){setTimeout(function(){document.body.classList.remove('v32-chat-focus');},150);});
+  });
+}
+setInterval(hookChatFocus,1500);
+
+/* ============== MESSAGE DELETE BUTTONS ============== */
+function ensureMsgActions(){
+  document.querySelectorAll('.chat-msgs [data-mid]').forEach(function(m){
+    if(m.querySelector('.v32-msg-acts'))return;
+    var acts=document.createElement('div');acts.className='v32-msg-acts';
+    acts.innerHTML='<button title="Copy">📋</button><button title="Delete">🗑</button>';
+    m.appendChild(acts);
+    acts.children[0].onclick=function(e){e.stopPropagation();var t=m.querySelector('.msg-text,.cm-text,.bubble-text');if(t)navigator.clipboard&&navigator.clipboard.writeText(t.textContent||'').then(function(){toast('Copied','success');});};
+    acts.children[1].onclick=function(e){e.stopPropagation();var mid=m.dataset.mid;var pid=App.ui&&App.ui.activePeer;if(pid&&mid){var all=SafeStorage.getJSON('dh-msgs-v1',{})||{};if(all[pid])all[pid]=all[pid].filter(function(x){return x.id!==mid;});SafeStorage.setJSON('dh-msgs-v1',all);}m.remove();toast('Message deleted','info');};
+  });
+}
+setInterval(ensureMsgActions,1200);
+
+/* ============== BOOT ============== */
+function boot(){ensureCleanupFab();hookChatFocus();watchAllTransfers();ensureMsgActions();}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+log('v32 loaded — realistic call UI, percent transfers, delete-all, mobile chat fixes');
+})();
+</script>
+
+<!-- ====================================================================
+     v33 — Universal Hardening: SafeStorage-proof, draggable mini-panels,
+     per-module peers strip, mobile QR, gesture permission wizard, hard
+     media cleanup on hangup. Additive IIFE; never breaks existing code.
+==================================================================== -->
+<style>
+.v33-drag-handle{cursor:move;user-select:none;touch-action:none}
+.v33-drag-hint{position:absolute;top:2px;left:6px;font-size:10px;opacity:.5;pointer-events:none}
+#v33-peers-strip{display:flex;gap:6px;flex-wrap:wrap;padding:6px 10px;background:rgba(99,102,241,.08);border-bottom:1px solid var(--border,#2d2d44);font:11px system-ui;align-items:center;min-height:30px}
+#v33-peers-strip .v33-pchip{display:inline-flex;align-items:center;gap:4px;background:var(--bg2,#15151f);border:1px solid var(--border,#2d2d44);border-radius:12px;padding:2px 8px;color:var(--text,#e2e2f0);font-size:11px;cursor:pointer}
+#v33-peers-strip .v33-pchip .v33-dot{width:6px;height:6px;border-radius:50%;background:#2ecc71;display:inline-block}
+#v33-peers-strip .v33-pchip.off .v33-dot{background:#888}
+#v33-peers-strip .v33-pchip:hover{border-color:#6366f1}
+#v33-peers-strip .v33-empty{color:var(--muted,#888);font-style:italic}
+#v33-perm-bar{position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:9999;background:#f59e0b;color:#000;padding:8px 14px;border-radius:10px;font:600 12px system-ui;box-shadow:0 6px 20px rgba(0,0,0,.4);display:none;align-items:center;gap:10px}
+#v33-perm-bar.on{display:flex}
+#v33-perm-bar button{background:#000;color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font:600 11px system-ui}
+@media(max-width:600px){
+  #btn-mob-qr{display:inline-flex!important}
+  #v31-diag,#v31-sync-bar,#v32-cleanup-fab,#v32-cleanup-menu{z-index:8500}
+  body.v32-chat-focus #v31-diag,body.v32-chat-focus #v31-sync-bar,body.v32-chat-focus #v32-cleanup-fab{display:none!important}
+}
+</style>
+<script>
+/* v33 — universal hardening (single IIFE, additive) */
+(function(){
+'use strict';
+var TAG='[v33]';
+function log(){try{console.log.apply(console,[TAG].concat([].slice.call(arguments)));}catch(e){}}
+function $(id){return document.getElementById(id);}
+function toast(m,t){try{window.App&&App.toast&&App.toast.show?App.toast.show(m,t||'info'):console.log('[toast]',m);}catch(e){}}
+
+/* ---------- 1. SAFE-STORAGE BULLETPROOF ---------- */
+/* Reason for "SafeStorage is not defined": legacy code refers to bare
+   SafeStorage identifier; if the const at line 1952 hasn't executed yet
+   (or was wiped by an early error), our panels crash. Polyfill BOTH
+   window.SafeStorage and a global fallback so reference never throws. */
+(function(){
+  var mem={};
+  var ls=null;try{ls=window.localStorage;ls.setItem('__v33t','1');ls.removeItem('__v33t');}catch(e){ls=null;}
+  function get(k,d){try{if(ls){var v=ls.getItem(k);return v==null?(d==null?null:d):v;}return k in mem?mem[k]:(d==null?null:d);}catch(e){return d==null?null:d;}}
+  function set(k,v){try{if(ls)ls.setItem(k,String(v));else mem[k]=String(v);}catch(e){mem[k]=String(v);}}
+  function del(k){try{if(ls)ls.removeItem(k);delete mem[k];}catch(e){}}
+  function getJSON(k,d){try{var r=get(k,null);return r==null?d:JSON.parse(r);}catch(e){return d;}}
+  function setJSON(k,v){try{set(k,JSON.stringify(v));}catch(e){}}
+  var poly={get:get,set:set,del:del,getJSON:getJSON,setJSON:setJSON};
+  if(!window.SafeStorage||typeof window.SafeStorage.get!=='function'){window.SafeStorage=poly;}
+  /* Expose as bare global so `SafeStorage.foo()` never ReferenceErrors */
+  try{if(typeof globalThis!=='undefined'&&!globalThis.SafeStorage)globalThis.SafeStorage=window.SafeStorage;}catch(e){}
+  window.__v33Storage=poly;
+})();
+var SS=window.SafeStorage;
+
+/* ---------- 2. DRAGGABLE MINI-PANELS (per-module persisted) ---------- */
+function makeDraggable(el,key,handleSel){
+  if(!el||el.__v33drag)return;el.__v33drag=true;
+  var handle=handleSel?el.querySelector(handleSel):el;
+  if(!handle)handle=el;
+  handle.classList.add('v33-drag-handle');
+  /* restore */
+  try{var saved=SS.getJSON('v33-pos-'+key,null);
+    if(saved&&typeof saved.x==='number'){
+      el.style.position='fixed';el.style.left=saved.x+'px';el.style.top=saved.y+'px';
+      el.style.right='auto';el.style.bottom='auto';
+    }
+  }catch(e){}
+  var sx,sy,ox,oy,drag=false,moved=false;
+  function down(e){
+    if(e.target.tagName==='BUTTON'||e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;
+    drag=true;moved=false;var t=e.touches?e.touches[0]:e;sx=t.clientX;sy=t.clientY;
+    var r=el.getBoundingClientRect();ox=r.left;oy=r.top;
+    el.style.transition='none';
+  }
+  function move(e){
+    if(!drag)return;var t=e.touches?e.touches[0]:e;
+    var dx=t.clientX-sx,dy=t.clientY-sy;
+    if(Math.abs(dx)+Math.abs(dy)>3)moved=true;
+    var nx=Math.max(0,Math.min(window.innerWidth-40,ox+dx));
+    var ny=Math.max(0,Math.min(window.innerHeight-40,oy+dy));
+    el.style.position='fixed';el.style.left=nx+'px';el.style.top=ny+'px';
+    el.style.right='auto';el.style.bottom='auto';
+    if(e.cancelable)e.preventDefault();
+  }
+  function up(){
+    if(!drag)return;drag=false;
+    if(moved){try{var r=el.getBoundingClientRect();SS.setJSON('v33-pos-'+key,{x:r.left,y:r.top});}catch(e){}}
+  }
+  handle.addEventListener('mousedown',down);
+  handle.addEventListener('touchstart',down,{passive:true});
+  window.addEventListener('mousemove',move);
+  window.addEventListener('touchmove',move,{passive:false});
+  window.addEventListener('mouseup',up);
+  window.addEventListener('touchend',up);
+}
+function applyDraggables(){
+  /* per-module key derived from current active tab to satisfy "drag changes per module" */
+  var tab='';try{tab=(document.querySelector('.tab.active,[data-tab].active,.mob-tab.active')||{}).dataset?.tab||'';}catch(e){}
+  var suffix=tab||'global';
+  makeDraggable($('v31-diag'),'diag-'+suffix,'.v31-h');
+  makeDraggable($('v31-sync-bar'),'sync-'+suffix);
+  makeDraggable($('v32-cleanup-fab'),'clean-'+suffix);
+  /* draggable QR modal, viewport mini panel if present */
+  var vp=document.querySelector('[data-mini="viewport"],.mini-viewport,#mini-settings,#minisettings,.mini-settings');
+  if(vp)makeDraggable(vp,'vp-'+suffix);
+}
+
+/* ---------- 3. PER-MODULE CONNECTED PEERS STRIP ---------- */
+function getOpenPeers(){
+  var out=[];try{
+    var dc=window.App&&App.peer&&App.peer.dconns;
+    if(dc&&dc.forEach)dc.forEach(function(c,pid){if(c&&c.open)out.push({pid:pid,name:(App.peer.peerName&&App.peer.peerName(pid))||pid.slice(0,8)});});
+  }catch(e){}
+  return out;
+}
+function ensurePeersStrip(){
+  /* inject into every visible tab panel */
+  var panels=document.querySelectorAll('.tab-pane,[role="tabpanel"],[id^="tab-"]');
+  panels.forEach(function(p){
+    if(!p||p.id==='v31-diag'||p.id==='v32-cleanup-menu')return;
+    if(getComputedStyle(p).display==='none')return;
+    var strip=p.querySelector(':scope > #v33-peers-strip-clone');
+    if(!strip){
+      strip=document.createElement('div');strip.id='v33-peers-strip-clone';strip.className='v33-peers-strip-clone';
+      strip.style.cssText='display:flex;gap:6px;flex-wrap:wrap;padding:5px 10px;background:rgba(99,102,241,.08);border-bottom:1px solid var(--border,#2d2d44);font:11px system-ui;align-items:center;min-height:28px;position:sticky;top:0;z-index:10';
+      p.insertBefore(strip,p.firstChild);
+    }
+    var peers=getOpenPeers();
+    if(!peers.length){strip.innerHTML='<span style="color:var(--muted,#888);font-style:italic">No peers connected</span>';return;}
+    strip.innerHTML='<b style="color:var(--muted,#888);margin-right:4px">👥 '+peers.length+'</b>'+peers.slice(0,8).map(function(p){
+      return '<span class="v33-pchip" data-pid="'+p.pid+'" style="display:inline-flex;align-items:center;gap:4px;background:var(--bg2,#15151f);border:1px solid var(--border,#2d2d44);border-radius:12px;padding:2px 8px;cursor:pointer"><span style="width:6px;height:6px;border-radius:50%;background:#2ecc71;display:inline-block"></span>'+escapeHtml(p.name)+'</span>';
+    }).join('');
+    strip.querySelectorAll('.v33-pchip').forEach(function(ch){
+      ch.onclick=function(){var pid=ch.dataset.pid;try{App.ui&&App.ui.setActivePeer&&App.ui.setActivePeer(pid);App.ui&&App.ui.openChatWith&&App.ui.openChatWith(pid);}catch(e){}};
+    });
+  });
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+
+/* ---------- 4. MOBILE QR BUTTON FORCE-VISIBLE ---------- */
+function ensureMobileQR(){
+  var mq=$('btn-mob-qr');if(mq)mq.style.display='';
+  /* if missing entirely (some builds), inject into mobile peers panel */
+  var mp=$('mobile-peers');
+  if(mp&&!mp.querySelector('.v33-qr-row')){
+    var row=document.createElement('div');row.className='v33-qr-row';row.style.cssText='display:flex;gap:6px;padding:8px;border-top:1px solid var(--border,#2d2d44)';
+    row.innerHTML='<button class="btn btn-s btn-xs" id="v33-show-qr" style="flex:1">📱 Show QR</button><button class="btn btn-s btn-xs" id="v33-scan-qr" style="flex:1">📷 Scan QR</button>';
+    mp.appendChild(row);
+    row.querySelector('#v33-show-qr').onclick=function(){try{App.qr&&App.qr.showQR&&App.qr.showQR();}catch(e){toast('QR unavailable','error');}};
+    row.querySelector('#v33-scan-qr').onclick=function(){try{App.qr&&(App.qr.scanQR||App.qr.startScan)&&(App.qr.scanQR||App.qr.startScan).call(App.qr);}catch(e){toast('Scan unavailable','error');}};
+  }
+}
+
+/* ---------- 5. PERMISSION WIZARD (user-gesture safe) ---------- */
+function ensurePermBar(){
+  if($('v33-perm-bar'))return;
+  var b=document.createElement('div');b.id='v33-perm-bar';
+  b.innerHTML='<span id="v33-perm-msg">Microphone/Camera permission needed</span><button id="v33-perm-grant">Grant</button><button id="v33-perm-x" style="background:transparent;color:#000">✕</button>';
+  document.body.appendChild(b);
+  $('v33-perm-x').onclick=function(){b.classList.remove('on');};
+  $('v33-perm-grant').onclick=async function(){
+    /* runs inside real click gesture -> popup will appear */
+    try{
+      var s=await navigator.mediaDevices.getUserMedia({audio:true,video:true});
+      s.getTracks().forEach(function(t){t.stop();});
+      toast('Permissions granted','success');b.classList.remove('on');
+    }catch(e){
+      try{
+        var s2=await navigator.mediaDevices.getUserMedia({audio:true});
+        s2.getTracks().forEach(function(t){t.stop();});
+        toast('Mic granted (camera denied)','warning');b.classList.remove('on');
+      }catch(e2){
+        toast('Permission denied — check site settings (lock icon → Permissions)','error');
+      }
+    }
+  };
+}
+async function checkPerms(){
+  if(!navigator.permissions||!navigator.permissions.query)return;
+  try{
+    var mic=await navigator.permissions.query({name:'microphone'}).catch(function(){return null;});
+    var cam=await navigator.permissions.query({name:'camera'}).catch(function(){return null;});
+    var need=(mic&&mic.state==='prompt')||(cam&&cam.state==='prompt')||(mic&&mic.state==='denied')||(cam&&cam.state==='denied');
+    var bar=$('v33-perm-bar');if(!bar)return;
+    if(need){
+      var msg=(mic&&mic.state==='denied')||(cam&&cam.state==='denied')?'Mic/Camera BLOCKED — click site lock icon → allow':'Click Grant to enable mic/camera';
+      $('v33-perm-msg').textContent=msg;bar.classList.add('on');
+    }
+  }catch(e){}
+}
+
+/* ---------- 6. HARD MEDIA CLEANUP ON HANGUP ---------- */
+function stopAllMedia(reason){
+  var n=0;
+  try{
+    /* stream registry */
+    var sr=window.App&&App.streamReg&&App.streamReg._s;
+    if(sr&&sr.forEach)sr.forEach(function(s,k){try{s.getTracks().forEach(function(t){t.stop();n++;});}catch(e){}});
+    if(sr&&sr.clear)sr.clear();
+  }catch(e){}
+  try{
+    /* media module streams */
+    var M=window.App&&App.media;
+    if(M){
+      [M._localStream,M._remoteStream].forEach(function(s){if(s)try{s.getTracks().forEach(function(t){t.stop();n++;});}catch(e){}});
+      M._localStream=null;M._remoteStream=null;
+      if(M._call&&M._call.close)try{M._call.close();}catch(e){}
+    }
+  }catch(e){}
+  try{
+    /* any srcObject on the page */
+    document.querySelectorAll('video,audio').forEach(function(v){
+      var so=v.srcObject;if(so&&so.getTracks)try{so.getTracks().forEach(function(t){t.stop();n++;});}catch(e){}
+      try{v.srcObject=null;}catch(e){}
+    });
+  }catch(e){}
+  log('media cleanup',reason||'',n,'tracks stopped');
+  if(n)toast('Mic & camera released ('+n+' tracks)','success');
+}
+function hookHangup(){
+  var b=$('btn-hang');
+  if(b&&!b.__v33){b.__v33=true;
+    var orig=b.onclick;
+    b.addEventListener('click',function(){setTimeout(function(){stopAllMedia('btn-hang');},300);},true);
+  }
+  /* also intercept v32-end if user clicks the overlay end */
+  var e=$('v32-end');
+  if(e&&!e.__v33){e.__v33=true;
+    e.addEventListener('click',function(){setTimeout(function(){stopAllMedia('v32-end');},350);});
+  }
+  /* page hide / unload safety net */
+  if(!window.__v33pagehide){window.__v33pagehide=true;
+    window.addEventListener('pagehide',function(){stopAllMedia('pagehide');});
+    document.addEventListener('visibilitychange',function(){
+      if(document.hidden){
+        /* don't kill an active call when user just switches tab */
+      }
+    });
+  }
+}
+
+/* ---------- 7. BOOT LOOP ---------- */
+function tick(){
+  try{applyDraggables();}catch(e){}
+  try{ensurePeersStrip();}catch(e){}
+  try{ensureMobileQR();}catch(e){}
+  try{hookHangup();}catch(e){}
+}
+function boot(){
+  ensurePermBar();
+  setTimeout(checkPerms,1200);
+  tick();setInterval(tick,1500);
+  /* peers strip live updates on any RTC event */
+  try{
+    var dc=window.App&&App.peer&&App.peer.dconns;
+    if(dc){
+      var origSet=dc.set&&dc.set.bind(dc);
+      if(origSet&&!dc.__v33){dc.__v33=true;
+        dc.set=function(k,v){var r=origSet(k,v);try{ensurePeersStrip();}catch(e){}return r;};
+      }
+    }
+  }catch(e){}
+  log('v33 loaded — SafeStorage-proof, draggable panels, peers strip, mobile QR, perm wizard, hard media cleanup');
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+window.__v33={stopAllMedia:stopAllMedia,checkPerms:checkPerms,tick:tick};
+})();
+</script>
+
 
 </body>
 </html>
