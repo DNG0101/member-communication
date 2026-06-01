@@ -543,7 +543,7 @@ a{color:var(--primary);text-decoration:none;}
 @media(min-width:701px){.clippill{bottom:20px;}}
 .mob-drawer-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 4px;font-size:10px;font-weight:600;color:var(--text);min-height:64px;}
 .mob-drawer-btn:hover,.mob-drawer-btn:active{background:var(--bg4);}
-@keyframes __dh_dismiss{0%,70%{opacity:1;visibility:visible;pointer-events:auto}to{opacity:0;visibility:hidden;pointer-events:none}}#boot-overlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:99999;animation:__dh_dismiss 1s ease 6s forwards}
+#boot-overlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:99999;}
 #boot-overlay.gone{display:none;}
 .boot-logo{font-size:48px;}
 .boot-title{font-size:22px;font-weight:800;color:var(--primary);}
@@ -566,7 +566,9 @@ a{color:var(--primary);text-decoration:none;}
 #vol-slider{width:80px;accent-color:var(--primary);}
 #gv-my-video{width:100%;height:100%;object-fit:cover;}
 .hist-tabs{display:flex;gap:4px;margin-bottom:12px;}
-.is-low-end *{transition:none!important;animation:none!important;}
+.is-low-end *:not(#boot-overlay){transition:none!important;animation:none!important;}
+@keyframes __dhBO{0%,65%{opacity:1;visibility:visible;pointer-events:auto}to{opacity:0;visibility:hidden;pointer-events:none;display:none}}
+#boot-overlay{animation:__dhBO 1.2s ease 5s forwards!important}
 #net-quality-badge{font-size:10px;padding:2px 6px;border-radius:99px;background:var(--bg3);color:var(--muted);}
 #device-info-panel{background:var(--bg3);border-radius:var(--radius-sm);padding:10px;font-size:11px;color:var(--text2);line-height:1.8;}
 .skel{background:linear-gradient(90deg,var(--bg3) 25%,var(--bg4) 50%,var(--bg3) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px;}
@@ -732,27 +734,38 @@ a{color:var(--primary);text-decoration:none;}
 </head>
 <body>
 <script>
-/* ═══════════════════════════════════════════════════════════
-   ABSOLUTE BOOT FAILSAFE — runs before IIFE, no dependencies.
-   Forcibly removes boot overlay after 5 s no matter what.
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════
+   ABSOLUTE FIRST SCRIPT — runs before EVERYTHING else.
+   Sets a hard 2-second timer to nuke the boot overlay.
+   ═══════════════════════════════════════════════════════ */
 (function(){
-  var _ht=setTimeout(function(){
+  function _dhDbg(msg){
+    try{var el=document.getElementById('boot-dbg');if(el)el.textContent=msg;}catch(e){}
+  }
+  function _dhNuke(reason){
     try{
       var bo=document.getElementById('boot-overlay');
-      if(bo){
-        bo.style.cssText='display:none!important;opacity:0!important;visibility:hidden!important';
-        try{bo.remove();}catch(e){}
-      }
+      if(bo){bo.style.cssText='display:none!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important';try{bo.remove();}catch(e){}}
     }catch(e){}
-  },5000);
-  /* Allow successful boot to clear this timer */
-  window.__dhClearBootTimer=function(){try{clearTimeout(_ht);}catch(e){}};
-
-  /* Catch IIFE crashes and log them */
-  window.addEventListener('error',function(ev){
-    console.error('[DevHub] Global error caught:',ev.message,'at',ev.filename+':'+ev.lineno);
-  });
+    try{if(window.__dhClearTimer)window.__dhClearTimer();}catch(e){}
+  }
+  _dhDbg('JS OK — waiting for boot…');
+  window.__dhDbg=_dhDbg;
+  window.__dhNuke=_dhNuke;
+  /* Hard 2-second deadline — kills overlay no matter what */
+  var _t=setTimeout(function(){_dhNuke('2s deadline');},2000);
+  window.__dhClearTimer=function(){clearTimeout(_t);};
+  /* Catch all JS errors and show them in overlay */
+  window.onerror=function(msg,src,line){
+    _dhDbg('ERR: '+msg+' ('+line+')');
+    return false;
+  };
+  /* Clear timer if page loads normally */
+  document.addEventListener('DOMContentLoaded',function(){
+    _dhDbg('DOM ready');
+    /* Give boot 500ms head-start, then ensure overlay gone */
+    setTimeout(function(){_dhNuke('DOM+500ms cleanup');},500);
+  },{once:true,passive:true});
 })();
 </script>
 
@@ -774,6 +787,7 @@ a{color:var(--primary);text-decoration:none;}
     <div id="boot-fill"></div>
   </div>
   <div id="boot-msg" aria-live="polite">Starting…</div>
+  <div id="boot-dbg" style="font-size:10px;color:#666;margin-top:6px;max-width:280px;text-align:center;word-break:break-all"></div>
   <div style="font-size:11px;color:var(--muted);margin-top:4px;opacity:.6">Secure P2P Communication</div>
 </div>
 
@@ -1670,28 +1684,12 @@ a{color:var(--primary);text-decoration:none;}
   console.log('sha256-'+c.createHash('sha256').update(m[1]).digest('base64'))"
 -->
 <script>
-/* ═══════════════════════════════════════════════════════════
-   EXTERNAL BOOT WATCHDOG — separate <script>, runs independent
-   of main IIFE. If IIFE crashes, this still removes the overlay.
-   ═══════════════════════════════════════════════════════════ */
+/* EXTERNAL WATCHDOG — separate script, fires at 1.5s regardless of IIFE */
 (function(){
-  function removeOverlay(reason){
-    try{
-      var bo=document.getElementById('boot-overlay');
-      if(bo){
-        bo.style.cssText='display:none!important;opacity:0!important;visibility:hidden!important';
-        try{bo.remove();}catch(e){bo.style.display='none';}
-        console.warn('[DevHub] External watchdog:',reason);
-      }
-    }catch(e){}
-    try{window.__dhClearBootTimer&&window.__dhClearBootTimer();}catch(e){}
-  }
-  /* Hard deadline: 4 seconds */
-  setTimeout(function(){removeOverlay('4s deadline reached');},4000);
-  /* If DOMContentLoaded takes >4s, fire immediately after DOM ready */
-  document.addEventListener('DOMContentLoaded',function(){
-    setTimeout(function(){removeOverlay('DOMContentLoaded+1s');},1000);
-  },{once:true,passive:true});
+  setTimeout(function(){
+    try{window.__dhNuke&&window.__dhNuke('ext-watchdog 1.5s');}catch(e){}
+    try{var bo=document.getElementById('boot-overlay');if(bo){bo.style.display='none';bo.remove();}}catch(e){}
+  },1500);
 })();
 </script>
 <script>
@@ -2406,9 +2404,9 @@ class PermissionManager{
   check(pid,action){return this.get(pid)[action]!==false;}
 }
 
-/* ════════════════════════════════════ap�═════════════════════
+/* ══════════════════════════════════════════════════════════
    REGISTRIES
-══════════════════════════════════════════════════════════ */
+═════════════════════════════════════════════════════st�════ */
 class RTCRegistry{
   constructor(){this._r=new Map();}
   register(id,conn){this._r.set(id,{conn,ts:Date.now()});}
@@ -6331,14 +6329,11 @@ Object.defineProperty(window,'App',{value:App,writable:false,configurable:false,
    BOOT ASSERTION
 ══════════════════════════════════════════════════════════ */
 function _runBootAssert(){
-  /* Non-fatal: log only, never throw */
   try{if(!Object.isFrozen(CFG))console.warn('[DevHub] CFG not frozen');}catch(e){}
   [CallStateMachine,DirectCallModule,ConferenceModule,StreamWatchdog,AuditLog,
    MemoryPressureManager,ConnectionApprovalQueue,TURNSetupWizard,
    VanishingMessageManager,LinkPreviewManager,PeerProfileManager
-  ].forEach(function(C){
-    try{if(typeof C!=='function')console.warn('[DevHub] Class missing:',C&&C.name);}catch(e){}
-  });
+  ].forEach(function(C){try{if(typeof C!=='function')console.warn('[DevHub] Missing:',C&&C.name);}catch(e){}});
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -6357,14 +6352,15 @@ async function bootApp(){
 
   _runBootAssert();
   setBootMsg('Booting…',5);
-  try{App.bootRec=new BootRecoveryManager();App.bootRec.markBootStart();App.bootRec.checkBootFailure();}catch(_e){console.warn('[DevHub]BootRecovery:',_e.message);}
-  try{App.errMgr=new GlobalErrorManager();App.errMgr.init();}catch(_e){console.warn('[DevHub]ErrMgr:',_e.message);}
-  try{App.log=new Logger();}catch(_e){console.warn('[DevHub]Logger:',_e.message);}
-  try{App.toast=new ToastManager();}catch(_e){console.warn('[DevHub]Toast:',_e.message);}
-  try{App.stateStore=new StateStore();}catch(_e){console.warn('[DevHub]StateStore:',_e.message);}
-  try{App.memMon=new MemoryMonitor();}catch(_e){console.warn('[DevHub]MemMon:',_e.message);}
-  try{App.moduleHealth=new ModuleHealthEngine();}catch(_e){console.warn('[DevHub]ModHealth:',_e.message);}
-  try{App.auditLog=new AuditLog();}catch(_e){console.warn('[DevHub]AuditLog:',_e.message);}
+  if(window.__dhDbg)window.__dhDbg('bootApp running');
+  try{App.bootRec=new BootRecoveryManager();App.bootRec.markBootStart();App.bootRec.checkBootFailure();}catch(_e){console.warn('[DH]bootRec',_e.message);}
+  try{App.errMgr=new GlobalErrorManager();App.errMgr.init();}catch(_e){console.warn('[DH]errMgr',_e.message);}
+  try{App.log=new Logger();}catch(_e){console.warn('[DH]log',_e.message);}
+  try{App.toast=new ToastManager();}catch(_e){console.warn('[DH]toast',_e.message);}
+  try{App.stateStore=new StateStore();}catch(_e){console.warn('[DH]state',_e.message);}
+  try{App.memMon=new MemoryMonitor();}catch(_e){console.warn('[DH]memMon',_e.message);}
+  try{App.moduleHealth=new ModuleHealthEngine();}catch(_e){console.warn('[DH]modHealth',_e.message);}
+  try{App.auditLog=new AuditLog();}catch(_e){console.warn('[DH]auditLog',_e.message);}
 
   ['PeerManager','FileTransfer','MediaManager','Whiteboard','CodeEditor','GroupVideo','GroupVoice','InviteManager','ScreenShare','Presentation','GroupChat','CallStateMachine','DirectCall','Conference','StreamWatchdog'].forEach(m=>App.moduleHealth.register(m));
 
@@ -6389,49 +6385,49 @@ async function bootApp(){
   App.streamReg=new StreamRegistry();
 
   setBootMsg('Starting modules…',45);
-  try{App.memPressure=new MemoryPressureManager();App.memPressure.init();}catch(_e){console.warn('[DevHub]MemPressure:',_e.message);}
-  try{App.connApproval=new ConnectionApprovalQueue();}catch(_e){console.warn('[DevHub]ConnApproval:',_e.message);}
-  try{App.turnWizard=new TURNSetupWizard();}catch(_e){console.warn('[DevHub]TURNWizard:',_e.message);}
-  try{App.vanishMgr=new VanishingMessageManager();}catch(_e){console.warn('[DevHub]VanishMgr:',_e.message);}
-  try{App.linkPreview=new LinkPreviewManager();}catch(_e){console.warn('[DevHub]LinkPreview:',_e.message);}
-  try{App.profileMgr=new PeerProfileManager();App.profileMgr.loadAll();}catch(_e){console.warn('[DevHub]ProfileMgr:',_e.message);}
-  try{App.sounds=new SoundTheme();}catch(_e){console.warn('[DevHub]Sounds:',_e.message);}
-  try{App.uclip=new UniversalClipboard();}catch(_e){console.warn('[DevHub]UClip:',_e.message);}
-  try{App.clipboard=new ClipboardManager();}catch(_e){console.warn('[DevHub]Clipboard:',_e.message);}
-  try{App.notifCenter=new NotificationCenter();}catch(_e){console.warn('[DevHub]NotifCenter:',_e.message);}
-  try{App.presence=new PresenceManager();}catch(_e){console.warn('[DevHub]Presence:',_e.message);}
-  try{App.qr=new QRManager();}catch(_e){console.warn('[DevHub]QR:',_e.message);}
-  try{App.heal=new SelfHealingEngine();}catch(_e){console.warn('[DevHub]Heal:',_e.message);}
-  try{App.broadcastDisc=new BroadcastDiscovery();}catch(_e){console.warn('[DevHub]BroadcastDisc:',_e.message);}
-  try{App.room=new RoomManager();App.room.init();}catch(_e){console.warn('[DevHub]Room:',_e.message);}
+  try{App.memPressure=new MemoryPressureManager();App.memPressure.init();}catch(_e){console.warn('[DH]memPressure',_e.message);}
+  try{App.connApproval=new ConnectionApprovalQueue();}catch(_e){console.warn('[DH]connApproval',_e.message);}
+  try{App.turnWizard=new TURNSetupWizard();}catch(_e){console.warn('[DH]turnWizard',_e.message);}
+  try{App.vanishMgr=new VanishingMessageManager();}catch(_e){console.warn('[DH]vanishMgr',_e.message);}
+  try{App.linkPreview=new LinkPreviewManager();}catch(_e){console.warn('[DH]linkPreview',_e.message);}
+  try{App.profileMgr=new PeerProfileManager();App.profileMgr.loadAll();}catch(_e){console.warn('[DH]profileMgr',_e.message);}
+  try{App.sounds=new SoundTheme();}catch(_e){console.warn('[DH]sounds',_e.message);}
+  try{App.uclip=new UniversalClipboard();}catch(_e){console.warn('[DH]uclip',_e.message);}
+  try{App.clipboard=new ClipboardManager();}catch(_e){console.warn('[DH]clipboard',_e.message);}
+  try{App.notifCenter=new NotificationCenter();}catch(_e){console.warn('[DH]notifCenter',_e.message);}
+  try{App.presence=new PresenceManager();}catch(_e){console.warn('[DH]presence',_e.message);}
+  try{App.qr=new QRManager();}catch(_e){console.warn('[DH]qr',_e.message);}
+  try{App.heal=new SelfHealingEngine();}catch(_e){console.warn('[DH]heal',_e.message);}
+  try{App.broadcastDisc=new BroadcastDiscovery();}catch(_e){console.warn('[DH]broadcastDisc',_e.message);}
+  try{App.room=new RoomManager();App.room.init();}catch(_e){console.warn('[DH]room',_e.message);}
 
   setBootMsg('Building UI…',60);
-  try{App.board=new Whiteboard();}catch(_e){console.warn('[DevHub]Board:',_e.message);}
-  try{App.code=new CodeEditor();}catch(_e){console.warn('[DevHub]Code:',_e.message);}
-  try{App.groupVideo=new GroupVideoManager();}catch(_e){console.warn('[DevHub]GrpVideo:',_e.message);}
-  try{App.tasks=new TasksManager();App.tasks.init();}catch(_e){console.warn('[DevHub]Tasks:',_e.message);}
-  try{App.group=new GroupChatManager();App.group.init();}catch(_e){console.warn('[DevHub]Group:',_e.message);}
-  try{App.vault=new VaultManager();App.vault.init();}catch(_e){console.warn('[DevHub]Vault:',_e.message);}
-  try{App.groupVoice=new GroupVoiceManager();App.groupVoice.init();}catch(_e){console.warn('[DevHub]GrpVoice:',_e.message);}
-  try{App.files=new FileTransfer();}catch(_e){console.warn('[DevHub]Files:',_e.message);}
-  try{App.media=new MediaManager();App.media.init();}catch(_e){console.warn('[DevHub]Media:',_e.message);}
+  try{App.board=new Whiteboard();}catch(_e){console.warn('[DH]board',_e.message);}
+  try{App.code=new CodeEditor();}catch(_e){console.warn('[DH]code',_e.message);}
+  try{App.groupVideo=new GroupVideoManager();}catch(_e){console.warn('[DH]groupVideo',_e.message);}
+  try{App.tasks=new TasksManager();App.tasks.init();}catch(_e){console.warn('[DH]tasks',_e.message);}
+  try{App.group=new GroupChatManager();App.group.init();}catch(_e){console.warn('[DH]group',_e.message);}
+  try{App.vault=new VaultManager();App.vault.init();}catch(_e){console.warn('[DH]vault',_e.message);}
+  try{App.groupVoice=new GroupVoiceManager();App.groupVoice.init();}catch(_e){console.warn('[DH]groupVoice',_e.message);}
+  try{App.files=new FileTransfer();}catch(_e){console.warn('[DH]files',_e.message);}
+  try{App.media=new MediaManager();App.media.init();}catch(_e){console.warn('[DH]media',_e.message);}
   try{App.media&&App.media._captions&&App.media._captions.init&&App.media._captions.init();}catch(_e){}
-  try{App.screenShare=new ScreenShareManager();}catch(_e){console.warn('[DevHub]ScreenShare:',_e.message);}
-  try{App.presentation=new PresentationManager();App.presentation.init();}catch(_e){console.warn('[DevHub]Presentation:',_e.message);}
-  try{App.invite=new InviteManager();App.invite.init();}catch(_e){console.warn('[DevHub]Invite:',_e.message);}
-  try{App.callState=new CallStateMachine();}catch(_e){console.warn('[DevHub]CallState:',_e.message);}
-  try{App.directCall=new DirectCallModule();App.directCall.init();}catch(_e){console.warn('[DevHub]DirectCall:',_e.message);}
-  try{App.conference=new ConferenceModule();App.conference.init();}catch(_e){console.warn('[DevHub]Conference:',_e.message);}
-  try{App.streamWatchdog=new StreamWatchdog();App.streamWatchdog.init();}catch(_e){console.warn('[DevHub]StreamWatchdog:',_e.message);}
-  try{App.e2eBadge=new E2EStatusBadge();App.e2eBadge.init();}catch(_e){console.warn('[DevHub]E2EBadge:',_e.message);}
-  try{App.callStats=new CallStatsOverlay();App.callStats.init();}catch(_e){console.warn('[DevHub]CallStats:',_e.message);}
-  try{App.shortcuts=new ShortcutCheatsheet();App.shortcuts.init();}catch(_e){console.warn('[DevHub]Shortcuts:',_e.message);}
-  try{App.avatarPicker=new AvatarCustomiser();App.avatarPicker.init();}catch(_e){console.warn('[DevHub]Avatar:',_e.message);}
-  try{App.exportMgr=new ExportBackupManager();App.exportMgr.init();}catch(_e){console.warn('[DevHub]ExportMgr:',_e.message);}
-  try{App.peer=new PeerManager();}catch(_e){console.warn('[DevHub]Peer:',_e.message);}
-  try{App.search=new GlobalSearch();}catch(_e){console.warn('[DevHub]Search:',_e.message);}
-  try{App.ui=new UIManager();App.ui.init();}catch(_e){console.warn('[DevHub]UI:',_e.message);}
-  try{App.presence&&App.presence.init&&App.presence.init();}catch(_e){console.warn('[DevHub]Presence.init:',_e.message);}
+  try{App.screenShare=new ScreenShareManager();}catch(_e){console.warn('[DH]screenShare',_e.message);}
+  try{App.presentation=new PresentationManager();App.presentation.init();}catch(_e){console.warn('[DH]presentation',_e.message);}
+  try{App.invite=new InviteManager();App.invite.init();}catch(_e){console.warn('[DH]invite',_e.message);}
+  try{App.callState=new CallStateMachine();}catch(_e){console.warn('[DH]callState',_e.message);}
+  try{App.directCall=new DirectCallModule();App.directCall.init();}catch(_e){console.warn('[DH]directCall',_e.message);}
+  try{App.conference=new ConferenceModule();App.conference.init();}catch(_e){console.warn('[DH]conference',_e.message);}
+  try{App.streamWatchdog=new StreamWatchdog();App.streamWatchdog.init();}catch(_e){console.warn('[DH]streamWatchdog',_e.message);}
+  try{App.e2eBadge=new E2EStatusBadge();App.e2eBadge.init();}catch(_e){console.warn('[DH]e2eBadge',_e.message);}
+  try{App.callStats=new CallStatsOverlay();App.callStats.init();}catch(_e){console.warn('[DH]callStats',_e.message);}
+  try{App.shortcuts=new ShortcutCheatsheet();App.shortcuts.init();}catch(_e){console.warn('[DH]shortcuts',_e.message);}
+  try{App.avatarPicker=new AvatarCustomiser();App.avatarPicker.init();}catch(_e){console.warn('[DH]avatarPicker',_e.message);}
+  try{App.exportMgr=new ExportBackupManager();App.exportMgr.init();}catch(_e){console.warn('[DH]exportMgr',_e.message);}
+  try{App.peer=new PeerManager();}catch(_e){console.warn('[DH]peer',_e.message);}
+  try{App.search=new GlobalSearch();}catch(_e){console.warn('[DH]search',_e.message);}
+  try{App.ui=new UIManager();App.ui.init();}catch(_e){console.warn('[DH]ui',_e.message);}
+  try{App.presence&&App.presence.init&&App.presence.init();}catch(_e){console.warn('[DH]presence.init',_e.message);}
   document.getElementById('btn-uclip')?.addEventListener('click',()=>App.uclip.toggle());
 
   /* G2: Peer Fingerprint Verification modal wiring */
@@ -6503,12 +6499,12 @@ async function bootApp(){
     });
   })();
 
-  /* GAP-4: assertInterface — warn only, never abort */
-  ['toast','log','stateStore','errMgr','auditLog','moduleHealth','peer','media','files','ui','vault'].forEach(function(k){
-    try{if(!App[k])console.warn('[DevHub] Module not ready:',k);}catch(e){}
-  });
+  /* GAP-4: assertInterface — warn only */
+  try{['toast','log','stateStore','errMgr','auditLog','moduleHealth'].forEach(k=>{
+    if(!App[k])console.warn('[DH] module missing:',k);
+  });}catch(e){}
   setBootMsg('Connecting to network…',75);
-  if(App.peer&&typeof App.peer.init==='function'){try{await safeModule('PeerManager',()=>App.peer.init());}catch(_e){console.warn('[DevHub]PeerInit:',_e&&_e.message);}}
+  if(App.peer&&typeof App.peer.init==='function'){try{await safeModule('PeerManager',()=>App.peer.init());}catch(_e){console.warn('[DH]peer.init',_e&&_e.message);}}
 
   App.netRecovery=new NetworkRecovery();App.netRecovery.init();
   App.cleanup=new LongSessionCleanup();App.cleanup.init();
@@ -6980,24 +6976,22 @@ if(localStorage.getItem('dh-devmode')==='1'){
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
-  /* Internal boot watchdog: 8 s hard limit */
-  const _forceHide=()=>{
-    try{const bo=document.getElementById('boot-overlay');if(bo){bo.style.display='none';try{bo.remove();}catch(e){}}}catch(e){}
-    try{window.__dhClearBootTimer&&window.__dhClearBootTimer();}catch(e){}
-  };
-  const _bwdog=setTimeout(_forceHide,8000);
+  if(window.__dhDbg)window.__dhDbg('DOMContentLoaded — calling bootApp');
+  const _nuke=()=>{try{window.__dhNuke&&window.__dhNuke('internal-dom-watchdog');}catch(e){}};
+  /* 5s internal deadline — last resort before CSS animation fires at 6s */
+  const _bwdog=setTimeout(_nuke,5000);
   if(typeof bootApp!=='function'){
-    clearTimeout(_bwdog);
-    console.error('[DevHub] bootApp not defined — IIFE may have crashed');
-    _forceHide();
+    clearTimeout(_bwdog);_nuke();
+    console.error('[DevHub] bootApp undefined — IIFE crash likely');
     return;
   }
-  bootApp().then(()=>{clearTimeout(_bwdog);try{window.__dhClearBootTimer&&window.__dhClearBootTimer();}catch(e){}}).catch(e=>{
-    clearTimeout(_bwdog);
-    console.error('[DevHub] Boot error:',e);
-    _forceHide();
-    try{window.__v36Errors&&window.__v36Errors.report(e.message||String(e),'bootApp');}catch(_){}
-  });
+  bootApp()
+    .then(()=>{clearTimeout(_bwdog);_nuke();})
+    .catch(e=>{
+      clearTimeout(_bwdog);_nuke();
+      console.error('[DevHub] Boot error:',e);
+      try{window.__v36Errors&&window.__v36Errors.report(e.message||String(e),'bootApp');}catch(_){}
+    });
   /* G4: auto CSP hash recompute in DEV_MODE */
   if(CFG.DEV_MODE){
     (async()=>{
