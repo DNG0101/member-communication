@@ -5738,12 +5738,12 @@ class UIManager{
       App.presence?.broadcast?.();
     });
     document.getElementById('set-e2e')?.addEventListener('change',e=>{SafeStorage.set('dh-e2e',e.target.checked?'1':'');});
-    document.getElementById('set-e2e').checked=SafeStorage.get('dh-e2e','')!=='';
+    const _setE2e=document.getElementById('set-e2e');if(_setE2e)_setE2e.checked=SafeStorage.get('dh-e2e','')!=='';
     document.getElementById('set-approval')?.addEventListener('change',e=>{if(App.room)App.room.requireApproval=e.target.checked;});
     document.getElementById('set-sounds')?.addEventListener('change',e=>{SafeStorage.set('dh-sounds',e.target.checked?'1':'0');});
-    document.getElementById('set-sounds').checked=SafeStorage.get('dh-sounds','1')==='1';
+    const _setSounds=document.getElementById('set-sounds');if(_setSounds)_setSounds.checked=SafeStorage.get('dh-sounds','1')==='1';
     document.getElementById('set-noise')?.addEventListener('change',e=>{SafeStorage.set('dh-noise',e.target.checked?'1':'0');});
-    document.getElementById('set-noise').checked=SafeStorage.get('dh-noise','0')==='1';
+    const _setNoise=document.getElementById('set-noise');if(_setNoise)_setNoise.checked=SafeStorage.get('dh-noise','0')==='1';
     document.getElementById('btn-save-peer-cfg')?.addEventListener('click',()=>{
       const cfg={host:document.getElementById('set-peer-host')?.value||'',port:document.getElementById('set-peer-port')?.value||'443',path:document.getElementById('set-peer-path')?.value||'/',key:document.getElementById('set-peer-key')?.value||'peerjs'};
       SafeStorage.setJSON('devhub-peer-cfg',cfg);App.toast?.show('Signaling config saved — reconnect to apply','success');
@@ -5761,9 +5761,9 @@ class UIManager{
       if(confirm('Clear all local data? This cannot be undone.')){localStorage.clear();sessionStorage.clear();location.reload();}
     });
     const savedName=SafeStorage.get('dh-name','');
-    if(savedName)document.getElementById('set-name').value=savedName;
+    const _setNameEl=document.getElementById('set-name');if(savedName&&_setNameEl)_setNameEl.value=savedName;
     const savedAv=SafeStorage.get('dh-avatar','👤');
-    if(savedAv)document.getElementById('set-avatar').value=savedAv;
+    const _setAvEl=document.getElementById('set-avatar');if(savedAv&&_setAvEl)_setAvEl.value=savedAv;
     this._renderDeviceInfo();this._renderTrustedPeers();
   }
   _bindNotes(){
@@ -6332,7 +6332,8 @@ async function bootApp(){
   ['PeerManager','FileTransfer','MediaManager','Whiteboard','CodeEditor','GroupVideo','GroupVoice','InviteManager','ScreenShare','Presentation','GroupChat','CallStateMachine','DirectCall','Conference','StreamWatchdog'].forEach(m=>App.moduleHealth.register(m));
 
   setBootMsg('Initializing storage…',10);
-  App.store=new DBStore();await App.store.init();
+  App.store=new DBStore();
+  await Promise.race([App.store.init(),new Promise(res=>setTimeout(res,5000))]).catch(e=>{App.log?.warn?.('DBStore.init timeout/error: '+(e?.message||e));});
 
   setBootMsg('Setting up encryption…',20);
   App.crypto=new CryptoManager();
@@ -6971,7 +6972,11 @@ document.addEventListener('DOMContentLoaded',()=>{
     clearTimeout(_bwdog);
     console.error('Boot failed',e);
     const bo=document.getElementById('boot-overlay');
-    if(bo)bo.innerHTML='<div style="color:var(--red);font-size:14px;padding:20px;text-align:center">Boot failed — please refresh.<br><code>'+esc(e.message)+'</code></div>';
+    if(bo){
+      bo.innerHTML='<div style="color:var(--red,#ef4444);font-size:14px;padding:20px;text-align:center">Boot failed — please refresh.<br><code>'+esc(e.message)+'</code></div>';
+      setTimeout(()=>{bo.style.opacity='0';bo.style.transition='opacity .4s';setTimeout(()=>bo.classList.add('gone'),400);},4000);
+    }
+    try{window.__v36Errors&&window.__v36Errors.report(e.message||String(e),'bootApp');}catch(_){}
   });
   /* G4: auto CSP hash recompute in DEV_MODE */
   if(CFG.DEV_MODE){
@@ -12755,10 +12760,10 @@ window.DevHubV34={tick:tick,stopAllMedia:stopTracks,secure:ensureSecureOriginBar
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', wire); else wire();
 
-  // Boot-stall watchdog: if loading screen still visible after 15s with no errors, surface overlay anyway
+  // Boot-stall watchdog: if boot overlay still visible after 15s with no errors, surface v36 overlay anyway
   setTimeout(function(){
-    var ls = document.getElementById('loading-screen') || document.querySelector('.loading-screen,[data-loading-screen]');
-    if(ls && getComputedStyle(ls).display !== 'none'){
+    var ls = document.getElementById('boot-overlay') || document.getElementById('loading-screen') || document.querySelector('.loading-screen,[data-loading-screen]');
+    if(ls && !ls.classList.contains('gone') && getComputedStyle(ls).display !== 'none'){
       record('stall','App did not finish initializing within 15 seconds. A module may be blocked (network, IndexedDB, or PeerJS CDN).','bootWatchdog');
       show();
     }
