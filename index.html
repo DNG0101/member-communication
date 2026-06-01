@@ -4754,7 +4754,7 @@ class PresentationManager{
   _onRemotePage(pid,msg){App.toast?.show('Doc: page '+(msg.page||1)+'/'+msg.total,'info');}
 }
 
-/* ═════════════════════════════════════w+�════════════════════
+/* ═════════════════════════════════════w+ ════════════════════
    WHITEBOARD — LazyModule
 ══════════════════════════════════════════════════════════ */
 class Whiteboard extends LazyModule{
@@ -9707,7 +9707,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     getChunks:function(fileId){return idbAll('chunks').then(function(a){return a.filter(function(c){return c.fileId===fileId;}).sort(function(a,b){return a.index-b.index;});});},
     clearFile:function(fileId){return this.getChunks(fileId).then(function(cs){return Promise.all(cs.map(function(c){return idbDel('chunks',c.key);}));});},
     progress:function(fileId){return this.getChunks(fileId).then(function(cs){return cs.length;});},
-    sha256:function(buf){if(!crypto.subtle)return Promise.resolve(null);return crypto.subtle.digest('SHA-256',buf).then(function(h){return Array.prototype.map.call(new Uint8Array(h),function(b){return b.toString(16).padStart(2,'0');}).join('');});},
+    sha256:function(buf){if(!crypto||!crypto.subtle)return Promise.resolve(null);return crypto.subtle.digest('SHA-256',buf).then(function(h){return Array.prototype.map.call(new Uint8Array(h),function(b){return b.toString(16).padStart(2,'0');}).join('');});},
     verify:function(buf,expectedHex){return this.sha256(buf).then(function(h){return h&&expectedHex&&h===expectedHex;});}
   };
   window.DevHubFileTx=FileTx;
@@ -11040,14 +11040,7 @@ function idbScanPrefix(store,prefix){return idbTx(store,'readonly').then(functio
 
 /* ─── Async utilities ─── */
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
-async function sha256Buf(buf){
-  if(!crypto||!crypto.subtle)return null;
-  var hash=await crypto.subtle.digest('SHA-256',buf);
-  return Array.prototype.map.call(new Uint8Array(hash),function(b){return b.toString(16).padStart(2,'0');}).join('');
-}
-async function fileSha256(file){
-  try{var buf=await file.arrayBuffer();return await sha256Buf(buf);}catch(e){return null;}
-}
+/* sha256Buf and fileSha256 defined below */
 
 /* ─── UI helpers ─── */
 function getList(){var l=document.getElementById('txlist');if(l)return l;var c=document.getElementById('chatbar')||document.body;l=document.createElement('div');l.id='txlist';l.style.cssText='max-height:240px;overflow-y:auto;padding:6px';c.parentNode?c.parentNode.insertBefore(l,c):document.body.appendChild(l);return l;}
@@ -11114,7 +11107,7 @@ var FT2={
     st.missing=missingList&&missingList.length?missingList.slice():null;
     setTC(fileId,Math.round(fromIdx/st.totalChunks*100),fromIdx>0?'Resuming from '+Math.round(fromIdx/st.totalChunks*100)+'%…':'Sending…','');
     while(!st.cancelled){
-      if(!isOpen(st.pid)){setTC(fileId,Math.round(st.nextIdx/st.totalChunks*100),'Reconnecting…','recovering');await sleep(800);continue;}
+      if(!isOpen(st.pid)){if((st._reconAttempts=(st._reconAttempts||0)+1)>300){setTC(fileId,Math.round(st.nextIdx/st.totalChunks*100),'Send timed out','recovering');FT2._cleanupSend(fileId,'Timed out ✗');return;}setTC(fileId,Math.round(st.nextIdx/st.totalChunks*100),'Reconnecting…','recovering');await sleep(800);continue;}
       while(st.paused){setTC(fileId,Math.round(st.nextIdx/st.totalChunks*100),'Paused','paused');await sleep(300);}
       var idx;
       if(st.missing&&st.missing.length){idx=st.missing.shift();}
@@ -11205,7 +11198,8 @@ var FT2={
     var chunks=await idbScanPrefix('chunks','c:'+msg.fileId+':');
     chunks.sort(function(a,b){return a.idx-b.idx;});
     /* gap check */
-    var gaps=[];for(var i=0;i<st.totalChunks;i++){if(!chunks[i]||chunks[i].idx!==i){gaps.push(i);}}
+    var _have=new Set(chunks.map(function(c){return c.idx;}));
+    var gaps=[];for(var i=0;i<st.totalChunks;i++){if(!_have.has(i)){gaps.push(i);}}
     if(gaps.length){setTC(msg.fileId,99,'Missing '+gaps.length+' chunks — requesting…','recovering');sendJSON(pid,{type:'ft2-resume',fileId:msg.fileId,fromIdx:0,missing:gaps});return;}
     /* assemble — prefer FS Access streaming */
     var writer=null;
@@ -11245,8 +11239,6 @@ var FT2={
 };
 window.FT2=FT2;
 
-function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
-
 /* ─── incremental SHA-256 (chunked digest of full file) ─── */
 async function fileSha256(file){
   var size=file.size;var STEP=4*1024*1024;
@@ -11266,7 +11258,7 @@ IncrementalSha256.prototype.digest=async function(){
   for(var i=0;i<this.parts.length;i++){all.set(this.parts[i],o);o+=this.parts[i].byteLength;}
   return sha256Buf(all.buffer);
 };
-async function sha256Buf(buf){var d=await crypto.subtle.digest('SHA-256',buf);var arr=Array.from(new Uint8Array(d));return arr.map(function(b){return b.toString(16).padStart(2,'0');}).join('');}
+async function sha256Buf(buf){if(!crypto||!crypto.subtle)return null;var d=await crypto.subtle.digest('SHA-256',buf);var arr=Array.from(new Uint8Array(d));return arr.map(function(b){return b.toString(16).padStart(2,'0');}).join('');}
 
 /* ─── Hook into PeerManager._onData to intercept ft2-* ─── */
 function hookOnData(){
@@ -12194,7 +12186,7 @@ function makeDraggable(el,key,handleSel){
 }
 function applyDraggables(){
   /* per-module key derived from current active tab to satisfy "drag changes per module" */
-  var tab='';try{tab=(document.querySelector('.tab.active,[data-tab].active,.mob-tab.active')||{}).dataset?.tab||'';}catch(e){}
+  var tab='';try{var _v33q=(document.querySelector('.tab.active,[data-tab].active,.mob-tab.active')||{});tab=(_v33q.dataset&&_v33q.dataset.tab)||'';}catch(e){}
   var suffix=tab||'global';
   makeDraggable($('v31-diag'),'diag-'+suffix,'.v31-h');
   makeDraggable($('v31-sync-bar'),'sync-'+suffix);
