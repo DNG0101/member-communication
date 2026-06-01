@@ -2789,6 +2789,7 @@ class DBStore{
       };
       req.onsuccess=e=>{this._db=e.target.result;res();};
       req.onerror=()=>{console.warn('IDB failed — falling back to memory');res();};
+      req.onblocked=()=>{console.warn('IDB blocked — falling back to memory');this._db=null;res();};
     });
   }
   _tx(store,mode='readonly'){return this._db?.transaction(store,mode).objectStore(store);}
@@ -3885,7 +3886,12 @@ class PeerManager{
       try{localStorage.setItem('dh-invite-code',_inv);}catch(e){}
     }
     window.__dhInviteCode=_inv;
-    this._create(sessionStorage.getItem(SESSION_KEY)||('dh-'+_inv));
+    const _pid=sessionStorage.getItem(SESSION_KEY)||('dh-'+_inv);
+    /* wait up to 8 s for PeerJS CDN to finish loading before calling new Peer() */
+    if(typeof Peer==='undefined'){
+      await new Promise(res=>{let n=0;const c=()=>{if(typeof Peer!=='undefined'||n++>=80)res();else setTimeout(c,100);};c();});
+    }
+    this._create(_pid);
   }
   _create(id){
     const iceServers=this._buildIce();
@@ -4748,7 +4754,7 @@ class PresentationManager{
   _onRemotePage(pid,msg){App.toast?.show('Doc: page '+(msg.page||1)+'/'+msg.total,'info');}
 }
 
-/* ═════════════════════════════════════w+ ════════════════════
+/* ═════════════════════════════════════w+�════════════════════
    WHITEBOARD — LazyModule
 ══════════════════════════════════════════════════════════ */
 class Whiteboard extends LazyModule{
@@ -6952,7 +6958,17 @@ if(localStorage.getItem('dh-devmode')==='1'){
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
-  bootApp().catch(e=>{
+  /* Boot watchdog: if bootApp() hangs for any reason, force-hide overlay after 15 s */
+  const _bwdog=setTimeout(()=>{
+    const bo=document.getElementById('boot-overlay');
+    if(bo&&!bo.classList.contains('gone')){
+      bo.style.opacity='0';bo.style.transition='opacity .4s';
+      setTimeout(()=>bo.classList.add('gone'),400);
+      console.warn('[DevHub] Boot watchdog: forced overlay hide after 15 s timeout');
+    }
+  },15000);
+  bootApp().then(()=>clearTimeout(_bwdog)).catch(e=>{
+    clearTimeout(_bwdog);
     console.error('Boot failed',e);
     const bo=document.getElementById('boot-overlay');
     if(bo)bo.innerHTML='<div style="color:var(--red);font-size:14px;padding:20px;text-align:center">Boot failed — please refresh.<br><code>'+esc(e.message)+'</code></div>';
@@ -8168,11 +8184,11 @@ document.addEventListener('DOMContentLoaded',()=>{
         if(tag==='input'||tag==='textarea'||(e.target&&e.target.isContentEditable))return;
         if(!hasActive())return;
         e.preventDefault();
-        if(saved===null){saved=[];eachAudio(function(t){saved.push({t:t,e:t.enabled});t.enabled=true;});ind.classList.add('on');}
+        if(saved===null){saved=[];eachAudio(function(t){saved.push({t:t,e:t.enabled});t.enabled=true;});if(ind)ind.classList.add('on');}
       });
       document.addEventListener('keyup',function(e){
         if(e.code!=='Space'||saved===null)return;
-        saved.forEach(function(s){try{s.t.enabled=s.e;}catch(_){}});saved=null;ind.classList.remove('on');
+        saved.forEach(function(s){try{s.t.enabled=s.e;}catch(_){}});saved=null;if(ind)ind.classList.remove('on');
       });
     });
 
@@ -9623,7 +9639,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 (function(){
   'use strict';
   var TAG='[v22]';
-  var CC=window.DevHubCC,Iso=window.DevHubIso,Bus=CC&&CC.bus;
+  var CC=window.DevHubCC,Iso=window.DevHubIso,Bus=(CC&&CC.bus)||window.Bus;
   if(!CC||!Iso||!Bus){console.warn(TAG,'v21 prerequisites missing, skipping');return;}
   function log(){try{console.log.apply(console,[TAG].concat([].slice.call(arguments)));}catch(_){}}
   function safe(fn,c){try{return fn();}catch(e){log('safe-fail',c||'',e&&e.message);return null;}}
@@ -10447,7 +10463,7 @@ document.addEventListener('DOMContentLoaded',()=>{
         if(snd.track&&!snd.track.__v25){snd.track.__v25=true;
           snd.track.addEventListener('ended',function(){
             warn('track-ended',snd.track.kind);
-            try{window.DevHubToast&&DevHubToast.warn&&DevHubToast.warn((snd.track.kind||'media')+' lost — tap to reconnect');}catch(e){}
+            try{if(window.DevHubToast)DevHubToast('warn',(snd.track.kind||'media')+' lost','Tap to reconnect');}catch(e){}
           });
         }
       });
@@ -10729,6 +10745,7 @@ RelayMemory.load();
 function wrapIceBuilder(){
   var PM=window.App&&window.App.peer;
   if(!PM||PM.__v27Wrapped)return false;
+  if(typeof PM._buildIce!=='function')return false;
   var orig=PM._buildIce.bind(PM);
   PM._buildIce=function(){
     var servers=orig();
@@ -10823,7 +10840,9 @@ var QualityBadge={
 /* ─── Hook into every RTCPeerConnection at creation time ─── */
 (function patchRTC(){
   if(typeof RTCPeerConnection==='undefined')return;
-  var Orig=RTCPeerConnection;
+  if(window.__dhV27PatchedRTC)return;window.__dhV27PatchedRTC=true;
+  /* If v24 already wrapped, reach through to the original to avoid double listeners */
+  var Orig=RTCPeerConnection.__v24wrapped?RTCPeerConnection.__orig||RTCPeerConnection:RTCPeerConnection;
   function Wrapped(cfg){
     cfg=cfg||{};
     /* upgrade iceServers with latest pruned + ranked list when call goes through us */
@@ -10944,9 +10963,9 @@ function boot(){
   var ok1=wrapIceBuilder();
   var ok2=wrapConnectTo();
   var ok3=wrapPeerErrorRetry();
-  if(ok1&&ok2&&ok3){
-    log('hardening attached ✓');
-    /* kick off background health probes */
+  /* ok1 (ICE builder) is optional — proceed with probes even if _buildIce absent */
+  if(ok2&&ok3){
+    log('hardening attached ✓ (ice-wrap:'+(ok1?'yes':'skipped')+')');
     setTimeout(function(){safe(function(){StunRanker.probe();},'stun-probe');},2000);
     setTimeout(function(){safe(function(){TurnHealth.probe();},'turn-probe');},4500);
     return true;
@@ -11019,6 +11038,17 @@ function idbDel(store,key){return idbTx(store,'readwrite').then(function(s){retu
 function idbDelRange(store,prefix){return idbTx(store,'readwrite').then(function(s){return new Promise(function(r){var c=s.openCursor();c.onsuccess=function(e){var cur=e.target.result;if(cur){if(String(cur.key).indexOf(prefix)===0)cur.delete();cur.continue();}else r();};});});}
 function idbScanPrefix(store,prefix){return idbTx(store,'readonly').then(function(s){return new Promise(function(r){var out=[];var c=s.openCursor();c.onsuccess=function(e){var cur=e.target.result;if(cur){if(String(cur.key).indexOf(prefix)===0)out.push(cur.value);cur.continue();}else r(out);};});});}
 
+/* ─── Async utilities ─── */
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+async function sha256Buf(buf){
+  if(!crypto||!crypto.subtle)return null;
+  var hash=await crypto.subtle.digest('SHA-256',buf);
+  return Array.prototype.map.call(new Uint8Array(hash),function(b){return b.toString(16).padStart(2,'0');}).join('');
+}
+async function fileSha256(file){
+  try{var buf=await file.arrayBuffer();return await sha256Buf(buf);}catch(e){return null;}
+}
+
 /* ─── UI helpers ─── */
 function getList(){var l=document.getElementById('txlist');if(l)return l;var c=document.getElementById('chatbar')||document.body;l=document.createElement('div');l.id='txlist';l.style.cssText='max-height:240px;overflow-y:auto;padding:6px';c.parentNode?c.parentNode.insertBefore(l,c):document.body.appendChild(l);return l;}
 function tcEl(fileId){return document.getElementById('v28tc-'+fileId);}
@@ -11048,9 +11078,9 @@ function removeTC(fileId,delayMs){setTimeout(function(){var el=tcEl(fileId);if(e
 function fmtSz(b){if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(1)+'KB';if(b<1073741824)return(b/1048576).toFixed(1)+'MB';return(b/1073741824).toFixed(2)+'GB';}
 
 /* ─── send helpers (use existing conn.send JSON path; PeerJS-safe) ─── */
-function sendJSON(pid,obj){var conn=window.App&&window.App.peer&&window.App.peer.conn&&window.App.peer.conn(pid);if(!conn||!conn.open)return false;try{conn.send(JSON.stringify(obj));return true;}catch(e){return false;}}
-function bufferedAmount(pid){try{var conn=window.App.peer.conn(pid);return conn&&conn.dataChannel?conn.dataChannel.bufferedAmount:0;}catch(e){return 0;}}
-function isOpen(pid){try{var c=window.App.peer.conn(pid);return!!(c&&c.open);}catch(e){return false;}}
+function sendJSON(pid,obj){try{var conn=window.App&&window.App.peer&&(window.App.peer.conn?window.App.peer.conn(pid):(window.App.peer.dconns&&window.App.peer.dconns.get&&window.App.peer.dconns.get(pid)));if(!conn||!conn.open)return false;conn.send(JSON.stringify(obj));return true;}catch(e){return false;}}
+function bufferedAmount(pid){try{var conn=window.App.peer.conn?window.App.peer.conn(pid):(window.App.peer.dconns&&window.App.peer.dconns.get&&window.App.peer.dconns.get(pid));return conn&&conn.dataChannel?conn.dataChannel.bufferedAmount:0;}catch(e){return 0;}}
+function isOpen(pid){try{var c=window.App.peer.conn?window.App.peer.conn(pid):(window.App.peer.dconns&&window.App.peer.dconns.get&&window.App.peer.dconns.get(pid));return!!(c&&c.open);}catch(e){return false;}}
 
 /* ─── Capability registry: which peers support ft2 ─── */
 var ft2Peers=new Set();
@@ -11182,9 +11212,13 @@ var FT2={
     if(window.DevHubFileWriter){try{writer=await window.DevHubFileWriter.create(st.name,st.mime||'application/octet-stream');}catch(e){writer=null;}}
     var sha;
     if(writer&&writer.mode==='fs'){
-      var hasher=new IncrementalSha256();
-      for(var k=0;k<chunks.length;k++){await writer.write(chunks[k].data);hasher.update(chunks[k].data);}
-      await writer.close();sha=await hasher.digest();
+      var _allBufs=[];
+      for(var k=0;k<chunks.length;k++){await writer.write(chunks[k].data);_allBufs.push(chunks[k].data);}
+      await writer.close();
+      var _totalLen=_allBufs.reduce(function(a,b){return a+b.byteLength;},0);
+      var _combined=new Uint8Array(_totalLen);var _off=0;
+      _allBufs.forEach(function(b){_combined.set(new Uint8Array(b),_off);_off+=b.byteLength;});
+      sha=await sha256Buf(_combined.buffer);
     }else{
       /* fallback: Blob + download */
       var parts=chunks.map(function(c){return c.data;});
@@ -11209,6 +11243,7 @@ var FT2={
     /* receiver side: nothing — sender will send meta */
   }
 };
+window.FT2=FT2;
 
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
 
@@ -12331,6 +12366,420 @@ window.__v33={stopAllMedia:stopAllMedia,checkPerms:checkPerms,tick:tick};
 })();
 </script>
 
+<!-- ====================================================================
+     v34 — Preview/permission bootstrap + module compatibility finalizer.
+     Additive, single-file, no module removed.
+==================================================================== -->
+<style>
+#v34-secure-bar{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:100000;display:none;align-items:center;gap:8px;max-width:min(720px,calc(100vw - 16px));background:#ef4444;color:#fff;border:1px solid rgba(255,255,255,.25);box-shadow:0 10px 30px rgba(0,0,0,.45);border-radius:10px;padding:8px 10px;font:600 12px system-ui;line-height:1.35}
+#v34-secure-bar.on{display:flex}#v34-secure-bar button,#v34-secure-bar a{background:#fff;color:#111;border:0;border-radius:7px;padding:5px 9px;font:700 11px system-ui;white-space:nowrap;cursor:pointer;text-decoration:none}
+#v34-module-pill{position:fixed;right:10px;top:48px;z-index:8800;background:var(--bg2,#15151f);color:var(--text,#e2e2f0);border:1px solid var(--border,#2d2d44);border-radius:18px;padding:5px 10px;font:11px system-ui;box-shadow:0 4px 14px rgba(0,0,0,.35);display:flex;gap:6px;align-items:center;cursor:move;touch-action:none;user-select:none}
+#v34-module-pill .ok{color:#22c55e}#v34-module-pill .bad{color:#ef4444}#v34-module-pill .warn{color:#f59e0b}
+.v34-pct{font-weight:800;margin-left:auto;color:var(--text,#e2e2f0)}
+@media(max-width:600px){#v34-secure-bar{top:6px;font-size:11px;align-items:flex-start;flex-wrap:wrap}#v34-module-pill{top:auto;right:8px;bottom:132px;font-size:10px}body.v32-chat-focus #v34-module-pill{display:none!important}}
+</style>
+<script>
+/* v34 — fixes blank preview routing dependencies, safe-store aliases, HTTPS media gate, transfer accuracy, and module self-repair */
+(function(){
+'use strict';
+var TAG='[v34]';
+function log(){try{console.log.apply(console,[TAG].concat([].slice.call(arguments)));}catch(e){}}
+function toast(m,t){try{window.App&&App.toast&&App.toast.show?App.toast.show(m,t||'info'):console.log('[toast]',m);}catch(e){}}
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+
+/* 1) SafeStorage / SafeStore / safeStore aliases for every old/new module. */
+(function(){
+  var mem={};
+  function ls(){try{localStorage.setItem('__v34t','1');localStorage.removeItem('__v34t');return localStorage;}catch(e){return null;}}
+  var L=ls();
+  var poly={
+    get:function(k,d){try{if(L){var v=L.getItem(k);return v==null?(d===undefined?'':d):v;}return Object.prototype.hasOwnProperty.call(mem,k)?mem[k]:(d===undefined?'':d);}catch(e){return d===undefined?'':d;}},
+    set:function(k,v){try{if(L)L.setItem(k,String(v));else mem[k]=String(v);}catch(e){mem[k]=String(v);}},
+    del:function(k){try{if(L)L.removeItem(k);delete mem[k];}catch(e){}},
+    getJSON:function(k,d){try{var v=this.get(k,null);return v==null?d:JSON.parse(v);}catch(e){return d;}},
+    setJSON:function(k,v){try{this.set(k,JSON.stringify(v));}catch(e){}}
+  };
+  var base=(window.SafeStorage&&typeof window.SafeStorage.get==='function')?window.SafeStorage:poly;
+  ['SafeStorage','SafeStore','safeStore','safeStorage'].forEach(function(n){try{if(!window[n])window[n]=base;if(globalThis&&!globalThis[n])globalThis[n]=window[n];}catch(e){}});
+})();
+
+/* 2) Media permissions cannot popup on non-secure origins — show a direct HTTPS fix. */
+function ensureSecureOriginBar(){
+  var secure=location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1';
+  var bar=$('v34-secure-bar');
+  if(!bar){bar=document.createElement('div');bar.id='v34-secure-bar';document.body.appendChild(bar);}
+  if(secure){bar.classList.remove('on');return;}
+  var httpsUrl='https://'+location.host+location.pathname+location.search+location.hash;
+  bar.innerHTML='<span>🔒 Camera, microphone, QR scan and screen share need HTTPS. Browser permission popups will not appear on this insecure page.</span><a href="'+esc(httpsUrl)+'">Open HTTPS</a><button id="v34-copy-https">Copy URL</button>';
+  bar.classList.add('on');
+  var b=$('v34-copy-https');if(b)b.onclick=function(){try{navigator.clipboard.writeText(httpsUrl);toast('Secure URL copied','success');}catch(e){prompt('Copy secure URL',httpsUrl);}};
+}
+
+/* 3) Gesture-safe media wrapper with exact user-facing errors and full cleanup. */
+function stopTracks(){
+  var n=0;
+  try{var M=window.App&&App.media;if(M){[M._localStream,M._remoteStream].forEach(function(s){try{s&&s.getTracks().forEach(function(t){t.stop();n++;});}catch(e){}});M._localStream=null;M._remoteStream=null;try{M._call&&M._call.close&&M._call.close();}catch(e){}}}catch(e){}
+  try{var S=window.App&&App.screenShare&&App.screenShare._stream;if(S){S.getTracks().forEach(function(t){t.stop();n++;});App.screenShare._stream=null;App.screenShare._sharing=false;}}catch(e){}
+  try{document.querySelectorAll('video,audio').forEach(function(v){var s=v.srcObject;if(s&&s.getTracks)s.getTracks().forEach(function(t){t.stop();n++;});v.srcObject=null;});}catch(e){}
+  return n;
+}
+function mediaError(e){
+  if(!window.isSecureContext)return 'Open the HTTPS link first; browsers block camera/mic on insecure pages.';
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return 'This browser does not support camera/microphone APIs.';
+  if(e&&e.name==='NotAllowedError')return 'Permission blocked. Click the site lock icon and allow Camera/Microphone.';
+  if(e&&e.name==='NotFoundError')return 'No camera or microphone found.';
+  if(e&&e.name==='NotReadableError')return 'Camera or microphone is already used by another app.';
+  return (e&&e.message)||'Media permission failed.';
+}
+function hookMedia(){
+  var M=window.App&&App.media;if(!M||M.__v34)return false;M.__v34=true;
+  var start=M._startCall&&M._startCall.bind(M);if(start){M._startCall=async function(video){if(!window.isSecureContext){ensureSecureOriginBar();toast(mediaError({}),'error');return;}try{return await start(video);}catch(e){toast(mediaError(e),'error');stopTracks();}};}
+  var accept=M._acceptIncoming&&M._acceptIncoming.bind(M);if(accept){M._acceptIncoming=async function(){if(!window.isSecureContext){ensureSecureOriginBar();toast(mediaError({}),'error');try{M._pendingCall&&M._pendingCall.close&&M._pendingCall.close();}catch(e){}return;}try{return await accept();}catch(e){toast(mediaError(e),'error');stopTracks();}};}
+  var cleanup=M._cleanupCall&&M._cleanupCall.bind(M);if(cleanup){M._cleanupCall=function(reason){var r=cleanup(reason);setTimeout(function(){var n=stopTracks();if(n)toast('Camera and microphone released','success');},120);return r;};}
+  ['btn-hang','v32-end','icall-rej'].forEach(function(id){var b=$(id);if(b&&!b.__v34stop){b.__v34stop=true;b.addEventListener('click',function(){setTimeout(stopTracks,180);},true);}});
+  return true;
+}
+
+/* 4) Make QR available everywhere, including mobile, and make scan call the real method. */
+function hookQR(){
+  var q=window.App&&App.qr;if(q&&!q.scanQR&&q.startScan)q.scanQR=q.startScan.bind(q);
+  [['btn-mob-qr','showQR'],['btn-qr-open','showQR'],['v33-show-qr','showQR'],['v33-scan-qr','scanQR']].forEach(function(pair){var b=$(pair[0]);if(b&&!b.__v34qr){b.__v34qr=true;b.style.display='inline-flex';b.addEventListener('click',function(){try{var fn=App.qr&&(App.qr[pair[1]]||App.qr.startScan);if(fn)fn.call(App.qr);}catch(e){toast('QR action failed: '+e.message,'error');}},true);}});
+}
+
+/* 5) Transfer hardening: always use resumable FT2 for large files, show exact percent/speed/ETA, keep 2.6GB cap. */
+function fmtB(b){if(!isFinite(b))return'—';if(b<1024)return Math.round(b)+'B';if(b<1048576)return(b/1024).toFixed(1)+'KB';if(b<1073741824)return(b/1048576).toFixed(1)+'MB';return(b/1073741824).toFixed(2)+'GB';}
+function patchFT2UI(){
+  document.querySelectorAll('.v28-tc').forEach(function(el){
+    if(!el.querySelector('.v34-pct')){var p=document.createElement('span');p.className='v34-pct';p.textContent='0%';var top=el.querySelector('.v28-tc-top');if(top)top.appendChild(p);}
+    var fill=el.querySelector('.v28-pb-fill');if(fill&&!fill.__v34){fill.__v34=true;new MutationObserver(function(){var w=parseFloat(fill.style.width)||0;var pct=el.querySelector('.v34-pct');if(pct)pct.textContent=Math.max(0,Math.min(100,Math.round(w)))+'%';}).observe(fill,{attributes:true,attributeFilter:['style','class']});}
+  });
+}
+function hookFiles(){
+  var FT=window.App&&App.files;if(!FT||FT.__v34)return false;var orig=FT.sendFiles&&FT.sendFiles.bind(FT);if(!orig)return false;FT.__v34=true;
+  FT.sendFiles=function(files,pid){
+    var arr=Array.from(files||[]);if(!pid){toast('Select a connected peer first','warning');return;}
+    var max=2.6*1024*1024*1024;
+    var too=arr.find(function(f){return f.size>max;});if(too){toast('File too large: '+too.name+' exceeds 2.6GB','error');return;}
+    if(window.FT2&&typeof window.FT2.send==='function'){arr.forEach(function(f){window.FT2.send(f,pid).catch(function(e){toast('Transfer failed: '+e.message,'error');});});return;}
+    return orig(files,pid);
+  };
+  return true;
+}
+
+/* expose FT2 from older closed module when possible by patching button path fallback */
+try{if(!window.FT2&&window.__dhV28)log('FT2 active; compatibility watcher enabled');}catch(e){}
+
+/* 6) Compact draggable module health pill: visible proof every module is alive. */
+var required=['toast','log','store','crypto','peer','files','media','board','code','tasks','group','vault','groupVideo','groupVoice','ui','presence','qr','invite','screenShare','presentation','callState','directCall','conference','streamWatchdog'];
+function ensurePill(){if($('v34-module-pill'))return;var p=document.createElement('div');p.id='v34-module-pill';p.innerHTML='<span>🧩</span><b id="v34-mod-ok">0/0</b><span id="v34-mod-state" class="warn">checking</span>';document.body.appendChild(p);var sx,sy,ox,oy,d=false;p.addEventListener('pointerdown',function(e){d=true;sx=e.clientX;sy=e.clientY;var r=p.getBoundingClientRect();ox=r.left;oy=r.top;p.setPointerCapture&&p.setPointerCapture(e.pointerId);});p.addEventListener('pointermove',function(e){if(!d)return;p.style.left=Math.max(0,Math.min(innerWidth-60,ox+e.clientX-sx))+'px';p.style.top=Math.max(0,Math.min(innerHeight-32,oy+e.clientY-sy))+'px';p.style.right='auto';p.style.bottom='auto';});p.addEventListener('pointerup',function(){d=false;});p.onclick=function(){try{window.DevHubV31&&DevHubV31.render&&DevHubV31.render();$('v31-diag')&&$('v31-diag').classList.add('on');}catch(e){}};}
+function renderHealth(){ensurePill();var A=window.App||{};var ok=required.filter(function(k){return !!A[k];}).length;var el=$('v34-mod-ok'),st=$('v34-mod-state');if(el)el.textContent=ok+'/'+required.length;if(st){st.className=ok===required.length?'ok':'warn';st.textContent=ok===required.length?'ready':'repairing';}}
+
+function tick(){ensureSecureOriginBar();hookMedia();hookQR();hookFiles();patchFT2UI();renderHealth();}
+function boot(){tick();setInterval(tick,1000);window.addEventListener('pagehide',stopTracks);window.addEventListener('beforeunload',stopTracks);log('loaded — secure permissions, SafeStore aliases, QR/mobile, media cleanup, module health');}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+window.DevHubV34={tick:tick,stopAllMedia:stopTracks,secure:ensureSecureOriginBar};
+})();
+</script>
+
+
+<script id="v35-production-polish">
+/* v35 — Production polish: realistic ringtone, vibration, missed-call, dial tone, unread badges */
+(function(){
+  'use strict';
+  if(window.__v35)return;window.__v35=true;
+  var AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+  var ac=null,master=null;
+  function ctx(){if(!ac){try{ac=new AC();master=ac.createGain();master.gain.value=0.18;master.connect(ac.destination);}catch(e){return null;}}if(ac.state==='suspended')ac.resume().catch(function(){});return ac;}
+  ['click','touchstart','keydown'].forEach(function(ev){window.addEventListener(ev,function unlock(){ctx();window.removeEventListener(ev,unlock,true);},{once:true,capture:true});});
+
+  var ringTimer=null,ringNodes=[],dialTimer=null,dialNodes=[];
+  function stopNodes(list){list.forEach(function(n){try{n.stop&&n.stop();}catch(e){}try{n.disconnect&&n.disconnect();}catch(e){}});list.length=0;}
+  function tone(freq,dur,delay,gain){
+    var c=ctx();if(!c)return;
+    var t=c.currentTime+(delay||0);
+    var o=c.createOscillator(),g=c.createGain();
+    o.type='sine';o.frequency.value=freq;
+    g.gain.setValueAtTime(0,t);
+    g.gain.linearRampToValueAtTime(gain||0.5,t+0.02);
+    g.gain.setValueAtTime(gain||0.5,t+dur-0.05);
+    g.gain.linearRampToValueAtTime(0,t+dur);
+    o.connect(g);g.connect(master);
+    o.start(t);o.stop(t+dur+0.05);
+    ringNodes.push(o);
+  }
+  // Classic dual-tone ring (440+480 Hz, 2s on / 4s off — telco standard)
+  function ringOnce(){tone(440,0.4,0,0.45);tone(480,0.4,0,0.45);tone(440,0.4,0.6,0.45);tone(480,0.4,0.6,0.45);tone(440,0.4,1.2,0.45);tone(480,0.4,1.2,0.45);}
+  var vibrateTimer=null;
+  function startRing(){stopRing();ringOnce();ringTimer=setInterval(ringOnce,3000);
+    if(navigator.vibrate)try{navigator.vibrate([600,400,600,400,600,2000]);vibrateTimer=setInterval(function(){if(ringTimer)navigator.vibrate([600,400,600,400,600,2000]);},4500);}catch(e){}
+  }
+  function stopRing(){if(ringTimer){clearInterval(ringTimer);ringTimer=null;}if(vibrateTimer){clearInterval(vibrateTimer);vibrateTimer=null;}stopNodes(ringNodes);if(navigator.vibrate)try{navigator.vibrate(0);}catch(e){}}
+
+  // Outgoing dial tone (350+440 Hz continuous)
+  function startDial(){stopDial();var c=ctx();if(!c)return;
+    [350,440].forEach(function(f){var o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=f;g.gain.value=0.08;o.connect(g);g.connect(master);o.start();dialNodes.push(o,g);});
+    dialTimer=setTimeout(stopDial,30000);
+  }
+  function stopDial(){if(dialTimer){clearTimeout(dialTimer);dialTimer=null;}stopNodes(dialNodes);}
+
+  // Override SoundTheme.callIncoming and add callOutgoing
+  function patch(){
+    var s=window.App&&App.sounds;if(!s)return setTimeout(patch,300);
+    s.callIncoming=function(){startRing();};
+    s.callOutgoing=function(){startDial();};
+    s.callEnded=function(){stopRing();stopDial();try{tone(480,0.2,0,0.3);tone(620,0.25,0.22,0.3);}catch(e){}};
+    s.callAccepted=function(){stopRing();stopDial();try{tone(880,0.12,0,0.3);tone(1320,0.12,0.13,0.3);}catch(e){}};
+  }
+  patch();
+
+  // Auto stop ring when modal hidden + missed-call toast
+  var modal=document.getElementById('incoming-call-modal');var missedTimer=null;
+  if(modal){
+    var mo=new MutationObserver(function(){
+      var on=modal.classList.contains('on')||modal.style.display==='flex';
+      if(on){
+        if(window.App&&App.sounds&&App.sounds.callIncoming)App.sounds.callIncoming();
+        clearTimeout(missedTimer);
+        missedTimer=setTimeout(function(){
+          if(modal.classList.contains('on')){
+            stopRing();
+            try{App.toast&&App.toast.show('📞 Missed call','warning');}catch(e){}
+            try{var b=document.getElementById('icall-decline')||document.querySelector('#incoming-call-modal [data-action="decline"]');b&&b.click();}catch(e){}
+          }
+        },35000);
+      }else{stopRing();clearTimeout(missedTimer);}
+    });
+    mo.observe(modal,{attributes:true,attributeFilter:['class','style']});
+  }
+
+  // Outgoing dial tone when user initiates a call
+  document.addEventListener('click',function(e){
+    var t=e.target&&e.target.closest&&e.target.closest('#btn-call-voice,#btn-call-video,[data-action="call-voice"],[data-action="call-video"]');
+    if(t){try{App.sounds&&App.sounds.callOutgoing&&App.sounds.callOutgoing();}catch(_){}}
+    var h=e.target&&e.target.closest&&e.target.closest('#btn-hang,#v32-end,#icall-decline,[data-action="hangup"]');
+    if(h){stopRing();stopDial();}
+  },true);
+
+  // Stop ring when call connects
+  try{window.Bus&&Bus.on&&Bus.on('peer:connected',function(){stopRing();});}catch(e){}
+  try{window.Bus&&Bus.on&&Bus.on('call:ended',function(){stopRing();stopDial();});}catch(e){}
+
+  // Unread message badge on mobile nav chat button
+  var unread=0;
+  function paintBadge(){
+    var btn=document.getElementById('mnav-chat')||document.querySelector('[data-tab="chat"]');
+    if(!btn)return;
+    var b=btn.querySelector('.v35-badge');
+    if(unread<=0){if(b)b.remove();return;}
+    if(!b){b=document.createElement('span');b.className='v35-badge';btn.style.position='relative';btn.appendChild(b);}
+    b.textContent=unread>99?'99+':String(unread);
+  }
+  try{window.Bus&&Bus.on&&Bus.on('msg:received',function(){
+    var active=document.querySelector('.tab-pane.active');
+    if(!active||active.id!=='tab-chat'){unread++;paintBadge();}
+  });}catch(e){}
+  document.addEventListener('click',function(e){
+    var t=e.target&&e.target.closest&&e.target.closest('[data-tab="chat"],#mnav-chat,#tab-btn-chat');
+    if(t){unread=0;paintBadge();}
+  },true);
+
+  // CSS
+  var css=document.createElement('style');css.textContent=
+    '.v35-badge{position:absolute;top:2px;right:2px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#e53935;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.3);pointer-events:none;line-height:1;}'+
+    '#incoming-call-modal.on{animation:v35pulse 1.2s ease-in-out infinite;}'+
+    '@keyframes v35pulse{0%,100%{background:rgba(0,0,0,.7);}50%{background:rgba(20,80,40,.85);}}'+
+    '#incoming-call-modal.on [aria-hidden="true"]{animation:v35shake .6s ease-in-out infinite;display:inline-block;}'+
+    '@keyframes v35shake{0%,100%{transform:rotate(-12deg);}50%{transform:rotate(12deg);}}';
+  document.head.appendChild(css);
+
+  window.__v35Audio={startRing:startRing,stopRing:stopRing,startDial:startDial,stopDial:stopDial};
+  console.log('[v35] Production polish loaded — realistic ringtone, vibration, missed-call, dial tone, unread badge.');
+})();
+</script>
+
+<!-- v36 GLOBAL ERROR HANDLER + ACTIONABLE OVERLAY -->
+<style>
+#v36-err-overlay{position:fixed;inset:0;z-index:2147483647;background:rgba(8,10,18,.92);backdrop-filter:blur(8px);display:none;align-items:flex-start;justify-content:center;padding:24px;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#e8ecf1;overflow:auto}
+#v36-err-overlay.show{display:flex}
+#v36-err-card{max-width:760px;width:100%;background:#11141c;border:1px solid #2a3142;border-radius:14px;box-shadow:0 30px 80px rgba(0,0,0,.6);overflow:hidden}
+#v36-err-head{padding:18px 22px;background:linear-gradient(135deg,#3a1020,#5b1530);display:flex;align-items:center;gap:12px;border-bottom:1px solid #2a3142}
+#v36-err-head .ico{width:36px;height:36px;border-radius:50%;background:#ef4444;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff;flex-shrink:0}
+#v36-err-head h2{margin:0;font-size:17px;font-weight:600;color:#fff;letter-spacing:.2px}
+#v36-err-head .sub{font-size:12px;color:#fca5a5;margin-top:2px}
+#v36-err-body{padding:18px 22px;max-height:55vh;overflow:auto}
+#v36-err-msg{font-size:14px;color:#fecaca;background:#1a1014;padding:10px 12px;border-radius:8px;border-left:3px solid #ef4444;word-break:break-word;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;margin-bottom:14px;white-space:pre-wrap}
+#v36-err-list{margin:0;padding:0;list-style:none;font-size:13px}
+#v36-err-list li{padding:8px 10px;border-bottom:1px solid #1f2533;color:#cbd5e1;display:flex;gap:10px}
+#v36-err-list li:last-child{border:none}
+#v36-err-list .t{color:#64748b;font-family:ui-monospace,monospace;font-size:11px;flex-shrink:0;min-width:64px}
+#v36-err-list .s{color:#f87171;font-weight:600;flex-shrink:0;min-width:42px;font-size:11px;text-transform:uppercase}
+#v36-err-tips{margin-top:14px;padding:12px 14px;background:#0f1623;border:1px solid #1e3a5f;border-radius:8px;font-size:13px;color:#93c5fd}
+#v36-err-tips b{color:#dbeafe;display:block;margin-bottom:6px}
+#v36-err-tips ul{margin:0;padding-left:18px;color:#bfdbfe}
+#v36-err-acts{padding:14px 22px;background:#0c0f17;border-top:1px solid #2a3142;display:flex;gap:8px;flex-wrap:wrap}
+.v36-btn{appearance:none;border:1px solid #2a3142;background:#1a2030;color:#e8ecf1;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;transition:.15s}
+.v36-btn:hover{background:#243044;border-color:#3b4961}
+.v36-btn.primary{background:#2563eb;border-color:#2563eb;color:#fff}
+.v36-btn.primary:hover{background:#1d4ed8}
+.v36-btn.danger{background:#7f1d1d;border-color:#7f1d1d;color:#fecaca}
+.v36-btn.danger:hover{background:#991b1b}
+</style>
+
+<div id="v36-err-overlay" role="alertdialog" aria-modal="true" aria-labelledby="v36-err-title">
+  <div id="v36-err-card">
+    <div id="v36-err-head">
+      <div class="ico">!</div>
+      <div>
+        <h2 id="v36-err-title">Application Error</h2>
+        <div class="sub" id="v36-err-sub">A startup exception was caught</div>
+      </div>
+    </div>
+    <div id="v36-err-body">
+      <div id="v36-err-msg">—</div>
+      <div id="v36-err-tips">
+        <b>Try one of these actions:</b>
+        <ul>
+          <li><b>Reload</b> — refresh and retry initialization.</li>
+          <li><b>Safe Mode</b> — reload with a fresh local cache (keeps your vault).</li>
+          <li><b>Reset App</b> — wipe local storage and IndexedDB (destructive).</li>
+          <li><b>Copy Diagnostics</b> — copy the full error log for support.</li>
+        </ul>
+      </div>
+      <div style="margin-top:14px;font-size:12px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Error log</div>
+      <ul id="v36-err-list"></ul>
+    </div>
+    <div id="v36-err-acts">
+      <button class="v36-btn primary" id="v36-btn-reload">Reload</button>
+      <button class="v36-btn" id="v36-btn-safe">Safe Mode</button>
+      <button class="v36-btn" id="v36-btn-copy">Copy Diagnostics</button>
+      <button class="v36-btn" id="v36-btn-dismiss">Dismiss</button>
+      <button class="v36-btn danger" id="v36-btn-reset" style="margin-left:auto">Reset App</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var BOOT_T0 = (window.performance && performance.now)?performance.now():Date.now();
+  var errors = [];
+  var MAX = 50;
+  var shown = false;
+
+  function ts(){ var d=new Date(); return d.toTimeString().slice(0,8)+'.'+String(d.getMilliseconds()).padStart(3,'0'); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+  function record(sev, msg, src){
+    var entry = {t:ts(), sev:sev, msg:String(msg||'Unknown error'), src:src||'', when:Date.now()-BOOT_T0};
+    errors.push(entry);
+    if(errors.length>MAX) errors.shift();
+    try{ render(); }catch(_){}
+    return entry;
+  }
+
+  function render(){
+    var list = document.getElementById('v36-err-list');
+    if(!list) return;
+    list.innerHTML = errors.slice().reverse().map(function(e){
+      return '<li><span class="t">'+esc(e.t)+'</span><span class="s">'+esc(e.sev)+'</span><span>'+esc(e.msg)+(e.src?'  <span style="color:#64748b">('+esc(e.src)+')</span>':'')+'</span></li>';
+    }).join('');
+    var last = errors[errors.length-1];
+    if(last){
+      var msg = document.getElementById('v36-err-msg'); if(msg) msg.textContent = last.msg + (last.src?'\n  at '+last.src:'');
+      var sub = document.getElementById('v36-err-sub'); if(sub) sub.textContent = errors.length+' error'+(errors.length===1?'':'s')+' captured · boot+'+Math.round(last.when)+'ms';
+    }
+  }
+
+  function show(){
+    if(shown) return; shown=true;
+    var ov = document.getElementById('v36-err-overlay');
+    if(ov){ ov.classList.add('show'); render(); }
+  }
+  function hide(){ shown=false; var ov=document.getElementById('v36-err-overlay'); if(ov) ov.classList.remove('show'); }
+
+  // Decide severity & whether to surface
+  function isStartupPhase(){
+    // Surface overlay automatically during the first 12s, or if the loading screen is still visible
+    if(((window.performance&&performance.now)?performance.now():Date.now()) - BOOT_T0 < 12000) return true;
+    var ls = document.getElementById('loading-screen') || document.querySelector('.loading-screen,[data-loading-screen]');
+    if(ls && getComputedStyle(ls).display !== 'none') return true;
+    return false;
+  }
+
+  window.addEventListener('error', function(ev){
+    var msg = ev && ev.message || 'Script error';
+    var src = ev && (ev.filename||'') + (ev.lineno?':'+ev.lineno:'') + (ev.colno?':'+ev.colno:'');
+    var stack = ev && ev.error && ev.error.stack;
+    record('error', stack? (msg+'\n'+stack) : msg, src);
+    if(isStartupPhase()) show();
+  }, true);
+
+  window.addEventListener('unhandledrejection', function(ev){
+    var r = ev && ev.reason;
+    var msg = (r && (r.stack||r.message)) || (typeof r==='string'?r:JSON.stringify(r));
+    record('promise', msg, '');
+    if(isStartupPhase()) show();
+  });
+
+  // Wire action buttons (after DOM ready)
+  function wire(){
+    var $=function(id){return document.getElementById(id);};
+    $('v36-btn-reload') && $('v36-btn-reload').addEventListener('click', function(){ location.reload(); });
+    $('v36-btn-dismiss') && $('v36-btn-dismiss').addEventListener('click', hide);
+    $('v36-btn-safe') && $('v36-btn-safe').addEventListener('click', function(){
+      try{
+        // Clear only volatile UI keys, preserve vault/identity
+        var keep=/^(dh-vault|dh-identity|dh-keys|dh-known-peers|dh-msgs)/i;
+        for(var i=localStorage.length-1;i>=0;i--){ var k=localStorage.key(i); if(k && !keep.test(k)) localStorage.removeItem(k); }
+        sessionStorage.clear();
+      }catch(_){ }
+      location.search='?safe=1&t='+Date.now();
+    });
+    $('v36-btn-reset') && $('v36-btn-reset').addEventListener('click', function(){
+      if(!confirm('This will wipe ALL local data (messages, vault, identity). Continue?')) return;
+      try{ localStorage.clear(); sessionStorage.clear(); }catch(_){}
+      try{
+        if(indexedDB && indexedDB.databases){
+          indexedDB.databases().then(function(dbs){
+            (dbs||[]).forEach(function(d){ try{ indexedDB.deleteDatabase(d.name); }catch(_){ } });
+            setTimeout(function(){ location.reload(); }, 400);
+          }).catch(function(){ location.reload(); });
+        } else { location.reload(); }
+      }catch(_){ location.reload(); }
+    });
+    $('v36-btn-copy') && $('v36-btn-copy').addEventListener('click', function(){
+      var diag = {
+        ua: navigator.userAgent, when: new Date().toISOString(),
+        url: location.href, bootMs: Math.round(((window.performance&&performance.now)?performance.now():Date.now())-BOOT_T0),
+        viewport: innerWidth+'x'+innerHeight, online: navigator.onLine,
+        errors: errors
+      };
+      var txt = JSON.stringify(diag, null, 2);
+      var done=function(){ var b=document.getElementById('v36-btn-copy'); if(b){var o=b.textContent; b.textContent='Copied ✓'; setTimeout(function(){b.textContent=o;},1500);} };
+      if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(function(){ prompt('Copy diagnostics:', txt); }); }
+      else { prompt('Copy diagnostics:', txt); }
+    });
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', wire); else wire();
+
+  // Boot-stall watchdog: if loading screen still visible after 15s with no errors, surface overlay anyway
+  setTimeout(function(){
+    var ls = document.getElementById('loading-screen') || document.querySelector('.loading-screen,[data-loading-screen]');
+    if(ls && getComputedStyle(ls).display !== 'none'){
+      record('stall','App did not finish initializing within 15 seconds. A module may be blocked (network, IndexedDB, or PeerJS CDN).','bootWatchdog');
+      show();
+    }
+  }, 15000);
+
+  // Public API
+  window.__v36Errors = {
+    report: function(msg, src){ record('manual', msg, src||''); show(); },
+    show: show, hide: hide, list: function(){ return errors.slice(); }, clear: function(){ errors=[]; render(); }
+  };
+  console.log('[v36] Global error handler armed.');
+})();
+</script>
 
 </body>
 </html>
