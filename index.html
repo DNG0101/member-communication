@@ -544,7 +544,10 @@ a{color:var(--primary);text-decoration:none;}
 .mob-drawer-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 4px;font-size:10px;font-weight:600;color:var(--text);min-height:64px;}
 .mob-drawer-btn:hover,.mob-drawer-btn:active{background:var(--bg4);}
 #boot-overlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:99999;}
-#boot-overlay.gone{display:none;}
+#boot-overlay.gone{display:none!important;}
+/* CSS boot-kill: if JS watchdogs fail, overlay auto-hides at 1.5s via pure CSS */
+@keyframes __dhBootKill{0%,50%{opacity:1;visibility:visible;display:flex}85%{opacity:0;visibility:visible;display:flex}100%{opacity:0;visibility:hidden;display:none}}
+#boot-overlay:not(.gone){animation:__dhBootKill 1.5s ease forwards 0.2s}
 .boot-logo{font-size:48px;}
 .boot-title{font-size:22px;font-weight:800;color:var(--primary);}
 #boot-bar{width:260px;height:6px;background:var(--bg3);border-radius:99px;overflow:hidden;}
@@ -567,8 +570,8 @@ a{color:var(--primary);text-decoration:none;}
 #gv-my-video{width:100%;height:100%;object-fit:cover;}
 .hist-tabs{display:flex;gap:4px;margin-bottom:12px;}
 .is-low-end *:not(#boot-overlay){transition:none!important;animation:none!important;}
-@keyframes __dhBO{0%,65%{opacity:1;visibility:visible;pointer-events:auto}to{opacity:0;visibility:hidden;pointer-events:none;display:none}}
-#boot-overlay{animation:__dhBO 1.2s ease 5s forwards!important}
+@keyframes __dhBO{0%,65%{opacity:1;visibility:visible;pointer-events:auto}to{opacity:0;visibility:hidden;pointer-events:none}}
+/* animation already handled by :not(.gone) rule */
 #net-quality-badge{font-size:10px;padding:2px 6px;border-radius:99px;background:var(--bg3);color:var(--muted);}
 #device-info-panel{background:var(--bg3);border-radius:var(--radius-sm);padding:10px;font-size:11px;color:var(--text2);line-height:1.8;}
 .skel{background:linear-gradient(90deg,var(--bg3) 25%,var(--bg4) 50%,var(--bg3) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px;}
@@ -753,7 +756,7 @@ a{color:var(--primary);text-decoration:none;}
   window.__dhDbg=_dhDbg;
   window.__dhNuke=_dhNuke;
   /* Hard 2-second deadline — kills overlay no matter what */
-  var _t=setTimeout(function(){_dhNuke('2s deadline');},2000);
+  var _t=setTimeout(function(){_dhNuke('1s deadline');},1000);
   window.__dhClearTimer=function(){clearTimeout(_t);};
   /* Catch all JS errors and show them in overlay */
   window.onerror=function(msg,src,line){
@@ -763,9 +766,19 @@ a{color:var(--primary);text-decoration:none;}
   /* Clear timer if page loads normally */
   document.addEventListener('DOMContentLoaded',function(){
     _dhDbg('DOM ready');
-    /* Give boot 500ms head-start, then ensure overlay gone */
-    setTimeout(function(){_dhNuke('DOM+500ms cleanup');},500);
+    /* Safety net: nuke overlay only if boot hasn't progressed at all (still "Starting…") */
+    var _domWdog=setTimeout(function(){
+      var msg=document.getElementById('boot-msg');
+      if(msg&&msg.textContent==='Starting\u2026'){_dhNuke('DOM+3s boot-stuck');}
+    },3000);
+    window.__dhClearDomWdog=function(){clearTimeout(_domWdog);};
   },{once:true,passive:true});
+  /* NUCLEAR CSS FALLBACK: style injected before body HTML exists */
+  try{
+    var _ks=document.createElement('style');_ks.id='__dh-kill';
+    _ks.textContent='#boot-overlay{animation:__dhKillBoot 0.01s ease forwards 1s!important}'+'@keyframes __dhKillBoot{to{display:none!important;opacity:0!important;visibility:hidden!important}}';
+    document.head.appendChild(_ks);
+  }catch(_e){}
 })();
 </script>
 
@@ -886,7 +899,7 @@ a{color:var(--primary);text-decoration:none;}
       <button class="tn" data-tab="settings" id="tabn-set" role="tab" aria-selected="false" aria-controls="tab-settings">⚙️ Settings</button>
     </div>
 
-    <div id="content" role="main" id="main-content">
+    <div id="content" role="main" aria-label="Main content">
 
       <!-- CHAT TAB -->
       <div id="tab-chat" class="tabview on" style="flex-direction:column;" role="tabpanel" aria-labelledby="tabn-chat">
@@ -1688,8 +1701,13 @@ a{color:var(--primary);text-decoration:none;}
 (function(){
   setTimeout(function(){
     try{window.__dhNuke&&window.__dhNuke('ext-watchdog 1.5s');}catch(e){}
-    try{var bo=document.getElementById('boot-overlay');if(bo){bo.style.display='none';bo.remove();}}catch(e){}
-  },1500);
+    try{
+      var bo=document.getElementById('boot-overlay');
+      if(bo){bo.style.cssText='display:none!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important';try{bo.remove();}catch(ee){}}
+    }catch(e){}
+    /* Also remove by ID in case bo reference is stale */
+    try{var bo2=document.getElementById('boot-overlay');if(bo2)bo2.remove();}catch(e){}
+  },1000);
 })();
 </script>
 <script>
@@ -2406,7 +2424,7 @@ class PermissionManager{
 
 /* ══════════════════════════════════════════════════════════
    REGISTRIES
-═════════════════════════════════════════════════════st�════ */
+════════════════════════════════════════════════════════════ */
 class RTCRegistry{
   constructor(){this._r=new Map();}
   register(id,conn){this._r.set(id,{conn,ts:Date.now()});}
@@ -2942,7 +2960,7 @@ class NotificationCenter{
   }
 }
 
-/* ══════════════════════════════════════════════════════════
+/* ════════════════  �═════════════════════════════════════════
    QR MANAGER
 ══════════════════════════════════════════════════════════ */
 class QRManager{
@@ -4801,7 +4819,7 @@ class PresentationManager{
   _onRemotePage(pid,msg){App.toast?.show('Doc: page '+(msg.page||1)+'/'+msg.total,'info');}
 }
 
-/* ═════════════════════════════════════w+ ════════════════════
+/* ════════════════════════════════════════════════════════════
    WHITEBOARD — LazyModule
 ══════════════════════════════════════════════════════════ */
 class Whiteboard extends LazyModule{
@@ -5258,7 +5276,7 @@ class GroupVideoManager extends LazyModule{
   _toggleMute(){
     this._muted=!this._muted;
     this._stream?.getAudioTracks().forEach(t=>t.enabled=!this._muted);
-    setEl('btn-gv-mute',this._muted?'🔇 Unmute':'🎤 Mute');
+    setEl('btn-gv-mute',this._muted?'🔇 Unmute':';��� Mute');
   }
   _inviteAll(){
     if(!this._stream){App.toast?.show('Start your camera first','warning');return;}
@@ -6026,7 +6044,7 @@ class UIManager{
   _syncMobPeers(){
     const mobList=document.getElementById('mob-peers-list');if(!mobList)return;
     const peers=document.querySelectorAll('#peers-list .pc');
-    if(!peers.length){mobList.innerHTML='<div id="mob-nopeer" style="font-size:12px;color:var(--muted);text-align:center;padding:16px">No peers connected</div>';return;}
+    if(!peers.length){mobList.innerHTML='<div class="mob-nopeer" style="font-size:12px;color:var(--muted);text-align:center;padding:16px">No peers connected</div>';return;}
     mobList.innerHTML=[...peers].map(p=>{const pid=p.dataset.pid;const nm=App.peer?.peerName?.(pid)||pid;return`<div class="pc" data-pid="${esc(pid)}" role="listitem" style="margin-bottom:4px"><div class="pc-top"><span class="pc-av">👤</span><span class="pc-nm" translate="no" lang="und">${esc(nm)}</span></div><div class="pc-acts"><button class="btn btn-xs btn-p" onclick="App.ui.selectPeer('${esc(pid)}');document.getElementById('mobile-peers').classList.remove('on')">Chat</button></div></div>`;}).join('');
   }
   showMobPeers(){document.getElementById('mobile-peers')?.classList.add('on');}
@@ -6330,10 +6348,12 @@ Object.defineProperty(window,'App',{value:App,writable:false,configurable:false,
 ══════════════════════════════════════════════════════════ */
 function _runBootAssert(){
   try{if(!Object.isFrozen(CFG))console.warn('[DevHub] CFG not frozen');}catch(e){}
-  [CallStateMachine,DirectCallModule,ConferenceModule,StreamWatchdog,AuditLog,
-   MemoryPressureManager,ConnectionApprovalQueue,TURNSetupWizard,
-   VanishingMessageManager,LinkPreviewManager,PeerProfileManager
-  ].forEach(function(C){try{if(typeof C!=='function')console.warn('[DevHub] Missing:',C&&C.name);}catch(e){}});
+  try{
+    [CallStateMachine,DirectCallModule,ConferenceModule,StreamWatchdog,AuditLog,
+     MemoryPressureManager,ConnectionApprovalQueue,TURNSetupWizard,
+     VanishingMessageManager,LinkPreviewManager,PeerProfileManager
+    ].forEach(function(C){try{if(typeof C!=='function')console.warn('[DevHub] Missing:',C&&C.name);}catch(e){}});
+  }catch(e){console.warn('[DevHub] _runBootAssert error:',e.message);}
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -6369,20 +6389,20 @@ async function bootApp(){
   await Promise.race([App.store.init(),new Promise(res=>setTimeout(res,5000))]).catch(e=>{App.log?.warn?.('DBStore.init timeout/error: '+(e?.message||e));});
 
   setBootMsg('Setting up encryption…',20);
-  App.crypto=new CryptoManager();
-  App.trust=new TrustStore();
-  App.hist=new PeerHistory();
-  App.callHist=new CallHistory();
+  try{App.crypto=new CryptoManager();}catch(_e){console.warn('[DH]crypto',_e.message);}
+  try{App.trust=new TrustStore();}catch(_e){console.warn('[DH]trust',_e.message);}
+  try{App.hist=new PeerHistory();}catch(_e){console.warn('[DH]hist',_e.message);}
+  try{App.callHist=new CallHistory();}catch(_e){console.warn('[DH]callHist',_e.message);}
 
   setBootMsg('Loading peer state…',30);
-  App.netq=new NetQuality();
-  App.msgQ=new MessageQueue();
-  App.offlineQ=new OfflineQueue();App.offlineQ.init();
-  App.perms=new PermissionManager();
-  App.rateLimiter=new ConnectRateLimiter();
-  App.connReg=new ConnectionRegistry();
-  App.rtcReg=new RTCRegistry();
-  App.streamReg=new StreamRegistry();
+  try{App.netq=new NetQuality();}catch(_e){console.warn('[DH]netq',_e.message);}
+  try{App.msgQ=new MessageQueue();}catch(_e){console.warn('[DH]msgQ',_e.message);}
+  try{App.offlineQ=new OfflineQueue();App.offlineQ.init();}catch(_e){console.warn('[DH]offlineQ',_e.message);}
+  try{App.perms=new PermissionManager();}catch(_e){console.warn('[DH]perms',_e.message);}
+  try{App.rateLimiter=new ConnectRateLimiter();}catch(_e){console.warn('[DH]rateLimiter',_e.message);}
+  try{App.connReg=new ConnectionRegistry();}catch(_e){console.warn('[DH]connReg',_e.message);}
+  try{App.rtcReg=new RTCRegistry();}catch(_e){console.warn('[DH]rtcReg',_e.message);}
+  try{App.streamReg=new StreamRegistry();}catch(_e){console.warn('[DH]streamReg',_e.message);}
 
   setBootMsg('Starting modules…',45);
   try{App.memPressure=new MemoryPressureManager();App.memPressure.init();}catch(_e){console.warn('[DH]memPressure',_e.message);}
@@ -6504,28 +6524,40 @@ async function bootApp(){
     if(!App[k])console.warn('[DH] module missing:',k);
   });}catch(e){}
   setBootMsg('Connecting to network…',75);
-  if(App.peer&&typeof App.peer.init==='function'){try{await safeModule('PeerManager',()=>App.peer.init());}catch(_e){console.warn('[DH]peer.init',_e&&_e.message);}}
+  /* Run peer init in background — do NOT await it; PeerJS CDN may take up to 8s to load */
+  if(App.peer&&typeof App.peer.init==='function'){
+    safeModule('PeerManager',()=>App.peer.init().catch(_e=>{console.warn('[DH]peer.init bg',_e&&_e.message);}));
+  }
 
-  App.netRecovery=new NetworkRecovery();App.netRecovery.init();
-  App.cleanup=new LongSessionCleanup();App.cleanup.init();
-  App.broadcastDisc.init();
+  try{App.netRecovery=new NetworkRecovery();App.netRecovery.init();}catch(_e){console.warn('[DH]netRecovery',_e.message);}
+  try{App.cleanup=new LongSessionCleanup();App.cleanup.init();}catch(_e){console.warn('[DH]cleanup',_e.message);}
+  try{App.broadcastDisc?.init?.();}catch(_e){console.warn('[DH]broadcastDisc.init',_e.message);}
 
   setBootMsg('Ready!',100);
-  Timers.timeout('boot-hide',()=>{
-    const bo=document.getElementById('boot-overlay');
-    if(bo){bo.style.opacity='0';bo.style.transition='opacity .4s';setTimeout(()=>bo.classList.add('gone'),400);}
-    App.bootRec.markBootComplete();
-    App.bootRec.restoreSessionSnapshot();
-    OB.init();
-    App.room._checkURLParams?.();
-  },600);
+  /* CRITICAL: hide overlay FIRST (with direct setTimeout), THEN cancel watchdogs.
+     The old code cancelled watchdogs before hiding → if Timers broke, overlay stayed forever. */
+  const _doBootComplete=()=>{
+    try{
+      const bo=document.getElementById('boot-overlay');
+      if(bo){bo.style.cssText='display:none!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important';try{bo.remove();}catch(_){}}
+    }catch(_){}
+    try{if(window.__dhClearDomWdog)window.__dhClearDomWdog();}catch(_){}
+    try{if(window.__dhClearTimer)window.__dhClearTimer();}catch(_){}
+    try{App.bootRec?.markBootComplete();}catch(_){}
+    try{App.bootRec?.restoreSessionSnapshot();}catch(_){}
+    try{OB.init();}catch(_){}
+    try{App.room?._checkURLParams?.();}catch(_){}
+  };
+  /* Belt + suspenders: direct setTimeout AND Timers.timeout */
+  try{setTimeout(_doBootComplete,50);}catch(_){_doBootComplete();}
+  try{Timers.timeout('boot-hide',_doBootComplete,600);}catch(_){}
 
   Timers.interval('snapshot',()=>{
     try{SafeStorage.setJSON('dh-boot-snapshot',{notes:document.getElementById('notepad')?.value,name:SafeStorage.get('dh-name',''),ts:Date.now()});}catch(e){}
   },30000);
   Timers.interval('module-health-render',()=>{App.ui?._renderDeviceInfo?.();},60000);
 
-  App.sw=AppSW;AppSW.init();
+  try{App.sw=AppSW;AppSW?.init?.();}catch(_e){console.warn('[DH]AppSW',_e.message);}
 
   /* B15: Post-boot idle preconnect/dns-prefetch for PeerJS + STUN */
   idleRun(()=>{
@@ -6541,7 +6573,7 @@ async function bootApp(){
   const noiseCb=document.getElementById('call-noise-suppress');
   if(noiseCb)noiseCb.checked=CFG.DEFAULT_NOISE_SUPPRESSION;
 
-  App.log.info('DevHub v'+CFG.VERSION+' booted — '+window.DeviceProfile?.performance+' device');
+  try{App.log?.info('DevHub v'+CFG.VERSION+' booted — '+(window.DeviceProfile?.performance||'unknown')+' device');}catch(_e){}
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -6975,43 +7007,53 @@ if(localStorage.getItem('dh-devmode')==='1'){
   console.info('[DevHub v'+CFG.VERSION+'] v11 test harness active — window.__devhub_test.runAllTests() | __devhub_runHeadless() | __devhub_gotoSection(name) | recomputeCSPHash() | verifyAuditLog() | testDestroyMethods() | printFileMap() | getAppState()');
 }
 
-document.addEventListener('DOMContentLoaded',()=>{
-  if(window.__dhDbg)window.__dhDbg('DOMContentLoaded — calling bootApp');
-  const _nuke=()=>{try{window.__dhNuke&&window.__dhNuke('internal-dom-watchdog');}catch(e){}};
-  /* 5s internal deadline — last resort before CSS animation fires at 6s */
-  const _bwdog=setTimeout(_nuke,5000);
-  if(typeof bootApp!=='function'){
-    clearTimeout(_bwdog);_nuke();
-    console.error('[DevHub] bootApp undefined — IIFE crash likely');
-    return;
-  }
-  bootApp()
-    .then(()=>{clearTimeout(_bwdog);_nuke();})
-    .catch(e=>{
+(function _dhBootRunner(){
+  function _runBoot(){
+    if(window.__dhDbg)window.__dhDbg('DOMContentLoaded — calling bootApp');
+    const _nuke=()=>{
+      try{if(window.__dhClearDomWdog)window.__dhClearDomWdog();}catch(_){}
+      try{if(window.__dhClearTimer)window.__dhClearTimer();}catch(_){}
+      try{window.__dhNuke&&window.__dhNuke('internal-dom-watchdog');}catch(e){}
+    };
+    /* 8s internal deadline — generous budget since peer.init no longer blocks */
+    const _bwdog=setTimeout(_nuke,8000);
+    if(typeof bootApp!=='function'){
       clearTimeout(_bwdog);_nuke();
-      console.error('[DevHub] Boot error:',e);
-      try{window.__v36Errors&&window.__v36Errors.report(e.message||String(e),'bootApp');}catch(_){}
-    });
-  /* G4: auto CSP hash recompute in DEV_MODE */
-  if(CFG.DEV_MODE){
-    (async()=>{
-      try{
-        const script=document.querySelector('script')?.textContent;
-        if(!script)return;
-        const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(script));
-        const b64=btoa(String.fromCharCode(...new Uint8Array(buf)));
-        const hash='sha256-'+b64;
-        const csp=document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.content||'';
-        if(csp.includes(hash)){
-          console.info('[DevHub] ✓ CSP hash OK — '+hash);
-        }else{
-          console.warn('[DevHub] ⚠ CSP hash mismatch! Current inline hash: \''+hash+'\'');
-          console.warn('[DevHub] Update CSP meta tag script-src to include: \''+hash+'\'');
-        }
-      }catch(e){console.warn('[DevHub] G4 CSP check failed:',e);}
-    })();
+      console.error('[DevHub] bootApp undefined — IIFE crash likely');
+      return;
+    }
+    bootApp()
+      .then(()=>{clearTimeout(_bwdog);_nuke();})
+      .catch(e=>{
+        clearTimeout(_bwdog);_nuke();
+        console.error('[DevHub] Boot error:',e);
+        try{window.__v36Errors&&window.__v36Errors.report(e.message||String(e),'bootApp');}catch(_){}
+      });
+    /* G4: auto CSP hash recompute in DEV_MODE */
+    if(CFG.DEV_MODE){
+      (async()=>{
+        try{
+          const script=document.querySelector('script')?.textContent;
+          if(!script)return;
+          const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(script));
+          const b64=btoa(String.fromCharCode(...new Uint8Array(buf)));
+          const hash='sha256-'+b64;
+          const csp=document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.content||'';
+          if(csp.includes(hash)){
+            console.info('[DevHub] ✓ CSP hash OK — '+hash);
+          }else{
+            console.warn('[DevHub] ⚠ CSP hash mismatch! Current inline hash: \''+hash+'\'');
+            console.warn('[DevHub] Update CSP meta tag script-src to include: \''+hash+'\'');
+          }
+        }catch(e){console.warn('[DevHub] G4 CSP check failed:',e);}
+      })();
+    }
   }
-});
+  /* Use ready() pattern — handles edge case where DOMContentLoaded may have fired
+     before this code ran (e.g. parser was blocked by slow CDN fetch) */
+  if(document.readyState!=='loading'){_runBoot();}
+  else{document.addEventListener('DOMContentLoaded',_runBoot,{once:true});}
+})();
 
 })(); // end DevHub IIFE
 </script>
@@ -10714,9 +10756,9 @@ var StunRanker={
     ranked.sort(function(a,b){return a.rtt-b.rtt;});
     this.results=ranked;
     if(ranked.length){
-      window.CFG.STUN_SERVERS=ranked.map(function(r){return r.s;}).concat(
+      try{window.CFG.STUN_SERVERS=ranked.map(function(r){return r.s;}).concat(
         stuns.filter(function(s){return!ranked.find(function(r){return r.s===s;});})
-      );
+      );}catch(_stunErr){console.warn('[v27]STUN_SERVERS mutation blocked (frozen CFG?)',_stunErr.message);}
       log('STUN ranked: top='+(ranked[0]?Math.round(ranked[0].rtt)+'ms':'n/a')+' ok='+ranked.length+'/'+stuns.length);
     }
   }
@@ -11536,7 +11578,7 @@ function patchPeer(A){
   PM.__v29=true;log('peer invite/group protocol patched');return true;
 }
 function patchMobile(A){
-  var U=A.ui;if(!U||U.__v29)return false;U._syncMobPeers=function(){var mobList=qs('mob-peers-list');if(!mobList)return;var peers=document.querySelectorAll('#peers-list .pc');if(!peers.length){mobList.innerHTML='<div id="mob-nopeer" style="font-size:12px;color:var(--muted);text-align:center;padding:16px">No peers connected</div>';return;}mobList.innerHTML=[].slice.call(peers).map(function(p){var pid=p.dataset.pid,nm=peerName(pid);return '<div class="pc" data-pid="'+esc29(pid)+'" role="listitem" style="margin-bottom:8px"><div class="pc-top"><span class="pc-av">👤</span><span class="pc-nm" translate="no" lang="und">'+esc29(nm)+'</span></div><div class="v29-mob-actions"><button class="btn btn-xs btn-p" data-v29-mob="chat" data-pid="'+esc29(pid)+'">Chat</button><button class="btn btn-xs btn-s" data-v29-mob="call" data-pid="'+esc29(pid)+'">📞</button><button class="btn btn-xs btn-s" data-v29-mob="video" data-pid="'+esc29(pid)+'">📹</button><button class="btn btn-xs btn-s" data-v29-mob="file" data-pid="'+esc29(pid)+'">📁</button></div></div>';}).join('');};
+  var U=A.ui;if(!U||U.__v29)return false;U._syncMobPeers=function(){var mobList=qs('mob-peers-list');if(!mobList)return;var peers=document.querySelectorAll('#peers-list .pc');if(!peers.length){mobList.innerHTML='<div class="mob-nopeer" style="font-size:12px;color:var(--muted);text-align:center;padding:16px">No peers connected</div>';return;}mobList.innerHTML=[].slice.call(peers).map(function(p){var pid=p.dataset.pid,nm=peerName(pid);return '<div class="pc" data-pid="'+esc29(pid)+'" role="listitem" style="margin-bottom:8px"><div class="pc-top"><span class="pc-av">👤</span><span class="pc-nm" translate="no" lang="und">'+esc29(nm)+'</span></div><div class="v29-mob-actions"><button class="btn btn-xs btn-p" data-v29-mob="chat" data-pid="'+esc29(pid)+'">Chat</button><button class="btn btn-xs btn-s" data-v29-mob="call" data-pid="'+esc29(pid)+'">📞</button><button class="btn btn-xs btn-s" data-v29-mob="video" data-pid="'+esc29(pid)+'">📹</button><button class="btn btn-xs btn-s" data-v29-mob="file" data-pid="'+esc29(pid)+'">📁</button></div></div>';}).join('');};
   qs('mob-peers-list')&&qs('mob-peers-list').addEventListener('click',function(e){var b=e.target.closest('[data-v29-mob]');if(!b)return;var pid=b.getAttribute('data-pid');U.activePeer=pid;U.selectPeer&&U.selectPeer(pid);qs('mobile-peers')&&qs('mobile-peers').classList.remove('on');var a=b.getAttribute('data-v29-mob');if(a==='call')setTimeout(function(){App.media._startCall(false);},30);else if(a==='video')setTimeout(function(){App.media._startCall(true);},30);else if(a==='file')setTimeout(function(){qs('file-inp')&&qs('file-inp').click();},30);});
   U._syncMobPeers();U.__v29=true;log('mobile actions patched');return true;
 }
