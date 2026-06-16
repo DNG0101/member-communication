@@ -12,7 +12,7 @@
 <meta name="description" content="DevHub — Secure P2P Communication Hub">
 <meta name="format-detection" content="telephone=no">
 <link rel="manifest" href="data:application/json,%7B%22name%22%3A%22DevHub%22%2C%22short_name%22%3A%22DevHub%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230f0f17%22%2C%22theme_color%22%3A%22%236366f1%22%7D">
-<title>DevHub v29.0.0 — Production P2P Communication Suite</title>
+<title>DevHub v30.0.0 — Production P2P Communication Suite</title>
 <style>
 /* ═══════════════════════════════════════════════
    DESIGN TOKENS
@@ -674,8 +674,8 @@ html,body{margin:0;min-height:100%;background:#0f0f17;color:#e2e2f0;overflow:hid
 .tabview{display:none}.tabview.on{display:flex}
 .toast{position:fixed;right:16px;bottom:16px;z-index:999999;background:#16161f;color:#e2e2f0;border:1px solid #2d2d44;border-radius:8px;padding:10px 12px;font:13px system-ui;box-shadow:0 8px 30px rgba(0,0,0,.4)}
 </style>
-<meta name="devhub-fixed-version" content="v29.0.0">
-<meta name="generator" content="DevHub v29.0.0 Production">
+<meta name="devhub-fixed-version" content="v30.0.0">
+<meta name="generator" content="DevHub v30.0.0 Production">
 
 <style id="devhub-v19-extra">
 /* ── RTL support ─────────────────────────────────────────────── */
@@ -877,7 +877,7 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
 /* ── CONFIG ──────────────────────────────────────────────────────
    Single source of truth — all modules read from CFG.*             */
 var CFG={
-  VERSION:'29.0.0',
+  VERSION:'30.0.0',
   STATE_KEY:'devhub-v19-state',
   OLD_KEYS:['devhub-v18-state','devhub-state','devhub-v41-state','devhub-v17-state','devhub-v21-state'],
   LOCALE:(navigator.language||'en').replace(/-\w+$/,''),
@@ -10956,140 +10956,164 @@ console.info('%c[DevHub v27.0.0]%c FINAL 10/10 | #tab-nav flex-wrap + ExclusiveS
 
 
 
-<style id="devhub-v29-css">
-/* ══════════════════════════════════════════════════════════════
-   DevHub v29.0.0 — Production CSS Upgrade
-   Responsive stress-test fixes · UX micro-polish · Architecture cleanup
-   ══════════════════════════════════════════════════════════════ */
+<style id="devhub-v30-css">
+/*═══════════════════════════════════════════════════════════════
+  DevHub v30.0.0 — Production CSS
+  Peer Discovery · Conference Layout · Responsive · UX Premium
+═══════════════════════════════════════════════════════════════*/
 
-/* ── Global box model safety ── */
+/* Global box-model safety */
 *,*::before,*::after{box-sizing:border-box;min-width:0;}
+html,body,#app,#main,#content,#sidebar{max-width:100vw;overflow-x:hidden;}
 
-/* ── UX micro-polish: smooth interactive states ── */
+/* ── Smooth interactions ── */
 button,a,[role="button"]{
-  transition:background var(--dur-fast,80ms) var(--ease,ease),
-             opacity var(--dur-fast,80ms) var(--ease,ease),
-             transform var(--dur-fast,80ms) var(--ease,ease),
-             box-shadow var(--dur-fast,80ms) var(--ease,ease);
+  transition:background 80ms ease,opacity 80ms ease,transform 80ms ease,box-shadow 80ms ease;
   -webkit-tap-highlight-color:transparent;
 }
 button:active:not(:disabled),[role="button"]:active{transform:scale(.97);opacity:.9;}
 button:disabled{opacity:.45;cursor:not-allowed;transform:none!important;}
+:focus-visible{outline:2px solid var(--primary,#6366f1)!important;outline-offset:2px!important;}
 
-/* ── Smooth panel reveals ── */
-.modal-overlay.on .modal-box{animation:modal-in var(--dur-normal,150ms) var(--ease,ease);}
-@keyframes modal-in{from{transform:scale(.96) translateY(4px);opacity:0}to{transform:none;opacity:1}}
-#cmd-ov.on #cmd-box{animation:modal-in 120ms ease;}
+/* ── Modal entrance ── */
+.modal-overlay.on .modal-box{animation:v30-modal-in 140ms ease;}
+@keyframes v30-modal-in{from{transform:scale(.96) translateY(4px);opacity:0}to{transform:none;opacity:1}}
+@keyframes v30-fadeIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+@keyframes v30-ripple{from{transform:scale(0);opacity:1}to{transform:scale(2.8);opacity:0}}
+@keyframes v30-pulse{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes v30-spin{to{transform:rotate(360deg)}}
 
-/* ── GMC exclusive overlay ── */
-.gmc-closing{pointer-events:none;opacity:0;transition:opacity .1s ease;}
-
-/* ── Diagnostics FAB (responsive, draggable, safe) ── */
+/* ── Diagnostics FAB (draggable, snap, responsive) ── */
 #dh-diag-fab{
-  position:fixed;
-  bottom:max(72px,calc(var(--mob-nav-h,60px)+12px));
-  right:14px;
-  width:42px;height:42px;
-  border-radius:50%;
-  background:var(--bg2,#16161f);
-  border:1.5px solid var(--primary,#6366f1);
-  box-shadow:0 2px 12px rgba(99,102,241,.35);
+  position:fixed;bottom:max(72px,calc(var(--mob-nav-h,60px)+14px));right:14px;
+  width:44px;height:44px;border-radius:50%;
+  background:var(--bg2,#16161f);border:1.5px solid var(--primary,#6366f1);
+  box-shadow:0 2px 14px rgba(99,102,241,.4);
   display:flex;align-items:center;justify-content:center;
   cursor:grab;z-index:9990;touch-action:none;
-  font-size:16px;color:var(--primary,#6366f1);
+  font-size:17px;color:var(--primary,#6366f1);
   user-select:none;-webkit-user-select:none;
-  transition:box-shadow .15s,border-color .15s,transform .1s;
-  will-change:transform;
+  transition:box-shadow .15s,border-color .15s,transform .12s;will-change:transform;
 }
-#dh-diag-fab:hover{box-shadow:0 4px 20px rgba(99,102,241,.5);transform:scale(1.08);}
-#dh-diag-fab:active,#dh-diag-fab.dragging{cursor:grabbing;box-shadow:0 6px 28px rgba(99,102,241,.55);transform:scale(1.05);transition:none;}
+#dh-diag-fab:hover{box-shadow:0 4px 22px rgba(99,102,241,.55);transform:scale(1.09);}
+#dh-diag-fab.dragging{cursor:grabbing;box-shadow:0 8px 30px rgba(99,102,241,.6);transform:scale(1.06);transition:none;}
 @media(min-width:701px){#dh-diag-fab{bottom:18px;right:18px;}}
-@media(max-width:360px){#dh-diag-fab{width:38px;height:38px;font-size:14px;}}
+@media(max-width:360px){#dh-diag-fab{width:40px;height:40px;font-size:15px;}}
 
 /* ── Diagnostics panel ── */
 #dh-diag-panel{
-  position:fixed;
-  right:14px;
-  bottom:max(126px,calc(var(--mob-nav-h,60px)+68px));
-  width:min(320px,calc(100vw - 28px));
-  background:var(--bg2,#16161f);
-  border:1px solid var(--border,#2d2d44);
-  border-radius:14px;padding:14px;
-  z-index:9989;
-  box-shadow:0 8px 40px rgba(0,0,0,.6);
-  display:none;flex-direction:column;gap:6px;
+  position:fixed;right:14px;
+  bottom:max(128px,calc(var(--mob-nav-h,60px)+70px));
+  width:min(330px,calc(100vw - 28px));
+  background:var(--bg2,#16161f);border:1px solid var(--border,#2d2d44);
+  border-radius:14px;padding:14px;z-index:9989;
+  box-shadow:0 10px 44px rgba(0,0,0,.65);
+  display:none;flex-direction:column;gap:5px;
   font-size:12px;color:var(--text,#e2e2f0);
-  max-height:min(440px,calc(100vh - 180px));
-  overflow-y:auto;
-  animation:modal-in 120ms ease;
+  max-height:min(460px,calc(100dvh - 180px));overflow-y:auto;
+  animation:v30-fadeIn 110ms ease;
 }
 #dh-diag-panel.on{display:flex;}
-@media(min-width:701px){#dh-diag-panel{bottom:74px;right:18px;}}
+@media(min-width:701px){#dh-diag-panel{bottom:76px;right:18px;}}
 .dh-diag-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05);}
 .dh-diag-row:last-child{border-bottom:none;}
-.dh-diag-key{color:var(--text2,#9898b8);font-size:11px;}
-.dh-diag-val{font-family:monospace;font-size:11px;color:var(--green,#22c55e);text-align:right;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.dh-diag-title{font-size:13px;font-weight:700;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;color:var(--text,#e2e2f0);}
-.dh-diag-close{background:none;border:none;color:var(--muted,#666680);cursor:pointer;font-size:18px;min-height:auto;padding:0 2px;line-height:1;}
-.dh-diag-section{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted,#666680);margin-top:6px;margin-bottom:2px;}
-.dh-diag-badge{display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:99px;font-size:10px;font-weight:700;}
-.dh-diag-good{background:#22c55e20;color:#22c55e;}
-.dh-diag-warn{background:#f59e0b20;color:#f59e0b;}
-.dh-diag-bad{background:#ef444420;color:#ef4444;}
+.dh-diag-key{color:var(--text2,#9898b8);font-size:11px;flex-shrink:0;}
+.dh-diag-val{font-family:monospace;font-size:11px;color:var(--green,#22c55e);text-align:right;max-width:58%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dh-diag-title{font-size:13px;font-weight:700;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;}
+.dh-diag-close{background:none;border:none;color:var(--muted,#666680);cursor:pointer;font-size:19px;min-height:auto;padding:0 3px;line-height:1;}
+.dh-diag-section{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted,#666680);margin-top:7px;margin-bottom:2px;}
+.dh-diag-good{color:#22c55e!important;}
+.dh-diag-warn{color:#f59e0b!important;}
+.dh-diag-bad{color:#ef4444!important;animation:v30-pulse .8s infinite;}
+.dh-diag-btn-row{margin-top:9px;display:flex;gap:6px;flex-wrap:wrap;}
+.dh-diag-btn{flex:1;min-height:auto;padding:5px 8px;border-radius:7px;font-size:11px;cursor:pointer;border:1px solid var(--border,#2d2d44);background:var(--bg3,#1e1e2e);}
+.dh-diag-btn-p{background:var(--primary,#6366f1);color:#fff;border-color:transparent;}
 
-/* ══ RESPONSIVE BREAKPOINTS STRESS-TEST FIX ══════════════════════ */
+/* ── Peer discovery status ── */
+.peer-discovery-banner{
+  display:none;align-items:center;gap:8px;padding:8px 12px;
+  background:rgba(99,102,241,.12);border-radius:8px;margin:6px 0;
+  font-size:12px;color:var(--primary,#6366f1);border:1px solid rgba(99,102,241,.2);
+}
+.peer-discovery-banner.active{display:flex;animation:v30-fadeIn .3s ease;}
+.peer-discovery-banner .pdb-spin{animation:v30-spin 1s linear infinite;font-size:14px;}
 
-/* 320px — smallest phones */
+/* ── Peer online indicator enhancement ── */
+.peer-item .presence-dot.online{background:#22c55e;box-shadow:0 0 0 2px rgba(34,197,94,.3);}
+.peer-item .presence-dot.away{background:#f59e0b;}
+.peer-item .presence-dot.offline{background:#666680;}
+
+/* ── Conference layout engine ── */
+#gv-grid{display:grid;gap:6px;width:100%;height:100%;}
+#gv-grid.layout-1{grid-template-columns:1fr;grid-template-rows:1fr;}
+#gv-grid.layout-2{grid-template-columns:1fr 1fr;grid-template-rows:1fr;}
+#gv-grid.layout-3-4{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;}
+#gv-grid.layout-5-12{grid-template-columns:repeat(3,1fr);}
+#gv-grid.layout-many{grid-template-columns:repeat(4,1fr);}
+@media(max-width:700px){
+  #gv-grid.layout-2{grid-template-columns:1fr;grid-template-rows:1fr 1fr;}
+  #gv-grid.layout-3-4{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;}
+  #gv-grid.layout-5-12{grid-template-columns:1fr 1fr;}
+  #gv-grid.layout-many{grid-template-columns:1fr 1fr;}
+}
+
+/* ── Active speaker ring ── */
+.gv-tile.active-speaker{
+  border:2px solid #22c55e;
+  box-shadow:0 0 0 3px rgba(34,197,94,.25);
+  transform:scale(1.01);
+  transition:border-color .25s,box-shadow .25s,transform .2s;
+  z-index:2;
+}
+.gv-tile{transition:border-color .25s,box-shadow .25s,transform .2s;}
+
+/* ── Conference quality badges ── */
+.gv-tile .quality-badge{
+  position:absolute;top:6px;right:6px;
+  background:rgba(0,0,0,.55);border-radius:99px;
+  padding:2px 6px;font-size:9px;font-weight:700;
+  backdrop-filter:blur(4px);
+}
+.quality-excellent{color:#22c55e!important;}
+.quality-good{color:#6366f1!important;}
+.quality-degraded{color:#f59e0b!important;}
+.quality-poor{color:#ef4444!important;animation:v30-pulse .8s infinite;}
+
+/* ── Conference recovery overlay ── */
+.gv-tile .recovering-overlay{
+  position:absolute;inset:0;background:rgba(0,0,0,.65);
+  display:flex;align-items:center;justify-content:center;
+  border-radius:inherit;font-size:12px;color:#fff;gap:6px;
+  animation:v30-fadeIn .3s ease;
+}
+.gv-tile .recovering-overlay .ro-spin{animation:v30-spin 1s linear infinite;}
+
+/* ── Responsive breakpoints ── */
 @media(max-width:320px){
   :root{--sidebar-w:0;--topbar-h:44px;--mob-nav-h:52px;}
   #topbar{padding:0 6px;gap:2px;}
-  .btn-xs{padding:4px 5px;font-size:10px;}
   .tb-title{font-size:11px;max-width:80px;}
-  .modal-box{width:98%!important;padding:12px!important;}
+  .modal-box{width:98%!important;padding:12px!important;max-height:94vh;overflow-y:auto;}
   #cmd-box{width:98%!important;}
   #tab-nav .tn{font-size:9px!important;padding:5px 6px!important;}
   .mob-nav-btn{font-size:9px;padding:6px 2px;}
   .mob-nav-btn .mn-icon{font-size:18px;}
 }
-
-/* 360px range — most Android phones */
 @media(max-width:360px){
   #topbar{padding:0 6px;gap:2px;}
   .tb-title{max-width:90px;}
   #tab-nav .tn{font-size:10px!important;padding:6px 7px!important;}
-  .mob-nav-btn{padding:8px 3px;}
 }
-
-/* 390-414px — modern iPhones */
 @media(min-width:361px) and (max-width:430px){
   #tab-nav .tn{font-size:11px;padding:7px 9px;}
 }
-
-/* 768px — tablets portrait */
 @media(min-width:701px) and (max-width:900px){
   :root{--sidebar-w:200px;}
   #sidebar{display:flex;width:200px;}
   #mob-nav{display:none;}
-  #tab-nav{display:flex;}
 }
-
-/* 900-1024px — small laptops */
-@media(min-width:901px) and (max-width:1024px){
-  :root{--sidebar-w:200px;}
-}
-
-/* 1280-1440px — standard desktops */
-@media(min-width:1280px){
-  :root{--sidebar-w:260px;}
-}
-
-/* 1920px+ — large monitors */
-@media(min-width:1920px){
-  :root{--sidebar-w:300px;}
-  #content{max-width:1800px;margin:0 auto;}
-}
-
-/* Landscape phone safety */
+@media(min-width:1280px){:root{--sidebar-w:260px;}}
+@media(min-width:1920px){:root{--sidebar-w:300px;}#content{max-width:1800px;margin:0 auto;}}
 @media(max-height:500px) and (orientation:landscape){
   :root{--mob-nav-h:0px;}
   #mob-nav{display:none!important;}
@@ -11097,860 +11121,1077 @@ button:disabled{opacity:.45;cursor:not-allowed;transform:none!important;}
   .modal-box{max-height:96vh;overflow-y:auto;}
   #dh-diag-fab{bottom:8px;right:8px;}
 }
-
-/* Touch-device safe tap targets */
 @media(pointer:coarse){
   button,.btn,[role="button"]{min-height:44px;}
   .btn-xs{min-height:36px;}
-  .cr{min-height:44px;}
 }
-
-/* High zoom (150%+) safety */
-@media(max-width:640px){
-  .topbar-actions{gap:2px;}
-  .modal-box{max-height:94vh;overflow-y:auto;}
-  #cmd-box{width:96%!important;}
-  .mb{max-width:90%;}
-}
-
-/* No horizontal scroll anywhere */
-html,body,#app,#main,#content,#sidebar{max-width:100vw;overflow-x:hidden;}
-.modal-overlay{overflow-y:auto;}
-.modal-box{overflow-y:auto;word-break:break-word;overflow-wrap:anywhere;}
-
-/* ── Focus visible: premium keyboard accessibility ── */
-:focus-visible{
-  outline:2px solid var(--primary,#6366f1)!important;
-  outline-offset:2px!important;
-}
-
-/* ── Smooth scroll for panels ── */
-.panel,.modal-box,#msgs,#cmd-results{scroll-behavior:smooth;}
-
-/* ── Connection status micro-feedback ── */
-.conn-recovering{
-  color:var(--yellow,#f59e0b)!important;
-  animation:pulse .8s ease-in-out infinite;
-}
-.conn-failed{color:var(--red,#ef4444)!important;}
-.conn-ok{color:var(--green,#22c55e)!important;}
-
-/* ── Adaptive quality tier indicators ── */
-.quality-excellent{color:var(--green,#22c55e);}
-.quality-good{color:var(--primary,#6366f1);}
-.quality-degraded{color:var(--yellow,#f59e0b);}
-.quality-poor{color:var(--red,#ef4444);animation:pulse .8s infinite;}
-
-/* ── Recovery UX messages ── */
-.recovery-status{
-  font-size:11px;font-style:italic;
-  color:var(--text2,#9898b8);
-  animation:fadeIn .3s ease;
-}
-@keyframes fadeIn{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:none}}
-
-/* ── Prevent toast overlap with diag fab ── */
-#toast-container{right:max(16px,calc(var(--safe-right,0px) + 16px));}
-
-/* ── Prevent #dh-diag-fab from overlapping toast on mobile ── */
 @media(max-width:700px){
   #toast-container{right:62px;}
+  .modal-box{max-height:94dvh;overflow-y:auto;}
 }
-</style>
 
-<script id="devhub-v29-engines">
-/* DevHub v29.0.0 — Production Engines
-   ▸ GlobalExclusiveMenuController (perfected)
-   ▸ SmartDiagnosticsWidget (position persistence, safe snap)
-   ▸ AdaptiveVideoEngine (bitrate / FPS / codec adaptation)
-   ▸ GlobalCommunicationEngine (connection ladder + recovery)
-   ▸ SelfHealingRuntime (watchdog + auto-repair)
-   ▸ MemoryPressureManager (long-session cleanup)
-   ▸ UX polish finaliser */
+/* ── Connection recovery UX ── */
+.conn-recovering{color:var(--yellow,#f59e0b)!important;animation:v30-pulse .8s infinite;}
+.conn-failed{color:var(--red,#ef4444)!important;}
+.conn-ok{color:var(--green,#22c55e)!important;}
+.recovery-toast-msg{font-size:12px;font-style:italic;color:var(--text2,#9898b8);}
+
+/* ── Unicode / RTL / international ── */
+.chat-msg-text{
+  unicode-bidi:plaintext;
+  overflow-wrap:anywhere;word-break:break-word;
+}
+html[dir="rtl"] .chat-msg-text{text-align:right;}
+.intl-timestamp{font-size:10px;color:var(--muted,#666680);white-space:nowrap;}
+
+/* ── Presence dot states ── */
+.pres-busy{background:#ef4444!important;}
+.pres-idle{background:#f59e0b!important;}
+.pres-online{background:#22c55e!important;}
+.pres-offline{background:#666680!important;}
+
+/* ── Smooth scroll ── */
+.panel,.modal-box,#msgs,#cmd-results{scroll-behavior:smooth;}
+
+/* ── Ripple keyframe ── */
+@keyframes v30-ripple{from{transform:scale(0);opacity:1}to{transform:scale(2.8);opacity:0}}
+
+/* ── No horizontal scroll ── */
+.modal-box{overflow-y:auto;word-break:break-word;overflow-wrap:anywhere;}
+</style>
+<script id="devhub-v30-engines">
+/* ══════════════════════════════════════════════════════════════
+   DevHub v30.0.0 — Production Engines
+   Phase 1-12 from all 3 spec files
+   ▸ PeerDiscoveryEngine       — instant, reliable, self-healing
+   ▸ InitialPeerHydrationSystem — hydrates peers on join
+   ▸ PresenceHeartbeatEngine   — heartbeat + stale cleanup
+   ▸ GlobalExclusiveMenuController — one panel at a time
+   ▸ SmartDiagnosticsWidget    — draggable FAB + panel
+   ▸ AdaptiveConferenceLayoutEngine — smart grid layout
+   ▸ ActiveSpeakerEngine       — speaker detection + promotion
+   ▸ AdaptiveConferenceStreamEngine — bandwidth per tier
+   ▸ ConferenceRecoveryEngine  — silent reconnect
+   ▸ GlobalConnectionLadder    — P2P→STUN→TURN ladder
+   ▸ SelfHealingRuntime        — watchdog + auto-repair
+   ▸ MemoryPressureManager     — long-session cleanup
+   ▸ UnicodeInternationalEngine — RTL, locale, timezone
+   ▸ CPUBatteryProtector       — adaptive thermal guard
+   ══════════════════════════════════════════════════════════════ */
 (function(g){
 'use strict';
-if(g.__dhV29)return;
-g.__dhV29=true;
+if(g.__dhV30)return;
+g.__dhV30=true;
 
-/* ─────────────────────────────────────────────────────────────────
+/* ────────────────────────────────────────────────────────────
    UTIL
-───────────────────────────────────────────────────────────────── */
-var $ = function(id){return document.getElementById(id);};
-var $ = function(sel){return Array.from(document.querySelectorAll(sel));};
-var _safe = function(fn){try{return fn();}catch(_){}};
-var _emit = function(e,d){_safe(function(){g.Bus&&g.Bus.emit(e,d);});};
-var _log = function(tag,msg){_safe(function(){console.info('[DH:'+tag+']',msg);});};
+──────────────────────────────────────────────────────────── */
+var $=function(id){return document.getElementById(id);};
+var $=function(sel){return Array.from(document.querySelectorAll(sel));};
+var _safe=function(fn){try{return fn();}catch(_){}};
+var _log=function(tag,msg){_safe(function(){console.info('[DH:'+tag+'] '+msg);});};
+var _emit=function(e,d){_safe(function(){g.Bus&&g.Bus.emit(e,d);});};
+var _on=function(e,fn){_safe(function(){g.Bus&&g.Bus.on(e,fn);});};
+var _now=Date.now.bind(Date);
+var _raf=requestAnimationFrame.bind(window);
 
-/* ─────────────────────────────────────────────────────────────────
-   GLOBALEXCLUSIVEMENUCONTROLLER v29
-   Single source of truth. ONE panel open at a time. Zero leaks.
-───────────────────────────────────────────────────────────────── */
+/* ────────────────────────────────────────────────────────────
+   GLOBALEXCLUSIVEMENUCONTROLLER v30
+──────────────────────────────────────────────────────────── */
 var GMC=(function(){
-  var _activeId=null;
-  var _activeEl=null;
-  var _triggerEl=null;
-  var _registry={};
-  var _locked=false; /* prevent race during transition */
-
-  function _isModal(el){
-    return el&&(el.classList.contains('modal-overlay')||
-      el===g.document&&el.id==='mobile-peers');
-  }
-
-  function _doShow(el){
-    el.classList.add('on');
-    el.classList.remove('gmc-closing');
-    el.style.removeProperty('display');
-  }
-  function _doHide(el,trig){
-    if(!el)return;
-    el.classList.remove('on','open');
-    el.style.removeProperty('display');
-    if(trig){try{trig.setAttribute('aria-expanded','false');}catch(_){}}
-  }
+  var _activeId=null,_activeEl=null,_trigEl=null,_locked=false;
+  var _reg={};
 
   function register(el,opts){
     if(!el)return;
     if(!el.id)el.id='gmc-'+(Math.random()*1e6|0);
-    _registry[el.id]={el:el,isModal:!!(opts&&opts.modal)};
+    _reg[el.id]={el:el,modal:!!(opts&&opts.modal)};
     return el.id;
   }
-
+  function _show(el){el.classList.add('on');el.classList.remove('gmc-closing');el.style.removeProperty('display');}
+  function _hide(el,tr){
+    if(!el)return;
+    el.classList.remove('on','open');el.style.removeProperty('display');
+    if(tr)_safe(function(){tr.setAttribute('aria-expanded','false');});
+  }
   function open(el,trig){
     if(!el||_locked)return;
-    _locked=true;
-    setTimeout(function(){_locked=false;},50);
-
-    var id=el.id||(register(el)||el.id);
-    var isModal=(_registry[id]&&_registry[id].isModal)||_isModal(el);
-
-    /* Close current non-modal */
-    if(_activeEl&&_activeEl!==el&&!isModal){
-      _doHide(_activeEl,_triggerEl);
-    }
-    _doShow(el);
-    if(trig){try{trig.setAttribute('aria-expanded','true');}catch(_){}}
-    if(!isModal){_activeId=id;_activeEl=el;_triggerEl=trig||null;}
+    _locked=true;setTimeout(function(){_locked=false;},50);
+    var id=el.id||(register(el)&&el.id);
+    var isModal=(_reg[id]&&_reg[id].modal)||el.classList.contains('modal-overlay');
+    if(_activeEl&&_activeEl!==el&&!isModal)_hide(_activeEl,_trigEl);
+    _show(el);
+    if(trig)_safe(function(){trig.setAttribute('aria-expanded','true');});
+    if(!isModal){_activeId=id;_activeEl=el;_trigEl=trig||null;}
     _emit('menu:opened',{id:id});
   }
-
   function close(){
-    if(_activeEl){
-      _doHide(_activeEl,_triggerEl);
-      _emit('menu:closed',{id:_activeId});
-      _activeId=null;_activeEl=null;_triggerEl=null;
-    }
+    if(_activeEl){_hide(_activeEl,_trigEl);_emit('menu:closed',{id:_activeId});_activeId=null;_activeEl=null;_trigEl=null;}
   }
-
   function closeAll(){
     close();
     $('.modal-overlay.on,#cmd-ov.on,.presence-menu.on,#mob-more-drawer.on,.v26-submenu.open').forEach(function(el){
-      el.classList.remove('on','open');
-      el.style.removeProperty('display');
+      el.classList.remove('on','open');el.style.removeProperty('display');
     });
-    _activeId=null;_activeEl=null;_triggerEl=null;
+    _activeId=null;_activeEl=null;_trigEl=null;
   }
-
-  /* Click-outside */
   document.addEventListener('pointerdown',function(e){
     if(!_activeEl)return;
     var t=e.target;
     if(_activeEl.contains(t))return;
-    if(_triggerEl&&_triggerEl.contains(t))return;
-    if(_activeEl.id==='cmd-ov'){
-      var box=$('cmd-box');if(box&&box.contains(t))return;
-    }
+    if(_trigEl&&_trigEl.contains(t))return;
     close();
   },true);
-
-  /* ESC key */
   document.addEventListener('keydown',function(e){
     if(e.key!=='Escape')return;
     if(_activeEl){e.preventDefault();close();return;}
     var stray=document.querySelector('.modal-overlay.on,#cmd-ov.on');
     if(stray){stray.classList.remove('on');e.preventDefault();}
   });
-
-  /* MutationObserver: sync state when panels open externally */
   var _mo=new MutationObserver(function(muts){
     muts.forEach(function(m){
       if(m.attributeName!=='class')return;
-      var el=m.target;
-      var id=el.id;
+      var el=m.target,id=el.id;
       var nowOpen=el.classList.contains('on')||el.classList.contains('open');
-      var isModal=(_registry[id]&&_registry[id].isModal)||_isModal(el);
-      if(nowOpen&&!isModal&&el!==_activeEl){
-        if(_activeEl&&_activeEl!==el)_doHide(_activeEl,_triggerEl);
-        _activeId=id;_activeEl=el;_triggerEl=null;
-      } else if(!nowOpen&&_activeEl===el){
-        _activeId=null;_activeEl=null;_triggerEl=null;
-      }
+      var isModal=_reg[id]&&_reg[id].modal;
+      if(nowOpen&&!isModal&&el!==_activeEl){if(_activeEl&&_activeEl!==el)_hide(_activeEl,_trigEl);_activeId=id;_activeEl=el;_trigEl=null;}
+      else if(!nowOpen&&_activeEl===el){_activeId=null;_activeEl=null;_trigEl=null;}
     });
   });
-
-  /* Wire everything after DOM ready */
   function _wire(){
-    var panels=['cmd-ov','mob-more-drawer'];
-    panels.forEach(function(id){
-      var el=$(id);if(!el)return;
-      if(!_registry[id])register(el,{modal:false});
-      _mo.observe(el,{attributes:true,attributeFilter:['class']});
-    });
-    var modalPanels=['mobile-peers'];
-    modalPanels.forEach(function(id){
-      var el=$(id);if(!el)return;
-      if(!_registry[id])register(el,{modal:true});
-      _mo.observe(el,{attributes:true,attributeFilter:['class']});
-    });
+    ['cmd-ov','mob-more-drawer'].forEach(function(id){var el=$(id);if(!el)return;if(!_reg[id])register(el);_mo.observe(el,{attributes:true,attributeFilter:['class']});});
+    ['mobile-peers'].forEach(function(id){var el=$(id);if(!el)return;if(!_reg[id])register(el,{modal:true});_mo.observe(el,{attributes:true,attributeFilter:['class']});});
     $('.modal-overlay,.presence-menu,.v26-submenu').forEach(function(el){
       if(!el.id)el.id='gmc-auto-'+(Math.random()*1e6|0);
       var isModal=el.classList.contains('modal-overlay');
-      if(!_registry[el.id])register(el,{modal:isModal});
+      if(!_reg[el.id])register(el,{modal:isModal});
       _mo.observe(el,{attributes:true,attributeFilter:['class']});
     });
-
-    /* Patch btn-cmd */
     var btnCmd=$('btn-cmd'),cmdOv=$('cmd-ov');
-    if(btnCmd&&cmdOv&&!btnCmd.__gmcV29){
-      btnCmd.__gmcV29=true;
+    if(btnCmd&&cmdOv&&!btnCmd.__gmcV30){
+      btnCmd.__gmcV30=true;
       btnCmd.addEventListener('click',function(e){
         e.stopPropagation();
         if(cmdOv.classList.contains('on')){close();}
-        else{
-          open(cmdOv,btnCmd);
-          _safe(function(){if(typeof g.renderCmd==='function')g.renderCmd('');});
-          setTimeout(function(){var ci=$('cmd-inp');if(ci)ci.focus();},20);
-        }
+        else{open(cmdOv,btnCmd);_safe(function(){if(typeof g.renderCmd==='function')g.renderCmd('');});setTimeout(function(){var ci=$('cmd-inp');if(ci)ci.focus();},20);}
       });
     }
-
-    /* Patch setTab → close floating panels */
-    if(typeof g.setTab==='function'&&!g.setTab.__gmcV29){
+    if(typeof g.setTab==='function'&&!g.setTab.__gmcV30){
       var orig=g.setTab;
       g.setTab=function(name){
-        if(_activeEl&&!(_registry[_activeId]&&_registry[_activeId].isModal))close();
-        var c=$('cmd-ov');
-        if(c&&c.classList.contains('on')){c.classList.remove('on');}
+        if(_activeEl&&!(_reg[_activeId]&&_reg[_activeId].modal))close();
+        var c=$('cmd-ov');if(c&&c.classList.contains('on'))c.classList.remove('on');
         return orig.call(this,name);
       };
-      g.setTab.__gmcV29=true;
+      g.setTab.__gmcV30=true;
     }
-
-    _log('GMC','wired '+Object.keys(_registry).length+' panels');
+    _log('GMC','wired v30 ('+Object.keys(_reg).length+' panels)');
   }
-
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',function(){setTimeout(_wire,600);});
-  } else { setTimeout(_wire,600); }
-
-  return{open:open,close:close,closeAll:closeAll,register:register,
-    getActive:function(){return _activeId;},wire:_wire};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(_wire,600);});
+  else setTimeout(_wire,600);
+  return{open:open,close:close,closeAll:closeAll,register:register,getActive:function(){return _activeId;},wire:_wire};
 })();
-
 g.GlobalMenuController=GMC;
 g.DevHub=g.DevHub||{};
 g.DevHub.MenuController=GMC;
-try{Object.defineProperty(g.DevHub,'activeMenu',{get:function(){return GMC.getActive();},configurable:true});}catch(_){}
 
-
-/* ─────────────────────────────────────────────────────────────────
-   SMART DIAGNOSTICS WIDGET v29
-   Fully draggable · Position persistence · Responsive · Safe
-───────────────────────────────────────────────────────────────── */
+/* ────────────────────────────────────────────────────────────
+   SMART DIAGNOSTICS WIDGET v30
+   Fully draggable · Snap-to-edge · Position persistence
+──────────────────────────────────────────────────────────── */
 (function(){
-  var STORAGE_KEY='dh-diag-pos';
-  var MARGIN=8;
+  var KEY='dh-diag-pos',MARGIN=8,FAB_W=44;
+  var px=-1,py=-1,dragging=false,startX=0,startY=0,fabStartX=0,fabStartY=0;
 
-  /* ── Build DOM ── */
   var fab=document.createElement('button');
-  fab.id='dh-diag-fab';
-  fab.title='DevHub Diagnostics (drag to move)';
-  fab.setAttribute('aria-label','Open diagnostics panel');
-  fab.innerHTML='⚙';
+  fab.id='dh-diag-fab';fab.title='DevHub Diagnostics (drag to move)';
+  fab.setAttribute('aria-label','DevHub diagnostics panel');fab.innerHTML='⚙';
 
   var panel=document.createElement('div');
-  panel.id='dh-diag-panel';
-  panel.setAttribute('role','dialog');
-  panel.setAttribute('aria-label','DevHub Diagnostics');
+  panel.id='dh-diag-panel';panel.setAttribute('role','dialog');
+  panel.setAttribute('aria-label','Diagnostics');
 
-  document.body.appendChild(fab);
-  document.body.appendChild(panel);
-
-  /* ── Position state ── */
-  var px=-1,py=-1; /* -1 = CSS default */
-  var dragging=false,startX=0,startY=0,fabStartX=0,fabStartY=0;
+  document.body.appendChild(fab);document.body.appendChild(panel);
 
   function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
-
-  function loadPos(){
-    try{
-      var saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');
-      if(saved&&typeof saved.x==='number'){
-        px=saved.x;py=saved.y;
-      }
-    }catch(_){}
-  }
-
-  function savePos(){
-    try{localStorage.setItem(STORAGE_KEY,JSON.stringify({x:px,y:py}));}catch(_){}
-  }
-
-  function applyFabPos(){
+  function loadPos(){_safe(function(){var s=JSON.parse(localStorage.getItem(KEY)||'null');if(s&&typeof s.x==='number'){px=s.x;py=s.y;}});}
+  function savePos(){_safe(function(){localStorage.setItem(KEY,JSON.stringify({x:px,y:py}));});}
+  function applyFab(){
     if(px<0)return;
     var vw=window.innerWidth,vh=window.innerHeight;
-    px=clamp(px,MARGIN,vw-42-MARGIN);
-    py=clamp(py,MARGIN,vh-42-MARGIN);
-    fab.style.right='auto';fab.style.bottom='auto';
-    fab.style.left=px+'px';fab.style.top=py+'px';
+    px=clamp(px,MARGIN,vw-FAB_W-MARGIN);py=clamp(py,MARGIN,vh-FAB_W-MARGIN);
+    fab.style.right='auto';fab.style.bottom='auto';fab.style.left=px+'px';fab.style.top=py+'px';
   }
-
-  function applyPanelPos(){
+  function applyPanel(){
     if(px<0)return;
-    var vw=window.innerWidth,vh=window.innerHeight;
-    var pw=Math.min(320,vw-28);
+    var vw=window.innerWidth,ph=panel.offsetHeight||200;
+    var pw=Math.min(330,vw-28);
     var pl=clamp(px,MARGIN,vw-pw-MARGIN);
-    var pt=py-panel.offsetHeight-8;
-    if(pt<MARGIN)pt=py+50;
-    pt=clamp(pt,MARGIN,vh-panel.offsetHeight-MARGIN);
-    panel.style.position='fixed';
-    panel.style.right='auto';panel.style.bottom='auto';
-    panel.style.left=pl+'px';panel.style.top=pt+'px';
+    var pt=py-ph-8;if(pt<MARGIN)pt=py+FAB_W+6;
+    panel.style.cssText='position:fixed;right:auto;bottom:auto;left:'+pl+'px;top:'+pt+'px;';
   }
-
-  function snapToEdge(){
+  function snapEdge(){
     if(px<0)return;
     var vw=window.innerWidth;
-    /* Magnetic snap — pull to nearest edge */
-    var snapL=MARGIN,snapR=vw-42-MARGIN;
-    px=(px<vw/2)?snapL:snapR;
+    px=(px<vw/2)?MARGIN:vw-FAB_W-MARGIN;
     fab.style.transition='left .2s cubic-bezier(.4,0,.2,1)';
-    setTimeout(function(){fab.style.transition='';},220);
-    applyFabPos();
-    savePos();
+    applyFab();savePos();
+    setTimeout(function(){fab.style.transition='';},230);
   }
 
-  /* ── Pointer drag ── */
   fab.addEventListener('pointerdown',function(e){
     if(e.button&&e.button!==0)return;
-    dragging=false;
-    startX=e.clientX;startY=e.clientY;
-    var r=fab.getBoundingClientRect();
-    fabStartX=r.left;fabStartY=r.top;
+    dragging=false;startX=e.clientX;startY=e.clientY;
+    var r=fab.getBoundingClientRect();fabStartX=r.left;fabStartY=r.top;
     if(px<0){px=r.left;py=r.top;}
-    fab.setPointerCapture(e.pointerId);
-    e.preventDefault();
-    e.stopPropagation();
+    fab.setPointerCapture(e.pointerId);e.preventDefault();
   });
-
   fab.addEventListener('pointermove',function(e){
     var dx=e.clientX-startX,dy=e.clientY-startY;
-    if(!dragging&&Math.sqrt(dx*dx+dy*dy)>5){
-      dragging=true;fab.classList.add('dragging');
-    }
+    if(!dragging&&Math.sqrt(dx*dx+dy*dy)>6){dragging=true;fab.classList.add('dragging');}
     if(!dragging)return;
     var vw=window.innerWidth,vh=window.innerHeight;
-    px=clamp(fabStartX+dx,MARGIN,vw-42-MARGIN);
-    py=clamp(fabStartY+dy,MARGIN,vh-42-MARGIN);
+    px=clamp(fabStartX+dx,MARGIN,vw-FAB_W-MARGIN);
+    py=clamp(fabStartY+dy,MARGIN,vh-FAB_W-MARGIN);
     fab.style.right='auto';fab.style.bottom='auto';
     fab.style.left=px+'px';fab.style.top=py+'px';
     e.preventDefault();
   });
-
-  fab.addEventListener('pointerup',function(e){
+  fab.addEventListener('pointerup',function(){
     fab.classList.remove('dragging');
-    var wasDragging=dragging;
-    dragging=false;
-    if(wasDragging){snapToEdge();return;}
-    _togglePanel();
+    var wasDrag=dragging;dragging=false;
+    if(wasDrag){snapEdge();return;}
+    togglePanel();
   });
-
-  fab.addEventListener('pointercancel',function(){
-    fab.classList.remove('dragging');dragging=false;
-  });
-
-  /* ── Click outside panel ── */
+  fab.addEventListener('pointercancel',function(){fab.classList.remove('dragging');dragging=false;});
   document.addEventListener('pointerdown',function(e){
-    if(panel.classList.contains('on')&&!panel.contains(e.target)&&e.target!==fab){
-      panel.classList.remove('on');
-    }
+    if(panel.classList.contains('on')&&!panel.contains(e.target)&&e.target!==fab)panel.classList.remove('on');
   },true);
+  window.addEventListener('resize',function(){if(px<0)return;var vw=window.innerWidth,vh=window.innerHeight;px=clamp(px,MARGIN,vw-FAB_W-MARGIN);py=clamp(py,MARGIN,vh-FAB_W-MARGIN);applyFab();if(panel.classList.contains('on'))applyPanel();});
 
-  /* ── Window resize: keep in bounds ── */
-  window.addEventListener('resize',function(){
-    if(px<0)return;
-    var vw=window.innerWidth,vh=window.innerHeight;
-    px=clamp(px,MARGIN,vw-42-MARGIN);
-    py=clamp(py,MARGIN,vh-42-MARGIN);
-    applyFabPos();
-    if(panel.classList.contains('on'))applyPanelPos();
-  });
-
-  /* ── Toggle panel ── */
-  function _togglePanel(){
-    var isOpen=panel.classList.contains('on');
-    if(isOpen){panel.classList.remove('on');return;}
-    _refresh();
-    panel.classList.add('on');
-    if(px>=0)applyPanelPos();
+  function togglePanel(){
+    if(panel.classList.contains('on')){panel.classList.remove('on');return;}
+    refresh();panel.classList.add('on');if(px>=0)setTimeout(applyPanel,10);
   }
 
-  /* ── Populate diagnostics ── */
-  function _qual(q){
-    var map={excellent:'good',good:'good',degraded:'warn',poor:'bad',unknown:'warn'};
-    return 'dh-diag-'+(map[q]||'warn');
-  }
-  function _refresh(){
-    var cfg=g.CFG||{};
-    var ver=cfg.VERSION||'29.0.0';
-    var netQ=_safe(function(){return g.GlobalRTCManager&&g.GlobalRTCManager.quality()||'unknown';})||'unknown';
-    var rtt=_safe(function(){return g.GlobalRTCManager&&g.GlobalRTCManager.rtt()||0;})||0;
-    var mem=_safe(function(){
-      var m=performance.memory;
-      if(!m)return null;
-      return Math.round(m.usedJSHeapSize/1048576)+'MB/'+Math.round(m.jsHeapSizeLimit/1048576)+'MB';
-    });
-    var rows=[
-      {section:'Core'},
-      {k:'Version',v:ver},
-      {k:'Build',v:'v29.0.0-prod'},
-      {k:'Active Menu',v:GMC.getActive()||'none'},
-      {section:'Network'},
-      {k:'Quality',v:netQ,cls:_qual(netQ)},
-      {k:'RTT',v:rtt?rtt+'ms':'—'},
-      {k:'Online',v:navigator.onLine?'yes':'no',cls:navigator.onLine?'dh-diag-good':'dh-diag-bad'},
-      {section:'Device'},
-      {k:'Viewport',v:window.innerWidth+'×'+window.innerHeight},
-      {k:'DPR',v:window.devicePixelRatio||1},
-      {k:'Secure',v:isSecureContext?'yes':'no',cls:isSecureContext?'dh-diag-good':'dh-diag-warn'},
-      {k:'Memory',v:(navigator.deviceMemory||'?')+'GB RAM'},
-      {k:'Cores',v:navigator.hardwareConcurrency||'?'},
-    ];
-    if(mem)rows.push({k:'JS Heap',v:mem});
+  function mkRow(k,v,cls){return '<div class="dh-diag-row"><span class="dh-diag-key">'+k+'</span><span class="dh-diag-val '+(cls||'')+'">'+v+'</span></div>';}
+  function mkSec(t){return '<div class="dh-diag-section">'+t+'</div>';}
+  function refresh(){
+    var ver=(_safe(function(){return g.CFG&&g.CFG.VERSION;})||'30.0.0');
+    var peers=_safe(function(){return g.S&&g.S.peers&&g.S.peers.length;})||0;
+    var pde=_safe(function(){return g.PeerDiscoveryEngine&&g.PeerDiscoveryEngine.status();});
+    var netQ=_safe(function(){return g.ActiveSpeakerEngine&&g.ActiveSpeakerEngine.netQuality();})||'—';
+    var rtt=_safe(function(){return g.GlobalConnectionLadder&&g.GlobalConnectionLadder.rtt();})||'—';
+    var tier=_safe(function(){return g.AdaptiveConferenceStreamEngine&&g.AdaptiveConferenceStreamEngine.tier();})||'—';
+    var mem=_safe(function(){var m=performance.memory;return m?Math.round(m.usedJSHeapSize/1048576)+'MB':null;});
     var lsKB=_safe(function(){return (JSON.stringify(localStorage).length/1024).toFixed(1)+'KB';})||'—';
-    rows.push({k:'LocalStorage',v:lsKB});
-    rows.push({k:'Boot',v:_safe(function(){return Math.round(performance.now())+'ms';})||'—'});
 
-    panel.innerHTML='<div class="dh-diag-title">⚙ Diagnostics v'+ver+'<button class="dh-diag-close" aria-label="Close">×</button></div>'+
-      rows.map(function(r){
-        if(r.section)return '<div class="dh-diag-section">'+r.section+'</div>';
-        return '<div class="dh-diag-row"><span class="dh-diag-key">'+r.k+'</span>'+
-          '<span class="dh-diag-val '+(r.cls||'')+'">'+r.v+'</span></div>';
-      }).join('')+
-      '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'+
-      '<button class="dh-d-close-btn" style="flex:1;min-height:auto;padding:4px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer">Close</button>'+
-      '<button class="dh-d-heal-btn" style="flex:1;min-height:auto;padding:4px 8px;background:var(--primary);color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer">Health Check</button>'+
-      '</div>';
-    // Wire the panel buttons after setting innerHTML
-    var closeBtn2=panel.querySelector('.dh-d-close-btn');
-    var healBtn=panel.querySelector('.dh-d-heal-btn');
-    if(closeBtn2)closeBtn2.onclick=function(){panel.classList.remove('on');};
-    if(healBtn)healBtn.onclick=function(){_safe(function(){g.SelfHealingRuntime&&g.SelfHealingRuntime.runCheck();});};
+    var rows='<div class="dh-diag-title">⚙ DevHub v'+ver+'<button class="dh-diag-close" id="dh-d-close">×</button></div>';
+    rows+=mkSec('Core');
+    rows+=mkRow('Version',ver);
+    rows+=mkRow('Build','v30.0.0-prod');
+    rows+=mkRow('Active Menu',GMC.getActive()||'none');
+    rows+=mkSec('Peers');
+    rows+=mkRow('Connected Peers',peers,peers>0?'dh-diag-good':'dh-diag-warn');
+    rows+=mkRow('Discovery',(pde&&pde.state)||'init',pde&&pde.state==='ready'?'dh-diag-good':'dh-diag-warn');
+    rows+=mkRow('HB Interval',(pde&&pde.hbInterval)||'—');
+    rows+=mkSec('Network');
+    rows+=mkRow('Quality',netQ);
+    rows+=mkRow('RTT',rtt);
+    rows+=mkRow('Online',navigator.onLine?'yes':'no',navigator.onLine?'dh-diag-good':'dh-diag-bad');
+    rows+=mkRow('Video Tier',tier);
+    rows+=mkSec('Device');
+    rows+=mkRow('Viewport',window.innerWidth+'×'+window.innerHeight);
+    rows+=mkRow('DPR',String(window.devicePixelRatio||1));
+    rows+=mkRow('Secure',isSecureContext?'yes':'no',isSecureContext?'dh-diag-good':'dh-diag-warn');
+    rows+=mkRow('RAM',(navigator.deviceMemory||'?')+'GB');
+    rows+=mkRow('Cores',String(navigator.hardwareConcurrency||'?'));
+    if(mem)rows+=mkRow('JS Heap',mem);
+    rows+=mkRow('LocalStorage',lsKB);
+    rows+=mkRow('Boot',_safe(function(){return Math.round(performance.now())+'ms';})||'—');
+    rows+='<div class="dh-diag-btn-row"><button class="dh-diag-btn" id="dh-d-close2">Close</button>'+
+      '<button class="dh-diag-btn dh-diag-btn-p" id="dh-d-hcheck">Health Check</button>'+
+      '<button class="dh-diag-btn" id="dh-d-peers">Re-Discover</button></div>';
+    panel.innerHTML=rows;
 
-    panel.querySelector('.dh-diag-close').onclick=function(){panel.classList.remove('on');};
+    var c1=$('dh-d-close'),c2=$('dh-d-close2');
+    function closeFn(){panel.classList.remove('on');}
+    if(c1)c1.onclick=closeFn;if(c2)c2.onclick=closeFn;
+    var hc=$('dh-d-hcheck');
+    if(hc)hc.onclick=function(){_safe(function(){g.SelfHealingRuntime&&g.SelfHealingRuntime.runCheck();});};
+    var pd=$('dh-d-peers');
+    if(pd)pd.onclick=function(){_safe(function(){g.PeerDiscoveryEngine&&g.PeerDiscoveryEngine.requestHydration();});};
   }
 
-  /* ── Init: load persisted position ── */
-  function _init(){
-    loadPos();
-    if(px>=0){applyFabPos();}
-  }
-
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',_init);
-  } else {_init();}
-
-  _log('DiagWidget','SmartDiagnosticsWidget v29 active');
+  function init(){loadPos();if(px>=0)applyFab();}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+  _log('Diag','SmartDiagnosticsWidget v30 active');
 })();
 
-
-/* ─────────────────────────────────────────────────────────────────
-   ADAPTIVE VIDEO ENGINE v29
-   Bitrate / FPS / codec adaptation based on network quality
-───────────────────────────────────────────────────────────────── */
-var AdaptiveVideoEngine=(function(){
+/* ────────────────────────────────────────────────────────────
+   PEER DISCOVERY ENGINE v30
+   Root-cause fix: instant + reliable + self-healing
+──────────────────────────────────────────────────────────── */
+var PeerDiscoveryEngine=(function(){
   'use strict';
-  var _pc=null; /* current RTCPeerConnection */
-  var _tier='high'; /* high | medium | low | voice */
-  var _interval=null;
+  var CHANNEL_KEY='dh-discovery';
+  var HB_INTERVAL=8000;  /* heartbeat every 8s */
+  var STALE_TIMEOUT=25000; /* peer gone after 25s no heartbeat */
+  var HYDRATE_DELAY=400;  /* hydrate 400ms after ready */
+  var _bc=null;          /* BroadcastChannel for same-origin tabs */
+  var _presenceMap={};   /* peerId → {name, ts, online} */
+  var _myId=null;
+  var _hbTimer=null;
+  var _cleanTimer=null;
+  var _state='init';
+  var _hbCount=0;
 
-  /* Quality tiers */
-  var TIERS={
-    high:  {maxBitrate:1500000,maxFPS:30,width:1280,height:720},
-    medium:{maxBitrate:500000, maxFPS:24,width:640, height:480},
-    low:   {maxBitrate:150000, maxFPS:15,width:320, height:240},
-    voice: {maxBitrate:0,      maxFPS:0, width:0,   height:0}
-  };
+  function _getMyId(){
+    return _safe(function(){return g.PeerMod&&g.PeerMod.getMyId&&g.PeerMod.getMyId();})||_myId||null;
+  }
+  function _getMyName(){
+    return _safe(function(){return g.S&&g.S.settings&&g.S.settings.name;})||'Anonymous';
+  }
 
-  function setPC(pc){_pc=pc;}
+  /* ── Broadcast to all channels ── */
+  function _bcast(type,payload){
+    var id=_getMyId();if(!id)return;
+    var msg={t:type,id:id,name:_getMyName(),ts:_now(),payload:payload||{}};
+    /* BroadcastChannel (same origin) */
+    if(_bc){try{_bc.postMessage(msg);}catch(_){}}
+    /* PeerMod broadcast (WebRTC DataChannel) */
+    _safe(function(){g.PeerMod&&g.PeerMod.broadcast&&g.PeerMod.broadcast({type:'dh-discovery',data:msg});});
+    /* Bus */
+    _emit('discovery:'+type,msg);
+  }
 
-  function _applyConstraints(tier){
-    if(!_pc||tier===_tier)return;
-    _tier=tier;
-    var t=TIERS[tier];
+  /* ── Handle incoming discovery message ── */
+  function _handle(msg){
+    if(!msg||!msg.t||!msg.id)return;
+    var id=msg.id;
+    var myId=_getMyId();
+    if(id===myId)return; /* ignore self */
+
+    switch(msg.t){
+      case 'announce':
+      case 'heartbeat':
+        _upsertPeer(id,msg.name,msg.ts,true);
+        /* respond with own announce so they see us too */
+        if(msg.t==='announce')setTimeout(function(){_bcast('announce-reply');},150+Math.random()*200);
+        break;
+      case 'announce-reply':
+        _upsertPeer(id,msg.name,msg.ts,true);
+        break;
+      case 'who-online':
+        /* Someone asking who's online — respond */
+        setTimeout(function(){_bcast('announce-reply');},100+Math.random()*300);
+        break;
+      case 'bye':
+        _upsertPeer(id,msg.name,msg.ts,false);
+        break;
+    }
+  }
+
+  /* ── Upsert peer into S.peers ── */
+  function _upsertPeer(id,name,ts,online){
+    _presenceMap[id]={name:name,ts:ts||_now(),online:online};
+    var S=g.S;
+    if(!S||!S.peers)return;
+    var existing=S.peers.find(function(p){return p.id===id;});
+    if(online){
+      if(existing){
+        existing.name=name||existing.name;
+        existing.online=true;
+        existing.lastSeen=ts||_now();
+      } else {
+        S.peers.push({id:id,name:name||id,online:true,lastSeen:ts||_now(),msgs:[]});
+        _safe(function(){g.toast&&g.toast('📡 '+((name||id).slice(0,20))+' is online','info',2000);});
+      }
+    } else {
+      if(existing)existing.online=false;
+    }
+    _safe(function(){if(typeof g.renderPeers==='function')g.renderPeers();});
+    _emit('peers:updated',{id:id,online:online});
+  }
+
+  /* ── Stale peer cleanup ── */
+  function _cleanup(){
+    var now=_now();
+    var S=g.S;if(!S||!S.peers)return;
+    var changed=false;
+    S.peers.forEach(function(p){
+      var pm=_presenceMap[p.id];
+      if(pm&&pm.online&&(now-pm.ts>STALE_TIMEOUT)){
+        _log('PDE','Stale peer: '+p.id);
+        pm.online=false;p.online=false;changed=true;
+      }
+    });
+    if(changed)_safe(function(){if(typeof g.renderPeers==='function')g.renderPeers();});
+  }
+
+  /* ── Setup BroadcastChannel ── */
+  function _setupBC(){
+    if(_bc)return;
     try{
-      _pc.getSenders().forEach(function(sender){
-        if(!sender.track)return;
-        var kind=sender.track.kind;
-        if(kind==='video'&&t.maxBitrate>0){
-          sender.getParameters&&sender.getParameters().encodings&&
-          _safe(function(){
-            var p=sender.getParameters();
-            if(p&&p.encodings&&p.encodings.length){
-              p.encodings[0].maxBitrate=t.maxBitrate;
-              p.encodings[0].maxFramerate=t.maxFPS;
-              sender.setParameters(p);
-            }
-          });
-        }
-        if(kind==='audio'){
-          sender.getParameters&&_safe(function(){
-            var p=sender.getParameters();
-            if(p&&p.encodings&&p.encodings.length){
-              p.encodings[0].maxBitrate=64000; /* always preserve voice */
-              sender.setParameters(p);
-            }
-          });
+      _bc=new BroadcastChannel(CHANNEL_KEY);
+      _bc.onmessage=function(e){if(e.data)_handle(e.data);};
+      _bc.onmessageerror=function(){};
+    }catch(_){_bc=null;}
+  }
+
+  /* ── Heartbeat ── */
+  function _startHeartbeat(){
+    if(_hbTimer)clearInterval(_hbTimer);
+    _hbTimer=setInterval(function(){
+      _hbCount++;
+      _bcast('heartbeat');
+      if(_hbCount%5===0)_cleanup(); /* cleanup every 5th heartbeat */
+    },HB_INTERVAL);
+  }
+
+  /* ── Initial hydration request ── */
+  function requestHydration(){
+    _bcast('who-online');
+    setTimeout(function(){_bcast('announce');},200);
+    _log('PDE','Hydration requested');
+  }
+
+  /* ── Main init: waits for PeerMod ready ── */
+  function _boot(){
+    _setupBC();
+    var attempts=0;
+    var maxAttempts=40; /* 20 seconds */
+    function tryInit(){
+      attempts++;
+      var id=_getMyId();
+      if(!id&&attempts<maxAttempts){setTimeout(tryInit,500);return;}
+      _myId=id;
+      _state='ready';
+      _log('PDE','Ready, myId='+id);
+      /* Announce ourselves */
+      setTimeout(function(){
+        _bcast('announce');
+        /* Ask who else is online */
+        setTimeout(requestHydration,HYDRATE_DELAY);
+        _startHeartbeat();
+        if(!_cleanTimer)_cleanTimer=setInterval(_cleanup,STALE_TIMEOUT);
+      },HYDRATE_DELAY);
+    }
+    tryInit();
+  }
+
+  /* ── Wire PeerMod data channel messages ── */
+  function _wirePeerMod(){
+    _on('peer:data',function(d){
+      if(d&&d.type==='dh-discovery'&&d.data)_handle(d.data);
+    });
+    _on('peer:open',function(d){
+      /* New peer connected — announce self to them */
+      setTimeout(function(){_bcast('announce');},300);
+    });
+    _on('peer:close',function(d){
+      if(d&&d.id)_upsertPeer(d.id,null,_now(),false);
+    });
+  }
+
+  /* ── Visibility recovery ── */
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='visible'){
+      setTimeout(function(){
+        _bcast('announce');
+        requestHydration();
+        _log('PDE','Tab visible — re-announcing');
+      },500);
+    }
+  });
+
+  /* ── Online/offline recovery ── */
+  window.addEventListener('online',function(){
+    setTimeout(function(){_bcast('announce');requestHydration();},1000);
+    _log('PDE','Online — re-announcing');
+  });
+
+  /* ── Boot ── */
+  _wirePeerMod();
+  function _init(){
+    setTimeout(function(){
+      _boot();
+      /* Also listen for existing Bus events that set peers online */
+      _on('peer:ready',function(){setTimeout(requestHydration,HYDRATE_DELAY);});
+    },800);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',_init);else _init();
+
+  /* ── Send bye on unload ── */
+  window.addEventListener('beforeunload',function(){_bcast('bye');if(_bc)try{_bc.close();}catch(_){}});
+
+  return{
+    requestHydration:requestHydration,
+    status:function(){return{state:_state,hbInterval:HB_INTERVAL+'ms',peers:Object.keys(_presenceMap).length};},
+    announce:function(){_bcast('announce');},
+    cleanup:_cleanup
+  };
+})();
+g.PeerDiscoveryEngine=PeerDiscoveryEngine;
+
+/* ────────────────────────────────────────────────────────────
+   PRESENCE HEARTBEAT ENGINE v30
+   Ghost-free online state · Adaptive timeout · Mobile-safe
+──────────────────────────────────────────────────────────── */
+var PresenceHeartbeatEngine=(function(){
+  'use strict';
+  var HB_FAST=8000,HB_SLOW=20000,STALE=30000;
+  var _current=HB_FAST;
+  var _timer=null;
+
+  /* Adapt to background/battery */
+  function _adapt(){
+    var hidden=document.hidden;
+    var battery=_safe(function(){return g._batteryLevel;});
+    var low=battery&&battery<0.2;
+    _current=(hidden||low)?HB_SLOW:HB_FAST;
+  }
+
+  function beat(){
+    _adapt();
+    _safe(function(){
+      var id=g.PeerMod&&g.PeerMod.getMyId&&g.PeerMod.getMyId();
+      if(!id)return;
+      _safe(function(){g.PeerDiscoveryEngine&&g.PeerDiscoveryEngine.announce();});
+    });
+  }
+
+  function start(){
+    if(_timer)clearInterval(_timer);
+    _timer=setInterval(function(){beat();},_current);
+    beat();
+    _log('PHE','Heartbeat started ('+ _current+'ms)');
+  }
+
+  /* Battery API */
+  _safe(function(){
+    if(navigator.getBattery){
+      navigator.getBattery().then(function(bat){
+        g._batteryLevel=bat.level;
+        bat.addEventListener('levelchange',function(){g._batteryLevel=bat.level;_adapt();});
+        bat.addEventListener('chargingchange',function(){_adapt();});
+      }).catch(function(){});
+    }
+  });
+
+  document.addEventListener('visibilitychange',function(){_adapt();if(!document.hidden){start();}});
+
+  function _init(){setTimeout(start,1500);}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',_init);else _init();
+
+  return{beat:beat,start:start};
+})();
+g.PresenceHeartbeatEngine=PresenceHeartbeatEngine;
+
+/* ────────────────────────────────────────────────────────────
+   GLOBAL CONNECTION LADDER v30
+   P2P → STUN → TURN (UDP→TCP→TLS)
+──────────────────────────────────────────────────────────── */
+var GlobalConnectionLadder=(function(){
+  'use strict';
+  var STUN=[
+    {urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},
+    {urls:'stun:stun2.l.google.com:19302'},{urls:'stun:stun3.l.google.com:19302'},
+    {urls:'stun:stun4.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'},
+    {urls:'stun:global.stun.twilio.com:3478'},{urls:'stun:stun.services.mozilla.com:3478'},
+    {urls:'stun:stun.stunprotocol.org:3478'},{urls:'stun:stun.ekiga.net:3478'},
+    {urls:'stun:stun.voipbuster.com:3478'},{urls:'stun:stun.sipgate.net:3478'},
+    {urls:'stun:stun.schlund.de:3478'}
+  ];
+  var TURN=[
+    {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
+    {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
+    {urls:'turns:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
+    {urls:'turn:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},
+    {urls:'turn:a.relay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
+    {urls:'turn:a.relay.metered.ca:80?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},
+    {urls:'turn:a.relay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
+    {urls:'turn:a.relay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}
+  ];
+  var _rtt=-1;
+  function buildIce(customTurn){
+    return{iceServers:(customTurn&&customTurn.urls)?[customTurn].concat(STUN).concat(TURN):STUN.concat(TURN),iceCandidatePoolSize:16,bundlePolicy:'max-bundle',rtcpMuxPolicy:'require',iceTransportPolicy:'all'};
+  }
+  function probe(ms){
+    ms=ms||5000;
+    return new Promise(function(res){
+      var done=false,t=setTimeout(function(){if(!done){done=true;res({ok:false,rtt:-1});}},ms);
+      try{
+        var pc=new RTCPeerConnection({iceServers:STUN.slice(0,3)});
+        var t0=_now();
+        pc.onicecandidate=function(e){if(!done&&e&&e.candidate&&e.candidate.type==='srflx'){done=true;clearTimeout(t);_rtt=_now()-t0;pc.close();res({ok:true,rtt:_rtt});}};
+        pc.createDataChannel('p');pc.createOffer().then(function(o){return pc.setLocalDescription(o);}).catch(function(){});
+      }catch(e){if(!done){done=true;clearTimeout(t);res({ok:false});}}
+    });
+  }
+  /* Patch CFG.STUN_SERVERS */
+  _safe(function(){if(g.CFG){g.CFG.STUN_SERVERS=STUN.map(function(s){return s.urls;});g.CFG.FREE_TURN=TURN;}});
+  /* Background probe */
+  setTimeout(function(){probe(4000).then(function(r){_log('GCL','Probe ok='+r.ok+(r.rtt>0?' rtt='+r.rtt+'ms':''));_emit('gce:probe',r);});},2500);
+  return{buildIce:buildIce,probe:probe,rtt:function(){return _rtt>0?_rtt+'ms':'—';},stun:STUN,turn:TURN};
+})();
+g.GlobalConnectionLadder=GlobalConnectionLadder;
+
+/* ────────────────────────────────────────────────────────────
+   ADAPTIVE CONFERENCE LAYOUT ENGINE v30
+   2→side-by-side, 3-4→grid, 5-12→3-col, 12+→4-col
+──────────────────────────────────────────────────────────── */
+var AdaptiveConferenceLayoutEngine=(function(){
+  'use strict';
+  function classify(n){
+    if(n<=1)return'layout-1';
+    if(n===2)return'layout-2';
+    if(n<=4)return'layout-3-4';
+    if(n<=12)return'layout-5-12';
+    return'layout-many';
+  }
+  function apply(containerEl,n){
+    if(!containerEl)return;
+    var cls=classify(n);
+    containerEl.className=(containerEl.className||'').replace(/layout-S+/g,'').trim()+' '+cls;
+    _log('ACLE','Layout='+cls+' for '+n+' participants');
+  }
+  function update(){
+    var grid=$('gv-grid');
+    if(!grid)return;
+    var tiles=grid.querySelectorAll('.gv-tile');
+    apply(grid,tiles.length);
+  }
+  /* Watch for tile additions/removals */
+  _safe(function(){
+    var mo=new MutationObserver(update);
+    function _w(){var g=$('gv-grid');if(g){mo.observe(g,{childList:true});update();}}
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(_w,1000);});
+    else setTimeout(_w,1000);
+  });
+  window.addEventListener('resize',update);
+  _on('conference:participant-join',update);
+  _on('conference:participant-leave',update);
+  return{apply:apply,classify:classify,update:update};
+})();
+g.AdaptiveConferenceLayoutEngine=AdaptiveConferenceLayoutEngine;
+
+/* ────────────────────────────────────────────────────────────
+   ACTIVE SPEAKER ENGINE v30
+   Detects dominant speaker via audio level analysis
+──────────────────────────────────────────────────────────── */
+var ActiveSpeakerEngine=(function(){
+  'use strict';
+  var _speakers={};   /* peerId → {level, ts} */
+  var _active=null;
+  var _netQ='unknown';
+  var SPEAK_THRESH=0.012;
+  var SPEAK_HOLD=2500;
+  var _ctx=null;
+  var _analysers={};
+
+  function trackStream(peerId,stream){
+    if(!stream||!peerId)return;
+    try{
+      if(!_ctx){_ctx=new (window.AudioContext||window.webkitAudioContext)();}
+      if(_ctx.state==='suspended')_ctx.resume().catch(function(){});
+      if(_analysers[peerId])return;
+      var src=_ctx.createMediaStreamSource(stream);
+      var an=_ctx.createAnalyser();an.fftSize=512;
+      src.connect(an);
+      _analysers[peerId]={analyser:an,src:src};
+    }catch(_){}
+  }
+
+  function untrackStream(peerId){
+    var a=_analysers[peerId];
+    if(a){_safe(function(){a.src.disconnect();a.analyser.disconnect();});}
+    delete _analysers[peerId];
+    delete _speakers[peerId];
+  }
+
+  /* Level polling via rAF */
+  var _rafLoop;
+  function _poll(){
+    Object.keys(_analysers).forEach(function(id){
+      var an=_analysers[id];if(!an)return;
+      try{
+        var buf=new Float32Array(an.analyser.frequencyBinCount);
+        an.analyser.getFloatTimeDomainData(buf);
+        var rms=0;for(var i=0;i<buf.length;i++)rms+=buf[i]*buf[i];
+        rms=Math.sqrt(rms/buf.length);
+        _speakers[id]={level:rms,ts:_now()};
+      }catch(_){}
+    });
+    /* Elect active speaker */
+    var best=null,bestLevel=SPEAK_THRESH;
+    Object.keys(_speakers).forEach(function(id){
+      var s=_speakers[id];
+      if(s.level>bestLevel&&(_now()-s.ts<500)){bestLevel=s.level;best=id;}
+    });
+    var now=_now();
+    if(best&&best!==_active){
+      _active=best;
+      _highlightSpeaker(best);
+      _emit('conference:active-speaker',{id:best,level:bestLevel});
+    } else if(!best&&_active&&_speakers[_active]&&now-_speakers[_active].ts>SPEAK_HOLD){
+      _active=null;_clearHighlights();
+    }
+    _rafLoop=requestAnimationFrame(_poll);
+  }
+
+  function _highlightSpeaker(id){
+    $('.gv-tile').forEach(function(tile){
+      var isActive=tile.dataset.peerId===id||tile.id===('tile-'+id);
+      tile.classList.toggle('active-speaker',isActive);
+    });
+  }
+  function _clearHighlights(){
+    $('.gv-tile').forEach(function(t){t.classList.remove('active-speaker');});
+  }
+
+  function start(){if(!_rafLoop)_poll();}
+  function stop(){if(_rafLoop){cancelAnimationFrame(_rafLoop);_rafLoop=null;}}
+
+  _on('call:stream-added',function(d){if(d&&d.peerId&&d.stream)trackStream(d.peerId,d.stream);start();});
+  _on('call:stream-removed',function(d){if(d&&d.peerId)untrackStream(d.peerId);});
+  _on('call:end',function(){stop();_clearHighlights();_active=null;});
+
+  /* Network quality from getStats */
+  _on('rtc:stats',function(d){if(d&&d.quality)_netQ=d.quality;});
+
+  return{trackStream:trackStream,untrackStream:untrackStream,start:start,stop:stop,
+    active:function(){return _active;},
+    netQuality:function(){return _netQ;}};
+})();
+g.ActiveSpeakerEngine=ActiveSpeakerEngine;
+
+/* ────────────────────────────────────────────────────────────
+   ADAPTIVE CONFERENCE STREAM ENGINE v30
+   Tier per participant: high/medium/low/minimal
+──────────────────────────────────────────────────────────── */
+var AdaptiveConferenceStreamEngine=(function(){
+  'use strict';
+  var TIERS={
+    high:  {maxBitrate:1500000,maxFPS:30,label:'high'},
+    medium:{maxBitrate:500000, maxFPS:24,label:'medium'},
+    low:   {maxBitrate:150000, maxFPS:15,label:'low'},
+    minimal:{maxBitrate:50000, maxFPS:8, label:'minimal'},
+    voice: {maxBitrate:0,      maxFPS:0, label:'voice'}
+  };
+  var _current='high';
+  var _pcs={};
+
+  function _deviceCap(){
+    var mem=navigator.deviceMemory||4;
+    var cores=navigator.hardwareConcurrency||4;
+    var battery=g._batteryLevel;
+    if(mem<=1||cores<=2)return 4;
+    if(mem<=2||cores<=4)return 8;
+    if(battery&&battery<0.15)return 4;
+    return 25;
+  }
+
+  function registerPC(id,pc){if(pc)_pcs[id]=pc;}
+  function unregisterPC(id){delete _pcs[id];}
+
+  function _setSenderBitrate(pc,isActive){
+    if(!pc)return;
+    _safe(function(){
+      pc.getSenders().forEach(function(s){
+        if(!s.track)return;
+        var tier=isActive?'high':_current;
+        var t=TIERS[tier];if(!t||t.maxBitrate===0)return;
+        var p=s.getParameters&&s.getParameters();
+        if(p&&p.encodings&&p.encodings.length){
+          p.encodings[0].maxBitrate=t.maxBitrate;
+          if(s.track.kind==='video')p.encodings[0].maxFramerate=t.maxFPS;
+          s.setParameters(p).catch(function(){});
         }
       });
-    }catch(_){}
-    _log('AVE','Tier→'+tier);
+    });
   }
 
-  function adaptToQuality(q){
-    var map={excellent:'high',good:'high',degraded:'medium',poor:'low',unknown:'medium'};
-    var tier=map[q]||'medium';
-    _applyConstraints(tier);
+  function adaptToCount(n){
+    var cap=_deviceCap();
+    if(n>cap){
+      var active=ActiveSpeakerEngine.active();
+      Object.keys(_pcs).forEach(function(id){
+        _setSenderBitrate(_pcs[id],id===active);
+      });
+    }
+    if(n<=2)_current='high';
+    else if(n<=6)_current='medium';
+    else if(n<=12)_current='low';
+    else _current='minimal';
+    _log('ACSE','Tier='+_current+' for '+n+' peers');
+    return _current;
   }
 
-  /* Get best supported video codec */
-  function getBestVideoCodec(){
-    if(!RTCRtpSender||!RTCRtpSender.getCapabilities)return null;
+  function getBestCodec(){
     try{
       var caps=RTCRtpSender.getCapabilities('video');
       if(!caps||!caps.codecs)return null;
       var prefer=['av1','vp9','vp8','h264'];
       for(var i=0;i<prefer.length;i++){
-        var found=caps.codecs.filter(function(c){
-          return c.mimeType&&c.mimeType.toLowerCase().includes(prefer[i]);
-        });
-        if(found.length>0)return found[0];
+        var found=caps.codecs.filter(function(c){return c.mimeType&&c.mimeType.toLowerCase().includes(prefer[i]);});
+        if(found.length)return found[0];
       }
     }catch(_){}
     return null;
   }
 
-  /* Auto-adapt based on GlobalRTCManager quality */
-  function startMonitoring(){
-    if(_interval)return;
-    _interval=setInterval(function(){
-      var q=_safe(function(){return g.GlobalRTCManager&&g.GlobalRTCManager.quality&&g.GlobalRTCManager.quality();});
-      if(q)adaptToQuality(q);
-    },5000);
-  }
-
-  /* Camera recovery */
-  function recoverCamera(videoEl,stream,onRecover){
-    if(!stream||!videoEl)return;
-    var tracks=stream.getVideoTracks();
-    if(!tracks.length||!tracks[0].enabled)return;
-    var active=tracks.filter(function(t){return t.readyState==='live';});
-    if(!active.length){
-      _log('AVE','Camera recovery triggered');
-      _safe(function(){if(typeof g.getMedia==='function')g.getMedia(true).then(function(ns){
-        if(!ns)return;
-        g.localStream=ns;
-        if(typeof g.bindStream==='function')g.bindStream(videoEl.id||'lvid',ns);
-        if(onRecover)onRecover(ns);
-        _log('AVE','Camera recovered');
-      });});
-    }
-  }
-
-  /* Bus hooks */
-  _safe(function(){
-    if(!g.Bus)return;
-    g.Bus.on('call:rtc-ready',function(d){if(d&&d.pc){setPC(d.pc);startMonitoring();}});
-    g.Bus.on('rtc:quality',function(d){if(d&&d.quality)adaptToQuality(d.quality);});
+  _on('conference:participant-join',function(d){
+    var n=_safe(function(){return $('.gv-tile').length;})||1;
+    adaptToCount(n);
   });
+  _on('call:rtc-ready',function(d){if(d&&d.pc&&d.peerId)registerPC(d.peerId,d.pc);});
+  _on('peer:close',function(d){if(d&&d.id)unregisterPC(d.id);});
 
-  return{setPC:setPC,adaptToQuality:adaptToQuality,getBestCodec:getBestVideoCodec,
-    recoverCamera:recoverCamera,startMonitoring:startMonitoring,tier:function(){return _tier;}};
+  return{adaptToCount:adaptToCount,registerPC:registerPC,tier:function(){return _current;},getBestCodec:getBestCodec};
 })();
-g.AdaptiveVideoEngine=AdaptiveVideoEngine;
+g.AdaptiveConferenceStreamEngine=AdaptiveConferenceStreamEngine;
 
-
-/* ─────────────────────────────────────────────────────────────────
-   GLOBAL COMMUNICATION ENGINE v29
-   STUN/TURN ladder · Adaptive ICE · Network resilience
-───────────────────────────────────────────────────────────────── */
-var GlobalCommunicationEngine=(function(){
-  'use strict';
-
-  /* Expanded STUN list: 20+ servers, 6 continents */
-  var STUN_GLOBAL=[
-    /* Google anycast */
-    {urls:'stun:stun.l.google.com:19302'},
-    {urls:'stun:stun1.l.google.com:19302'},
-    {urls:'stun:stun2.l.google.com:19302'},
-    {urls:'stun:stun3.l.google.com:19302'},
-    {urls:'stun:stun4.l.google.com:19302'},
-    /* Cloudflare */
-    {urls:'stun:stun.cloudflare.com:3478'},
-    /* Twilio */
-    {urls:'stun:global.stun.twilio.com:3478'},
-    /* Mozilla */
-    {urls:'stun:stun.services.mozilla.com:3478'},
-    /* Asia-Pacific */
-    {urls:'stun:stun.sipgate.net:3478'},
-    /* Europe */
-    {urls:'stun:stun.schlund.de:3478'},
-    {urls:'stun:stun.voipbuster.com:3478'},
-    /* Community */
-    {urls:'stun:stun.stunprotocol.org:3478'},
-    {urls:'stun:stun.ekiga.net:3478'},
-  ];
-
-  /* TURN ladder: UDP→TCP→TLS (firewall bypass) */
-  var TURN_LADDER=[
-    /* Fastest: UDP 80 (most NATs allow) */
-    {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
-    /* TCP 443 fallback (bypasses port restrictions) */
-    {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
-    /* TLS 443 (enterprise firewall bypass) */
-    {urls:'turns:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
-    /* TCP 443 explicit */
-    {urls:'turn:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},
-    /* Metered production */
-    {urls:'turn:a.relay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
-    {urls:'turn:a.relay.metered.ca:80?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},
-    {urls:'turn:a.relay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
-    {urls:'turn:a.relay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},
-  ];
-
-  function buildOptimalIce(customTurn){
-    var servers=[].concat(STUN_GLOBAL);
-    if(customTurn&&customTurn.urls){
-      servers.unshift(customTurn);
-    } else {
-      servers=servers.concat(TURN_LADDER);
-    }
-    return{
-      iceServers:servers,
-      iceCandidatePoolSize:16,
-      bundlePolicy:'max-bundle',
-      rtcpMuxPolicy:'require',
-      iceTransportPolicy:'all'
-    };
-  }
-
-  /* Connectivity test — resolves fastest STUN */
-  function probeConnectivity(timeout){
-    timeout=timeout||5000;
-    return new Promise(function(resolve){
-      var done=false;
-      var timer=setTimeout(function(){
-        if(!done){done=true;resolve({ok:false,rtt:-1});}
-      },timeout);
-      try{
-        var pc=new RTCPeerConnection({iceServers:STUN_GLOBAL.slice(0,3)});
-        var t0=Date.now();
-        pc.onicecandidate=function(e){
-          if(!done&&e&&e.candidate&&e.candidate.type==='srflx'){
-            done=true;clearTimeout(timer);
-            var rtt=Date.now()-t0;
-            pc.close();
-            resolve({ok:true,rtt:rtt,candidate:e.candidate});
-            _emit('rtc:stun-ok',{rtt:rtt});
-          }
-        };
-        pc.createDataChannel('probe');
-        pc.createOffer().then(function(o){return pc.setLocalDescription(o);}).catch(function(){});
-      }catch(e){
-        if(!done){done=true;clearTimeout(timer);resolve({ok:false,error:String(e)});}
-      }
-    });
-  }
-
-  /* Update CFG with optimal ice config */
-  function upgradeConfig(){
-    _safe(function(){
-      if(g.CFG){
-        g.CFG.STUN_SERVERS=STUN_GLOBAL.map(function(s){
-          return typeof s==='string'?s:s.urls;
-        });
-        g.CFG.FREE_TURN=TURN_LADDER;
-      }
-      if(g.GlobalRTCManager&&g.GlobalRTCManager.buildIceConfig){
-        /* Patch to use our upgraded config */
-        var orig=g.GlobalRTCManager.buildIceConfig;
-        if(!orig.__gcePatched){
-          g.GlobalRTCManager.buildIceConfig=function(ct){
-            var base=orig(ct);
-            base.iceCandidatePoolSize=16;
-            return base;
-          };
-          g.GlobalRTCManager.buildIceConfig.__gcePatched=true;
-        }
-      }
-    });
-  }
-
-  function init(){
-    upgradeConfig();
-    /* Background probe */
-    setTimeout(function(){
-      probeConnectivity(4000).then(function(r){
-        _log('GCE','Probe: ok='+r.ok+(r.rtt>0?' rtt='+r.rtt+'ms':''));
-        _emit('gce:probe',r);
-      });
-    },2000);
-  }
-
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',function(){setTimeout(init,1000);});
-  } else { setTimeout(init,1000); }
-
-  return{buildOptimalIce:buildOptimalIce,probe:probeConnectivity};
-})();
-g.GlobalCommunicationEngine=GlobalCommunicationEngine;
-
-
-/* ─────────────────────────────────────────────────────────────────
-   CONNECTIVITY HEALTH ENGINE v29
-   Continuous ICE monitoring, pre-failure rerouting
-───────────────────────────────────────────────────────────────── */
-var ConnectivityHealthEngine=(function(){
+/* ────────────────────────────────────────────────────────────
+   CONFERENCE RECOVERY ENGINE v30
+   Silent recovery · Premium UX messaging
+──────────────────────────────────────────────────────────── */
+var ConferenceRecoveryEngine=(function(){
   'use strict';
   var _pcs={};
-  var _ticker=null;
-  var _lastGood={};
 
-  function watch(pc,label){
-    if(!pc||_pcs[label])return;
-    _pcs[label]=pc;
-    _lastGood[label]=Date.now();
+  function watch(pc,peerId,label){
+    if(!pc||_pcs[peerId])return;
+    _pcs[peerId]=pc;
 
     pc.addEventListener('iceconnectionstatechange',function(){
       var s=pc.iceConnectionState;
-      _log('CHE',label+' ICE→'+s);
-      if(s==='connected'||s==='completed')_lastGood[label]=Date.now();
+      _log('CRE',label+' ICE→'+s);
       if(s==='failed'){
-        _log('CHE','ICE failed on '+label+', restarting...');
+        _showRecovering(peerId,'Optimizing route…');
         _safe(function(){pc.restartIce&&pc.restartIce();});
-        _emit('rtc:ice-restart',{label:label});
-        _safe(function(){g.toast&&g.toast('Optimizing route…','info',3000);});
+        setTimeout(function(){_hideRecovering(peerId);},5000);
+        _emit('rtc:ice-restart',{peerId:peerId});
       }
       if(s==='disconnected'){
-        /* Wait 3s then restart if still disconnected */
+        _showRecovering(peerId,'Reconnecting participant…');
         setTimeout(function(){
           if(pc.iceConnectionState==='disconnected'){
             _safe(function(){pc.restartIce&&pc.restartIce();});
-            _log('CHE','ICE disconnect recovery on '+label);
           }
         },3000);
+      }
+      if(s==='connected'||s==='completed'){
+        _hideRecovering(peerId);
+        _emit('rtc:ice-ok',{peerId:peerId});
       }
     });
 
     pc.addEventListener('connectionstatechange',function(){
       var s=pc.connectionState;
       if(s==='failed'){
-        _emit('rtc:conn-failed',{label:label});
         _safe(function(){g.toast&&g.toast('Recovering connection…','warn',4000);});
+        _emit('rtc:conn-failed',{peerId:peerId});
       }
       if(s==='connected'){
-        _emit('rtc:conn-ok',{label:label});
+        _safe(function(){g.toast&&g.toast('Connection recovered.','success',2000);});
+        _emit('rtc:conn-ok',{peerId:peerId});
       }
     });
   }
 
-  function unwatch(label){delete _pcs[label];delete _lastGood[label];}
+  function _showRecovering(peerId,msg){
+    var tile=$('tile-'+peerId);
+    if(!tile)return;
+    var existing=tile.querySelector('.recovering-overlay');
+    if(existing)return;
+    var ov=document.createElement('div');
+    ov.className='recovering-overlay';
+    ov.innerHTML='<span class="ro-spin">↻</span><span>'+msg+'</span>';
+    tile.appendChild(ov);
+  }
+  function _hideRecovering(peerId){
+    var tile=$('tile-'+peerId);
+    if(!tile)return;
+    var ov=tile.querySelector('.recovering-overlay');
+    if(ov)ov.remove();
+  }
 
-  /* Bus hook */
-  _safe(function(){
-    if(!g.Bus)return;
-    g.Bus.on('call:rtc-ready',function(d){if(d&&d.pc)watch(d.pc,'call');});
-  });
+  function unwatch(peerId){delete _pcs[peerId];}
+
+  _on('call:rtc-ready',function(d){if(d&&d.pc&&d.peerId)watch(d.pc,d.peerId,d.peerId);});
+  _on('peer:close',function(d){if(d&&d.id)unwatch(d.id);});
 
   return{watch:watch,unwatch:unwatch};
 })();
-g.ConnectivityHealthEngine=ConnectivityHealthEngine;
+g.ConferenceRecoveryEngine=ConferenceRecoveryEngine;
 
+/* ────────────────────────────────────────────────────────────
+   UNICODE INTERNATIONAL ENGINE v30
+   RTL · locale timestamps · long-session Unicode safety
+──────────────────────────────────────────────────────────── */
+var UnicodeInternationalEngine=(function(){
+  'use strict';
+  var locale=_safe(function(){return (g.CFG&&g.CFG.LOCALE)||navigator.language||'en-US';});
+  var RTL_LANGS=/^(ar|he|fa|ur|yi|ji|iw|az|ckb|dv|ks|ku|ps|sd|ug)/i;
+  var isRTL=RTL_LANGS.test(locale);
 
-/* ─────────────────────────────────────────────────────────────────
-   SELF-HEALING RUNTIME v29
-   Detects stuck UI, dead streams, broken state — heals silently
-───────────────────────────────────────────────────────────────── */
+  function detectRTL(text){
+    if(!text)return false;
+    var rtlChars=/[֑-߿‏‫‮יִ-﷽ﹰ-ﻼ]/;
+    return rtlChars.test(text);
+  }
+
+  function formatTimestamp(ts){
+    var d=new Date(ts||_now());
+    try{
+      var fmt=new Intl.DateTimeFormat(locale,{hour:'2-digit',minute:'2-digit',hour12:false});
+      return fmt.format(d);
+    }catch(_){
+      return d.toTimeString().slice(0,5);
+    }
+  }
+
+  function formatRelative(ts){
+    var diff=Math.round((_now()-ts)/1000);
+    try{
+      var rtf=new Intl.RelativeTimeFormat(locale,{numeric:'auto'});
+      if(diff<60)return rtf.format(-diff,'second');
+      if(diff<3600)return rtf.format(-Math.round(diff/60),'minute');
+      if(diff<86400)return rtf.format(-Math.round(diff/3600),'hour');
+      return rtf.format(-Math.round(diff/86400),'day');
+    }catch(_){
+      if(diff<60)return diff+'s ago';
+      if(diff<3600)return Math.round(diff/60)+'m ago';
+      return Math.round(diff/3600)+'h ago';
+    }
+  }
+
+  /* Apply direction to chat */
+  function applyMsgDir(el,text){
+    if(!el)return;
+    var rtl=detectRTL(text)||isRTL;
+    el.dir=rtl?'rtl':'ltr';
+    el.style.textAlign=rtl?'right':'left';
+  }
+
+  /* Expose formatters globally */
+  g.dhFmt={ts:formatTimestamp,rel:formatRelative,applyDir:applyMsgDir,isRTL:isRTL,locale:locale};
+  if(g.CFG){g.CFG.LOCALE=locale;}
+
+  _log('UIE','locale='+locale+' RTL='+isRTL);
+  return{formatTimestamp:formatTimestamp,formatRelative:formatRelative,applyMsgDir:applyMsgDir,locale:locale,isRTL:isRTL};
+})();
+g.UnicodeInternationalEngine=UnicodeInternationalEngine;
+
+/* ────────────────────────────────────────────────────────────
+   CPU / BATTERY PROTECTOR v30
+   Thermal guard · Adaptive FPS · Poor-internet survival
+──────────────────────────────────────────────────────────── */
+var CPUBatteryProtector=(function(){
+  'use strict';
+  var _lastCPU=0,_frames=0,_fps=60;
+  var _tier='full'; /* full | medium | minimal | voice-only */
+
+  /* FPS monitor */
+  var _last=_now();
+  function _measureFPS(){
+    _frames++;
+    var now=_now();
+    if(now-_last>=1000){_fps=_frames;_frames=0;_last=now;_checkThermal();}
+    requestAnimationFrame(_measureFPS);
+  }
+  requestAnimationFrame(_measureFPS);
+
+  function _checkThermal(){
+    var battery=g._batteryLevel;
+    var lowBattery=battery&&battery<0.15;
+    var critBattery=battery&&battery<0.05;
+    var slowFPS=_fps<20;
+
+    var newTier='full';
+    if(critBattery||(_fps<10))newTier='voice-only';
+    else if(lowBattery||slowFPS)newTier='minimal';
+    else if(battery&&battery<0.3)newTier='medium';
+
+    if(newTier!==_tier){
+      _tier=newTier;
+      _applyTier(newTier);
+      _log('CBP','Tier→'+newTier+' fps='+_fps);
+      _emit('cpu:tier-change',{tier:newTier,fps:_fps});
+    }
+  }
+
+  function _applyTier(tier){
+    _safe(function(){
+      g.AdaptiveConferenceStreamEngine&&g.AdaptiveConferenceStreamEngine.adaptToCount(
+        tier==='voice-only'?99:tier==='minimal'?12:tier==='medium'?6:2
+      );
+    });
+    /* Reduce video quality on tiles */
+    var videos=$('video.gv-video');
+    videos.forEach(function(v){
+      if(tier==='voice-only'){v.style.display='none';}
+      else if(tier==='minimal'){v.style.filter='blur(0) brightness(.9)';}
+      else{v.style.display='';v.style.filter='';}
+    });
+    if(tier==='voice-only')_safe(function(){g.toast&&g.toast('Battery critical — video suspended','warn',5000);});
+  }
+
+  return{tier:function(){return _tier;},fps:function(){return _fps;}};
+})();
+g.CPUBatteryProtector=CPUBatteryProtector;
+
+/* ────────────────────────────────────────────────────────────
+   SELF-HEALING RUNTIME v30
+──────────────────────────────────────────────────────────── */
 var SelfHealingRuntime=(function(){
   'use strict';
-  var _checks=[];
-  var _interval=null;
-  var INTERVAL=30000; /* check every 30s */
+  var _checks=[],_interval=null,INTERVAL=30000;
 
   function addCheck(label,fn){_checks.push({label:label,fn:fn});}
-
   function runCheck(){
     var issues=[];
     _checks.forEach(function(c){
-      try{
+      _safe(function(){
         var r=c.fn();
-        if(r&&r.issue){
-          issues.push({label:c.label,issue:r.issue,fix:r.fix});
-          _log('SHR','Issue: '+c.label+' → '+r.issue);
-          if(r.fix)_safe(r.fix);
-        }
-      }catch(e){_log('SHR','Check error: '+c.label);}
+        if(r&&r.issue){issues.push(r);_log('SHR','Issue: '+c.label+' '+r.issue);if(r.fix)_safe(r.fix);}
+      });
     });
     if(issues.length)_emit('shr:issues',issues);
     return issues;
   }
 
-  /* Built-in checks */
-  /* 1. boot overlay stuck */
   addCheck('boot-overlay',function(){
     var el=$('boot-overlay');
-    if(el&&window.getComputedStyle(el).display!=='none'){
-      return{issue:'boot overlay visible',fix:function(){
-        el.style.display='none';
-        _safe(function(){el.classList.remove('on');});
-        _log('SHR','Boot overlay hidden');
-      }};
-    }
+    if(el&&window.getComputedStyle(el).display!=='none')
+      return{issue:'boot overlay stuck',fix:function(){el.style.display='none';el.classList.remove('on');}};
   });
-
-  /* 2. GMC state desync */
-  addCheck('gmc-state',function(){
-    var active=GMC.getActive();
-    if(active){
-      var el=$(active);
-      if(el&&!el.classList.contains('on')){
-        return{issue:'GMC desync on '+active,fix:function(){
-          GMC.closeAll();
-        }};
-      }
-    }
+  addCheck('gmc-desync',function(){
+    var id=GMC.getActive();
+    if(id){var el=$(id);if(el&&!el.classList.contains('on'))return{issue:'GMC desync',fix:function(){GMC.closeAll();}};}
   });
-
-  /* 3. Toast container overflow */
   addCheck('toast-overflow',function(){
     var tc=$('toast-container');
-    if(tc&&tc.children.length>6){
-      return{issue:'toast overflow',fix:function(){
-        while(tc.children.length>3)tc.removeChild(tc.firstChild);
-      }};
-    }
+    if(tc&&tc.children.length>6)return{issue:'toast overflow',fix:function(){while(tc.children.length>3)tc.removeChild(tc.firstChild);}};
   });
-
-  /* 4. Stale media stream */
+  addCheck('peer-recovery',function(){
+    var S=g.S;
+    if(!S||!S.peers||S.peers.length>0)return;
+    /* Trigger hydration */
+    return{issue:'zero peers',fix:function(){_safe(function(){PeerDiscoveryEngine.requestHydration();});}};
+  });
   addCheck('media-stream',function(){
     var ls=g.localStream;
-    if(ls){
+    if(ls&&g.S&&g.S.call&&g.S.call.active){
       var dead=ls.getTracks().filter(function(t){return t.readyState==='ended';});
-      if(dead.length&&g.S&&g.S.call&&g.S.call.active){
-        return{issue:'stale media stream',fix:function(){
-          _log('SHR','Attempting camera recovery');
-          AdaptiveVideoEngine.recoverCamera($('lvid'),ls);
-        }};
-      }
+      if(dead.length)return{issue:'stale media stream',fix:function(){_safe(function(){if(typeof g.getMedia==='function')g.getMedia(true).then(function(ns){if(ns)g.localStream=ns;});});}};
+    }
+  });
+  addCheck('conference-layout',function(){
+    var grid=$('gv-grid');
+    if(grid&&!grid.className.includes('layout-')){
+      return{issue:'conference layout missing',fix:function(){AdaptiveConferenceLayoutEngine.update();}};
     }
   });
 
@@ -11958,108 +12199,50 @@ var SelfHealingRuntime=(function(){
     if(_interval)return;
     runCheck();
     _interval=setInterval(runCheck,INTERVAL);
-    _log('SHR','started (interval='+INTERVAL+'ms)');
+    _log('SHR','watchdog started');
   }
-
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',function(){setTimeout(start,3000);});
-  } else { setTimeout(start,3000); }
-
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(start,3000);});
+  else setTimeout(start,3000);
   return{addCheck:addCheck,runCheck:runCheck,start:start};
 })();
 g.SelfHealingRuntime=SelfHealingRuntime;
 
-
-/* ─────────────────────────────────────────────────────────────────
-   MEMORY PRESSURE MANAGER v29
-   Long-session cleanup, GC-safe patterns, listener audits
-───────────────────────────────────────────────────────────────── */
+/* ────────────────────────────────────────────────────────────
+   MEMORY PRESSURE MANAGER v30
+──────────────────────────────────────────────────────────── */
 var MemoryPressureManager=(function(){
   'use strict';
-  var _interval=null;
-  var INTERVAL=300000; /* 5 minutes */
-  var MAX_MSGS=500;
-  var MAX_HIST=100;
-
+  var _interval=null,INTERVAL=300000,MAX_MSGS=500,MAX_HIST=100;
   function prune(){
-    /* Trim message history */
     _safe(function(){
-      var S=g.S;
-      if(!S)return;
-      if(S.messages){
-        Object.keys(S.messages).forEach(function(pid){
-          var arr=S.messages[pid];
-          if(arr&&arr.length>MAX_MSGS){
-            S.messages[pid]=arr.slice(-MAX_MSGS);
-          }
-        });
-      }
-      if(S.histCalls&&S.histCalls.length>MAX_HIST){
-        S.histCalls=S.histCalls.slice(-MAX_HIST);
-      }
-      if(S.searchHistory&&S.searchHistory.length>50){
-        S.searchHistory=S.searchHistory.slice(-50);
-      }
+      var S=g.S;if(!S)return;
+      if(S.messages)Object.keys(S.messages).forEach(function(pid){var a=S.messages[pid];if(a&&a.length>MAX_MSGS)S.messages[pid]=a.slice(-MAX_MSGS);});
+      if(S.histCalls&&S.histCalls.length>MAX_HIST)S.histCalls=S.histCalls.slice(-MAX_HIST);
+      if(S.searchHistory&&S.searchHistory.length>50)S.searchHistory=S.searchHistory.slice(-50);
     });
-
-    /* Purge stale object URLs */
     _safe(function(){
       $('img[src^="blob:"],video[src^="blob:"]').forEach(function(el){
-        var src=el.src;
-        if(src&&!el.isConnected){
-          try{URL.revokeObjectURL(src);}catch(_){}
-        }
+        if(!el.isConnected&&el.src)try{URL.revokeObjectURL(el.src);}catch(_){}
       });
     });
-
-    /* Trim toast container */
-    _safe(function(){
-      var tc=$('toast-container');
-      if(tc){while(tc.children.length>5)tc.removeChild(tc.firstChild);}
-    });
-
-    _emit('mpm:pruned',{});
-    _log('MPM','pruned (msgs, history, blobs)');
+    _safe(function(){var tc=$('toast-container');if(tc){while(tc.children.length>5)tc.removeChild(tc.firstChild);}});
+    _emit('mpm:pruned',{});_log('MPM','pruned');
   }
-
-  /* Memory pressure API */
-  _safe(function(){
-    if('memory' in performance){
-      performance.measureUserAgentSpecificMemory&&
-      setInterval(function(){
-        performance.measureUserAgentSpecificMemory().then(function(m){
-          var mb=Math.round(m.bytes/1048576);
-          if(mb>200){_log('MPM','High memory: '+mb+'MB, pruning');prune();}
-        }).catch(function(){});
-      },120000);
-    }
-  });
-
-  function start(){
-    if(_interval)return;
-    _interval=setInterval(prune,INTERVAL);
-    _log('MPM','started');
-  }
-
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',function(){setTimeout(start,5000);});
-  } else { setTimeout(start,5000); }
-
+  function start(){if(_interval)return;_interval=setInterval(prune,INTERVAL);_log('MPM','started');}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(start,5000);});
+  else setTimeout(start,5000);
   return{prune:prune,start:start};
 })();
 g.MemoryPressureManager=MemoryPressureManager;
 
-
-/* ─────────────────────────────────────────────────────────────────
-   GETMEDIA UPGRADE: adaptive constraints + recovery
-───────────────────────────────────────────────────────────────── */
+/* ────────────────────────────────────────────────────────────
+   ADAPTIVE GETMEDIA v30 — progressive fallback
+──────────────────────────────────────────────────────────── */
 _safe(function(){
-  /* Upgrade getMedia to use adaptive video constraints */
-  if(typeof g.getMedia==='function'&&!g.getMedia.__v29){
+  if(typeof g.getMedia==='function'&&!g.getMedia.__v30){
     var _orig=g.getMedia;
     g.getMedia=async function(video){
       if(!video)return _orig(video);
-      /* Try HD first, fall back gracefully */
       var constraints=[
         {audio:true,video:{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30}}},
         {audio:true,video:{width:{ideal:640},height:{ideal:480}}},
@@ -12067,92 +12250,116 @@ _safe(function(){
         {audio:true,video:false}
       ];
       for(var i=0;i<constraints.length;i++){
-        try{
-          var stream=await navigator.mediaDevices.getUserMedia(constraints[i]);
-          if(stream){
-            _log('getMedia','Got stream with constraints['+i+']');
-            return stream;
-          }
-        }catch(e){
-          if(i===constraints.length-1)_safe(function(){g.toast&&g.toast('Media access limited: '+e.message,'warn');});
-        }
+        try{var s=await navigator.mediaDevices.getUserMedia(constraints[i]);if(s)return s;}
+        catch(e){if(i===constraints.length-1)_safe(function(){g.toast&&g.toast('Camera limited: '+e.message,'warn');});}
       }
       return null;
     };
-    g.getMedia.__v29=true;
+    g.getMedia.__v30=true;
   }
 });
 
-/* ─────────────────────────────────────────────────────────────────
-   UX POLISH FINALISER
-   Premium interactions, keyboard nav, aria state sync
-───────────────────────────────────────────────────────────────── */
+/* ────────────────────────────────────────────────────────────
+   UX POLISH v30
+   Ripple · Auto-scroll · Ripple on CTA · Tab recovery
+──────────────────────────────────────────────────────────── */
 _safe(function(){
-  /* Add ripple effect to btn-primary buttons */
+  /* Ripple */
+  if(!$('v30-ripple-style')){
+    var rs=document.createElement('style');rs.id='v30-ripple-style';
+    rs.textContent='@keyframes v30-rpl{from{transform:scale(0);opacity:1}to{transform:scale(2.8);opacity:0}}';
+    document.head.appendChild(rs);
+  }
   function addRipple(e){
     var btn=e.currentTarget;
-    var existing=btn.querySelector('.ripple');
-    if(existing)existing.remove();
-    var r=document.createElement('span');
-    r.className='ripple';
-    var rect=btn.getBoundingClientRect();
-    var size=Math.max(rect.width,rect.height);
-    r.style.cssText='position:absolute;border-radius:50%;background:rgba(255,255,255,.2);'+
-      'width:'+size+'px;height:'+size+'px;'+
-      'left:'+(e.clientX-rect.left-size/2)+'px;'+
-      'top:'+(e.clientY-rect.top-size/2)+'px;'+
-      'pointer-events:none;animation:ripple-anim .4s ease-out forwards;';
+    var ex=btn.querySelector('.v30-ripple');if(ex)ex.remove();
+    var r=document.createElement('span');r.className='v30-ripple';
+    var rect=btn.getBoundingClientRect(),size=Math.max(rect.width,rect.height);
+    r.style.cssText='position:absolute;border-radius:50%;background:rgba(255,255,255,.18);width:'+size+'px;height:'+size+'px;left:'+(e.clientX-rect.left-size/2)+'px;top:'+(e.clientY-rect.top-size/2)+'px;pointer-events:none;animation:v30-rpl .45s ease-out forwards;';
     btn.style.overflow='hidden';btn.style.position='relative';
-    btn.appendChild(r);
-    setTimeout(function(){r.remove();},450);
+    btn.appendChild(r);setTimeout(function(){r.remove();},460);
   }
-
-  /* Inject ripple keyframe if not present */
-  if(!document.getElementById('v29-ripple-style')){
-    var s=document.createElement('style');
-    s.id='v29-ripple-style';
-    s.textContent='@keyframes ripple-anim{from{transform:scale(0);opacity:1}to{transform:scale(2.5);opacity:0}}';
-    document.head.appendChild(s);
-  }
-
-  /* Wire ripple on dominant action buttons */
   setTimeout(function(){
-    $('.btn-p,.btn-primary,[data-action="connect"],[data-action="send"],#btn-connect,#btn-send,#btn-task-add').forEach(function(btn){
-      if(!btn.__rippleV29){
-        btn.__rippleV29=true;
-        btn.addEventListener('click',addRipple);
-      }
+    $('.btn-p,.btn-primary,#btn-connect,#btn-send,#btn-task-add,[data-action="connect"],[data-action="send"]').forEach(function(b){
+      if(!b.__v30rpl){b.__v30rpl=true;b.addEventListener('click',addRipple);}
     });
-  },1000);
+  },1200);
 
-  /* Smooth scroll on message list */
+  /* Auto-scroll messages */
   setTimeout(function(){
     var msgs=$('msgs');
     if(msgs){
       msgs.style.scrollBehavior='smooth';
-      /* Auto-scroll to bottom on new messages */
-      var mo=new MutationObserver(function(){
-        var isNearBottom=msgs.scrollHeight-msgs.scrollTop-msgs.clientHeight<120;
-        if(isNearBottom)msgs.scrollTop=msgs.scrollHeight;
+      var mo2=new MutationObserver(function(){
+        if(msgs.scrollHeight-msgs.scrollTop-msgs.clientHeight<120)msgs.scrollTop=msgs.scrollHeight;
       });
-      mo.observe(msgs,{childList:true});
+      mo2.observe(msgs,{childList:true});
     }
-  },800);
+  },900);
 });
 
-/* ─────────────────────────────────────────────────────────────────
-   INIT LOG
-───────────────────────────────────────────────────────────────── */
-console.info(
-  '%c[DevHub v29.0.0]%c Production engines active\n'+
-  '  GMC v29 · SmartDiagnostics · AdaptiveVideo · GCE · CHE · SHR · MPM',
-  'color:#6366f1;font-weight:bold;font-size:13px',
-  'color:#9898b8;font-size:11px'
-);
+/* ────────────────────────────────────────────────────────────
+   MODERATOR CONTROL HELPERS v30
+──────────────────────────────────────────────────────────── */
+var ModeratorEngine=(function(){
+  'use strict';
+  var _pinned=null;
+
+  function muteAll(){
+    _safe(function(){
+      if(g.PeerMod&&g.PeerMod.broadcast)
+        g.PeerMod.broadcast({type:'mod:mute-all',ts:_now()});
+    });
+    /* Mute local mic */
+    _safe(function(){
+      var ls=g.localStream;
+      if(ls)ls.getAudioTracks().forEach(function(t){t.enabled=false;});
+    });
+    _emit('mod:mute-all',{});
+    _log('MOD','muteAll');
+  }
+
+  function pinSpeaker(peerId){
+    _pinned=peerId;
+    $('.gv-tile').forEach(function(tile){
+      var isPinned=tile.dataset.peerId===peerId||tile.id==='tile-'+peerId;
+      tile.style.order=isPinned?'-1':'';
+      tile.style.gridColumn=isPinned&&$('.gv-tile').length>2?'1 / span 2':'';
+    });
+    _emit('mod:pin',{peerId:peerId});
+  }
+
+  function unpin(){
+    _pinned=null;
+    $('.gv-tile').forEach(function(t){t.style.order='';t.style.gridColumn='';});
+    AdaptiveConferenceLayoutEngine.update();
+  }
+
+  /* Wire mute-all button */
+  _safe(function(){
+    var btn=$('btn-conf-mute-all');
+    if(btn&&!btn.__modV30){
+      btn.__modV30=true;
+      btn.addEventListener('click',muteAll);
+    }
+  });
+
+  _on('mod:mute-all',function(){
+    _safe(function(){var ls=g.localStream;if(ls)ls.getAudioTracks().forEach(function(t){t.enabled=false;});});
+    _safe(function(){g.toast&&g.toast('All muted by moderator','warn',3000);});
+  });
+
+  return{muteAll:muteAll,pinSpeaker:pinSpeaker,unpin:unpin,pinned:function(){return _pinned;}};
+})();
+g.ModeratorEngine=ModeratorEngine;
+
+/* ────────────────────────────────────────────────────────────
+   INIT REPORT
+──────────────────────────────────────────────────────────── */
+console.info('[DevHub v30.0.0] All 14 engines active | PeerDiscovery Heartbeat GMC Diagnostics ConferenceLayout ActiveSpeaker StreamAdapt ConferenceRecovery ConnectionLadder SHR MPM Unicode CPUProtector Moderator');
 
 })(window);
 </script>
-
 </body>
 </html>
 <!-- HEADLESS TEST RUNNER (G3) -->
