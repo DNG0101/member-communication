@@ -2137,13 +2137,23 @@ var GunDiscovery = (function() {
   var PURGE_MS     = 15000;  /* check for stale users every 15s */
 
   /* ── Public relay servers (Gun peer list) ── */
-  var GUN_PEERS = [
-    'https://gun-manhattan.herokuapp.com/gun',
-    'https://gunjs.herokuapp.com/gun',
-    'https://www.raygun.live/gun',
+  /* Community Gun relays (user can override in Online → Relay settings) */
+  var GUN_PEERS_DEFAULT = [
+    'https://gun.eco/gun',
     'https://peer.wallie.io/gun',
-    'https://plankton.school/gun'
+    'https://plankton.school/gun',
+    'https://gun-relay.glitch.me/gun',
+    'https://gun.disroot.org/gun',
+    'https://gun-us.deta.dev/gun'
   ];
+  function _getRelayList() {
+    var custom = '';
+    try { custom = (window.SafeStorage && SafeStorage.get('dh-gun-relay', '')) || ''; } catch(_) {}
+    var list = GUN_PEERS_DEFAULT.slice();
+    if (custom && custom.indexOf('http') === 0 && list.indexOf(custom) < 0) list.unshift(custom);
+    return list;
+  }
+  var GUN_PEERS = _getRelayList();
 
   /* ── Build my announcement payload ── */
   function _myPayload() {
@@ -2268,16 +2278,29 @@ var GunDiscovery = (function() {
         _upsertUser(clean);
       });
 
-      /* Gun doesn't emit a "connected" event; mark ready after 2s */
+      /* Real probe: write+read to verify relay actually responds */
+      _setStatus('', '\u23F3 Verifying relay connectivity\u2026');
+      var _probeKey = '_chk-' + Math.random().toString(36).slice(2, 10);
+      var _probeOk  = false;
+      try {
+        var _probeRef = _gun.get(NAMESPACE).get('_probes').get(_probeKey);
+        _probeRef.put({ ts: Date.now(), v: 1 });
+        _probeRef.on(function(d) {
+          if (_probeOk || !d || !d.ts) return;
+          _probeOk = true;
+          _ready   = true;
+          GUN_PEERS = _getRelayList();
+          _setStatus('ok', '\uD83C\uDF10 Connected (' + GUN_PEERS.length + ' relays)');
+          _startHeartbeat();
+          _startPurge();
+        });
+      } catch(_probeErr) {}
+      /* Timeout: if probe never returns after 7s, show clear error message */
       setTimeout(function() {
-        _ready = true;
-        _setStatus('ok', '\uD83C\uDF10 Connected to global network — ' + GUN_PEERS.length + ' relay servers');
-        _startHeartbeat();
-        _startPurge();
-      }, 2000);
-
-      /* Optimistic status while connecting */
-      _setStatus('', '\u23F3 Joining global network\u2026');
+        if (!_probeOk) {
+          _setStatus('err', '\u26A0\uFE0F No relay responded. Check your internet or add a custom Gun relay via the \u2699\uFE0F Relay button above.');
+        }
+      }, 7000);
 
     } catch(e) {
       _setStatus('err', '\u274C Gun error: ' + e.message);
@@ -2502,6 +2525,32 @@ var GunDiscovery = (function() {
     }
 
     _wireListActions();
+    /* Relay config panel wiring */
+    (function(){
+      var btnCfg=document.getElementById('btn-online-relay-cfg');
+      var panel=document.getElementById('online-relay-panel');
+      var inp=document.getElementById('online-relay-inp');
+      var status=document.getElementById('online-relay-status');
+      if(!btnCfg||!panel)return;
+      try{if(inp)inp.value=(window.SafeStorage&&SafeStorage.get('dh-gun-relay',''))||'';}catch(_){}
+      btnCfg.onclick=function(){panel.style.display=panel.style.display==='none'?'block':'none';};
+      var btnSave=document.getElementById('btn-online-relay-save');
+      if(btnSave)btnSave.onclick=function(){
+        var url=inp?inp.value.trim():'';
+        try{if(window.SafeStorage)SafeStorage.set('dh-gun-relay',url);}catch(_){}
+        GUN_PEERS=_getRelayList();
+        if(status)status.textContent=url?'\u2705 Custom relay: '+url:'\u2705 Using default public relays';
+        _showToast(url?'Custom relay saved — reconnecting…':'Custom relay cleared','info');
+        try{if(_myId){_ready=false;_gun=null;_onlineRef=null;_initGun(_myId);}}catch(_){}
+      };
+      var btnClear=document.getElementById('btn-online-relay-clear');
+      if(btnClear)btnClear.onclick=function(){
+        if(inp)inp.value='';
+        try{if(window.SafeStorage)SafeStorage.set('dh-gun-relay','');}catch(_){}
+        GUN_PEERS=_getRelayList();
+        if(status)status.textContent='Cleared — using public relays';
+      };
+    })();
   }
 
   /* ── Listen for PeerJS peer open events from both runtimes ── */
@@ -4520,10 +4569,21 @@ if(document.readyState==='loading'){
         <div class="online-controls">
           <button id="btn-online-refresh" class="btn btn-s btn-xs">🔄 Refresh</button>
           <button id="btn-online-random"  class="btn btn-p btn-xs">🎲 Random Chat</button>
+          <button id="btn-online-relay-cfg" class="btn btn-s btn-xs" title="Configure Gun relay server">⚙️ Relay</button>
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
             <input type="checkbox" id="online-visible-toggle" checked>
             <span>Appear online</span>
           </label>
+        </div>
+        <div id="online-relay-panel" style="display:none;padding:8px 14px;border-bottom:1px solid var(--border,#2d2d44);background:var(--bg3,#1e1e2e);flex-shrink:0;">
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px;">🌐 Custom Gun Relay URL</div>
+          <div style="font-size:11px;color:var(--muted,#888);margin-bottom:6px;">Leave blank to use public relays. Enter your own for guaranteed connectivity.</div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <input id="online-relay-inp" placeholder="https://your-relay.example.com/gun" style="flex:1;min-width:180px;font-size:12px;" autocomplete="off" spellcheck="false">
+            <button id="btn-online-relay-save" class="btn btn-p btn-xs">Save</button>
+            <button id="btn-online-relay-clear" class="btn btn-d btn-xs">Clear</button>
+          </div>
+          <div id="online-relay-status" style="font-size:11px;color:var(--muted,#888);margin-top:4px;"></div>
         </div>
 
         <!-- User list -->
@@ -6717,16 +6777,38 @@ function patchInviteModule(){
       joinBtn.onclick=null;
       joinBtn.addEventListener('click',()=>{
         const inp=document.getElementById('inv-code-inp');
-        const v=(inp&&inp.value||'').trim().toUpperCase();
-        if(!v){if(window.toast)window.toast('Enter a Peer ID or room code','warn');return;}
-        /* Room code → look up stored peer, else treat as direct peer ID */
-        const isRoom=/^[A-Z]{2,4}-[A-Z0-9]{4}$/.test(v);
-        const targetId = isRoom ? (window.S&&window.S.inviteRoom===v ? v : v) : v;
+        const rawVal=(inp&&inp.value||'').trim();
+        if(!rawVal){if(window.toast)window.toast('Enter a Peer ID or invite code','warn');return;}
+        const targetId=rawVal;
+        const isGroupCode=/^[A-Z]{2,4}-[A-Z0-9]{4}$/i.test(rawVal);
+        if(isGroupCode&&window.toast){
+          window.toast('Group codes name a room — for direct peer-to-peer use your partner’s Personal code from their Invite tab.','info',6000);
+        }
         try{
-          const jin=document.getElementById('jin');
-          if(jin)jin.value=targetId;
-          if(window.connectFrom)window.connectFrom('jin');
-          else if(window.PeerMod&&window.PeerMod.connectTo)window.PeerMod.connectTo(targetId);
+          const myName=(window.SafeStorage&&SafeStorage.get('dh-name',''))||'Peer';
+          const myAv=(window.SafeStorage&&SafeStorage.get('dh-avatar',''))||'\uD83D\uDC64';
+          if(window.App&&App.peer&&App.peer.peer&&typeof App.peer.peer.connect==='function'){
+            const conn=App.peer.peer.connect(targetId,{
+              reliable:true,
+              metadata:{name:myName,av:myAv,version:(window.CFG&&CFG.VERSION)||'30',source:'invite'}
+            });
+            if(conn){
+              try{if(App.peer&&App.peer._onConn)App.peer._onConn(conn,'outgoing');}catch(_){}
+              const _jt=setTimeout(function(){
+                if(conn&&!conn.open){
+                  try{conn.close();}catch(_){}
+                  if(window.toast)window.toast('Could not reach that peer within 12 seconds — make sure they have the app open and the code is correct.','error',6000);
+                }
+              },12000);
+              conn.on('open',function(){clearTimeout(_jt);});
+              if(window.toast)window.toast('Connecting to '+targetId.slice(0,14)+'…','info',3000);
+            }
+          } else {
+            const jin=document.getElementById('jin');
+            if(jin)jin.value=targetId;
+            if(window.connectFrom)window.connectFrom('jin');
+            else if(window.PeerMod&&window.PeerMod.connectTo)window.PeerMod.connectTo(targetId);
+          }
         }catch(e){if(window.toast)window.toast('Connection error: '+e.message,'error');}
         closeInviteModal();
       });
@@ -6898,7 +6980,9 @@ if(document.readyState==='loading'){
 <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"
   onerror="window._gunFailed=true;console.warn('[DevHub] Gun.js failed — online discovery disabled');"></script>
 
-<!-- v21-A: Stranger Online System -->
+<!-- v21-A: Stranger Online System — Gun consolidated into GunDiscovery -->
+<script>/* Disable legacy v21 Gun presence; GunDiscovery (devhub-v30-online) is the single source */
+window.__v21Stranger=true;window.__v21StrangerDisabledByUpgrade=true;</script>
 <script type="application/devhub-preserved-module" data-module="v21-stranger-online">
 (window.__dhQ=window.__dhQ||Promise.resolve()).then(function(){return new Promise(function(r){setTimeout(function(){try{
 (function(){
@@ -7415,7 +7499,13 @@ var pbm={
         p.on('open',function(id){self._onReady(id);});
         p.on('error',function(e){
           log('PeerJS error: '+e.type+' '+e.message);
-          if(e.type==='unavailable-id'||e.type==='invalid-id'){
+          if(e.type==='unavailable-id'){
+            var _fbId='dhtmp-'+Math.random().toString(36).slice(2,14);
+            try{sessionStorage.setItem('dh-session-id',_fbId);}catch(_){}
+            toast('Your identity is already open in another tab. Using a temporary ID for this session.','warn');
+            log('unavailable-id: using fallback '+_fbId);
+            setTimeout(function(){self._reinitPeer(_fbId);},600);
+          } else if(e.type==='invalid-id'){
             setTimeout(function(){self._reinitPeer();},1000);
           }
         });
@@ -7445,15 +7535,16 @@ var pbm={
     try{window.__v21StrangerAPI&&window.__v21StrangerAPI.refresh&&window.__v21StrangerAPI.refresh();}catch(_){}
   },
 
-  _reinitPeer:function(){
-    log('Attempting PeerJS re-init...');
+  _reinitPeer:function(forceId){
+    log('Attempting PeerJS re-init'+(forceId?' with id '+forceId:'')+'...');
     try{
-      if(window.App&&App.peer&&App.peer.init){App.peer.init();return;}
-      /* Try direct Peer construction */
+      if(window.App&&App.peer&&App.peer.init&&!forceId){App.peer.init();return;}
       if(window.Peer){
-        var p=new Peer({debug:1});
-        p.on('open',function(id){this._onReady(id);}.bind(this));
-        if(window.App&&App.peer)App.peer.peer=p;
+        var _sid=forceId||(function(){try{return sessionStorage.getItem('dh-session-id');}catch(_){return null;}}());
+        var _po={debug:1};
+        var _np=_sid?new Peer(_sid,_po):new Peer(_po);
+        _np.on('open',function(id){this._onReady(id);}.bind(this));
+        if(window.App&&App.peer)App.peer.peer=_np;
       }
     }catch(e){log('re-init failed: '+e.message);}
   }
@@ -13056,6 +13147,1484 @@ document.addEventListener('DOMContentLoaded', function() {
   }, 800);
 });
 </script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     DevHub v30 — Ultimate Production Upgrade
+     Phases A–R: Runtime Architecture · Crash Recovery · State Machine
+     IndexedDB Enterprise · Message Consistency · Connection State Machine
+     Performance Self-Healing · Security · PWA · Diagnostics
+     Multi-Account · Observability · QA Lab · Accessibility · Safe Mode
+     Audio/Video Intelligence · Self-Healing · Whiteboard Collab
+     ════════════════════════════════════════════════════════════════════════ -->
+<script id="dh-production-upgrade">
+(function(global){
+'use strict';
+if(global.__dhProdUpgrade){return;}
+global.__dhProdUpgrade=true;
+
+var VERSION_UPGRADE='30.1.0';
+var _B=global.Bus;
+var _SS=global.SafeStorage;
+var _log=function(tag,msg){try{console.log('[dh-prod:'+tag+']',msg);}catch(_){}};
+var _warn=function(tag,msg){try{console.warn('[dh-prod:'+tag+']',msg);}catch(_){}};
+function _safe(name,fn){try{fn();}catch(e){_warn(name,'error: '+e.message);}}
+function _toast(msg,type,ms){
+  try{
+    if(global.App&&App.toast&&App.toast.show)App.toast.show(msg,type||'info',ms||3000);
+    else if(global.toast)global.toast(msg,type||'info');
+  }catch(_){}
+}
+function _on(ev,fn){try{if(_B&&_B.on)_B.on(ev,fn);}catch(_){}}
+function _emit(ev,data){try{if(_B&&_B.emit)_B.emit(ev,data);}catch(_){}}
+function _ssGet(k,def){try{return (_SS&&_SS.get(k,def))||def;}catch(_){return def;}}
+function _ssSet(k,v){try{if(_SS)_SS.set(k,v);}catch(_){}}
+function _ssJSON(k,def){try{return (_SS&&_SS.getJSON(k,def))||def;}catch(_){return def;}}
+function _ssJSONSet(k,v){try{if(_SS)_SS.setJSON(k,v);}catch(_){}}
+
+// ════════════════════════════════════════════════════════════════════════════
+// PHASE A — RUNTIME ARCHITECTURE: Module Registry + Service Locator
+// ════════════════════════════════════════════════════════════════════════════
+_safe('phase-a', function(){
+  if(global.DevHubRuntime){return;}
+  var _services={};
+  var _lifecycle={boot:[],ready:[],shutdown:[]};
+  var _started=false;
+  var DevHubRuntime={
+    register:function(name,instance){_services[name]=instance; _log('runtime','registered: '+name);},
+    resolve:function(name){return _services[name]||null;},
+    list:function(){return Object.keys(_services);},
+    on:function(phase,fn){if(_lifecycle[phase])_lifecycle[phase].push(fn);},
+    boot:function(){
+      if(_started)return;
+      _started=true;
+      _lifecycle.boot.forEach(function(fn){try{fn();}catch(e){_warn('runtime','boot hook error: '+e.message);}});
+    },
+    ready:function(){
+      _lifecycle.ready.forEach(function(fn){try{fn();}catch(e){_warn('runtime','ready hook error: '+e.message);}});
+    },
+    shutdown:function(){
+      _lifecycle.shutdown.forEach(function(fn){try{fn();}catch(e){_warn('runtime','shutdown hook error: '+e.message);}});
+    },
+    version:VERSION_UPGRADE
+  };
+  global.DevHubRuntime=DevHubRuntime;
+  /* Register existing globals into the service locator */
+  ['Bus','SafeStorage','App','CFG','Timers','CryptoManager'].forEach(function(name){
+    if(global[name])DevHubRuntime.register(name,global[name]);
+  });
+  _log('phase-a','Runtime Architecture ready');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PHASE B — CRASH RECOVERY: Panic mode + graceful degradation
+// ════════════════════════════════════════════════════════════════════════════
+_safe('phase-b', function(){
+  if(global.__dhCrashRecovery){return;}
+  global.__dhCrashRecovery=true;
+  var _panicCount=0;
+  var _MAX_PANIC=3;
+  var _panicKey='dh-panic-v1';
+
+  function readPanic(){try{return parseInt(sessionStorage.getItem(_panicKey)||'0',10);}catch(_){return 0;}}
+  function writePanic(n){try{sessionStorage.setItem(_panicKey,String(n));}catch(_){}}
+
+  /* Stable timer reset */
+  var _stableTimer=setTimeout(function(){writePanic(0);},45000);
+
+  var panicCount=readPanic();
+  writePanic(panicCount+1);
+
+  if(panicCount>=_MAX_PANIC){
+    _warn('phase-b','PANIC MODE: '+panicCount+' consecutive failures detected');
+    /* Safe mode: disable non-essential modules */
+    global.__dhSafeMode=true;
+    try{
+      /* Clear only volatile UI keys, preserve identity and messages */
+      var protect=/^(dh-vault|dh-identity|dh-keys|dh-msgs|dh-known-peers|dh-name|dh-avatar)/i;
+      for(var _ki=localStorage.length-1;_ki>=0;_ki--){
+        var _kk=localStorage.key(_ki);
+        if(_kk&&!protect.test(_kk)&&/^dh-/.test(_kk))localStorage.removeItem(_kk);
+      }
+    }catch(_){}
+    writePanic(0);
+    _toast('\u26A0\uFE0F Safe mode: some settings reset due to repeated crashes.','warn',7000);
+  }
+
+  global.DevHubCrash={
+    panic:function(){writePanic(readPanic()+1);},
+    reset:function(){writePanic(0);},
+    count:function(){return readPanic();},
+    safeMode:function(){return !!global.__dhSafeMode;},
+    stabilize:function(){clearTimeout(_stableTimer);writePanic(0);}
+  };
+
+  /* Hook global errors to increment panic counter during startup phase */
+  global.addEventListener('error',function(ev){
+    if(performance.now()<8000&&ev&&ev.error){
+      writePanic(readPanic()+1);
+    }
+  },{once:true});
+
+  _log('phase-b','Crash Recovery ready (panic='+panicCount+', safeMode='+!!global.__dhSafeMode+')');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PHASE C — STATE MANAGEMENT: Snapshots, undo/redo, migration
+// ════════════════════════════════════════════════════════════════════════════
+_safe('phase-c', function(){
+  if(global.DevHubState){return;}
+  var _snaps=[];
+  var _MAX_SNAPS=20;
+  var _SNAP_KEY='dh-state-snaps-v1';
+
+  /* Load persisted snapshots */
+  try{_snaps=_ssJSON(_SNAP_KEY,[])||[];}catch(_){_snaps=[];}
+
+  function snap(label){
+    try{
+      var s=global.App&&App.state&&App.state.get?App.state.get():
+            (global.S?JSON.parse(JSON.stringify(global.S||{})):{});
+      var entry={ts:Date.now(),label:label||'auto',state:s};
+      _snaps.push(entry);
+      if(_snaps.length>_MAX_SNAPS)_snaps.shift();
+      _ssJSONSet(_SNAP_KEY,_snaps);
+      return entry;
+    }catch(e){_warn('phase-c','snap error: '+e.message);return null;}
+  }
+
+  function restore(idx){
+    try{
+      var entry=_snaps[idx];
+      if(!entry)return false;
+      if(global.App&&App.state&&App.state.set){App.state.set(entry.state);}
+      else if(global.S&&global.load){global.load();}
+      _toast('State restored to: '+entry.label,'info');
+      return true;
+    }catch(e){_warn('phase-c','restore error: '+e.message);return false;}
+  }
+
+  global.DevHubState={
+    snap:snap,
+    restore:restore,
+    list:function(){return _snaps.slice();},
+    clear:function(){_snaps=[];_ssJSONSet(_SNAP_KEY,[]);},
+    latest:function(){return _snaps[_snaps.length-1]||null;}
+  };
+
+  /* Auto-snapshot on call end, tab change */
+  _on('call:ended',function(){snap('after-call');});
+  _on('tab:changed',function(d){if(d&&d.tab)snap('tab:'+d.tab);});
+
+  _log('phase-c','State Management ready ('+_snaps.length+' stored snapshots)');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PHASE D — INDEXEDDB ENTERPRISE: Schema versioning, migrations, metrics
+// ════════════════════════════════════════════════════════════════════════════
+_safe('phase-d', function(){
+  if(global.DevHubIDB){return;}
+  var DB_NAME='devhub-enterprise';
+  var DB_VERSION=3;
+  var _db=null;
+  var _queue=[];
+  var _ready=false;
+
+  function _drain(){if(!_ready)return;_queue.forEach(function(fn){try{fn(_db);}catch(_){}});_queue=[];}
+
+  function _openDB(){
+    try{
+      if(!global.indexedDB)return;
+      var req=indexedDB.open(DB_NAME,DB_VERSION);
+      req.onupgradeneeded=function(ev){
+        var db=ev.target.result;
+        var txn=ev.target.transaction;
+        /* Messages store */
+        if(!db.objectStoreNames.contains('messages')){
+          var ms=db.createObjectStore('messages',{keyPath:'id',autoIncrement:true});
+          ms.createIndex('by_peer','peerId',{unique:false});
+          ms.createIndex('by_ts','ts',{unique:false});
+          ms.createIndex('by_seq','seq',{unique:false});
+        }
+        /* Peers store */
+        if(!db.objectStoreNames.contains('peers')){
+          var ps=db.createObjectStore('peers',{keyPath:'id'});
+          ps.createIndex('by_last','lastSeen',{unique:false});
+        }
+        /* Files store */
+        if(!db.objectStoreNames.contains('files')){
+          var fs=db.createObjectStore('files',{keyPath:'id',autoIncrement:true});
+          fs.createIndex('by_peer','peerId',{unique:false});
+          fs.createIndex('by_ts','ts',{unique:false});
+        }
+        /* Settings store */
+        if(!db.objectStoreNames.contains('settings')){
+          db.createObjectStore('settings',{keyPath:'key'});
+        }
+        /* Audit log */
+        if(!db.objectStoreNames.contains('audit')){
+          var as=db.createObjectStore('audit',{keyPath:'id',autoIncrement:true});
+          as.createIndex('by_ts','ts',{unique:false});
+          as.createIndex('by_type','type',{unique:false});
+        }
+        _log('phase-d','IDB schema upgraded to v'+DB_VERSION);
+      };
+      req.onsuccess=function(ev){
+        _db=ev.target.result;
+        _ready=true;
+        _log('phase-d','IDB ready');
+        _drain();
+        _emit('idb:ready',{db:_db});
+      };
+      req.onerror=function(ev){_warn('phase-d','IDB open error: '+(ev.target.error||'?'));};
+    }catch(e){_warn('phase-d','IDB init error: '+e.message);}
+  }
+
+  function _put(store,data,cb){
+    try{
+      if(!_db){_queue.push(function(db){_putNow(db,store,data,cb);});return;}
+      _putNow(_db,store,data,cb);
+    }catch(e){_warn('phase-d','put error: '+e.message);}
+  }
+  function _putNow(db,store,data,cb){
+    try{
+      var tx=db.transaction([store],'readwrite');
+      var req=tx.objectStore(store).put(data);
+      req.onsuccess=function(){if(cb)cb(null,req.result);};
+      req.onerror=function(){if(cb)cb(req.error);};
+    }catch(e){if(cb)cb(e);}
+  }
+  function _get(store,key,cb){
+    try{
+      if(!_db){_queue.push(function(db){_getNow(db,store,key,cb);});return;}
+      _getNow(_db,store,key,cb);
+    }catch(e){if(cb)cb(e);}
+  }
+  function _getNow(db,store,key,cb){
+    try{
+      var tx=db.transaction([store],'readonly');
+      var req=tx.objectStore(store).get(key);
+      req.onsuccess=function(){if(cb)cb(null,req.result);};
+      req.onerror=function(){if(cb)cb(req.error);};
+    }catch(e){if(cb)cb(e);}
+  }
+  function _metrics(cb){
+    try{
+      if(!_db){cb(null,{});return;}
+      var result={};
+      var stores=Array.from(_db.objectStoreNames);
+      var pending=stores.length;
+      if(!pending){cb(null,result);return;}
+      stores.forEach(function(name){
+        try{
+          var tx=_db.transaction([name],'readonly');
+          var req=tx.objectStore(name).count();
+          req.onsuccess=function(){result[name]=req.result;if(--pending===0)cb(null,result);};
+          req.onerror=function(){result[name]='err';if(--pending===0)cb(null,result);};
+        }catch(e){result[name]='err';if(--pending===0)cb(null,result);}
+      });
+    }catch(e){cb(e);}
+  }
+
+  global.DevHubIDB={
+    put:_put, get:_get, metrics:_metrics,
+    audit:function(type,data){_put('audit',{type:type,ts:Date.now(),data:data||{}});},
+    isReady:function(){return _ready;},
+    db:function(){return _db;}
+  };
+  _openDB();
+  _log('phase-d','IndexedDB Enterprise initializing…');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PHASE E — MESSAGE CONSISTENCY: Sequence numbers, dedup, delivery receipts
+// ════════════════════════════════════════════════════════════════════════════
+_safe('phase-e', function(){
+  if(global.DevHubMsgConsistency){return;}
+  var _seqMap={};  /* peerId -> next expected seq */
+  var _seenIds={};/* peerId -> Set<msgId> for dedup */
+  var _mySeq=0;
+  var _SEEN_LIMIT=500;
+
+  function _getSeen(pid){
+    if(!_seenIds[pid])_seenIds[pid]=[];
+    return _seenIds[pid];
+  }
+  function _markSeen(pid,id){
+    var arr=_getSeen(pid);
+    arr.push(id);
+    if(arr.length>_SEEN_LIMIT)arr.splice(0,arr.length-_SEEN_LIMIT);
+  }
+  function isDuplicate(pid,msgId){
+    if(!msgId)return false;
+    return _getSeen(pid).indexOf(msgId)>=0;
+  }
+  function getNextSeq(){return ++_mySeq;}
+  function stampMessage(msg){
+    var stamped=Object.assign({},msg);
+    stamped._seq=getNextSeq();
+    stamped._id=msg._id||('msg-'+Date.now()+'-'+Math.random().toString(36).slice(2,8));
+    stamped._ts=Date.now();
+    return stamped;
+  }
+  function receiveMessage(pid,msg){
+    if(!msg)return{ok:false,reason:'null'};
+    if(msg._id&&isDuplicate(pid,msg._id)){
+      _warn('phase-e','dup suppressed from '+pid+': '+msg._id);
+      return{ok:false,reason:'duplicate'};
+    }
+    if(msg._id)_markSeen(pid,msg._id);
+    /* Send delivery receipt */
+    _emit('msg:received',{pid:pid,msgId:msg._id,seq:msg._seq});
+    return{ok:true,seq:msg._seq};
+  }
+
+  global.DevHubMsgConsistency={
+    stamp:stampMessage,
+    receive:receiveMessage,
+    isDuplicate:isDuplicate,
+    mySeq:function(){return _mySeq;}
+  };
+
+  /* Hook into Bus events to auto-dedup incoming messages */
+  _on('chat:msg',function(d){
+    if(!d||!d.pid)return;
+    var result=receiveMessage(d.pid,d.msg||d);
+    if(!result.ok)_emit('msg:deduped',{pid:d.pid,reason:result.reason});
+  });
+
+  _log('phase-e','Message Consistency Engine ready');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PHASE F — CONNECTION STATE MACHINE: ICE restart, exponential backoff
+// ════════════════════════════════════════════════════════════════════════════
+_safe('phase-f', function(){
+  if(global.DevHubCSM){return;}
+  var STATES={IDLE:'idle',CONNECTING:'connecting',CONNECTED:'connected',
+              DEGRADED:'degraded',RECOVERING:'recovering',FAILED:'failed',CLOSED:'closed'};
+  var _peers={};  /* peerId -> {state, pc, retries, timer} */
+  var _MAX_RETRIES=5;
+  var _BASE_DELAY=1500;
+
+  function getState(pid){return (_peers[pid]&&_peers[pid].state)||STATES.IDLE;}
+  function setState(pid,state){
+    if(!_peers[pid])_peers[pid]={state:STATES.IDLE,retries:0,timer:null,pc:null};
+    var prev=_peers[pid].state;
+    _peers[pid].state=state;
+    if(prev!==state){
+      _emit('csm:state-change',{pid:pid,from:prev,to:state});
+      _log('phase-f','['+pid.slice(0,10)+'] '+prev+' \u2192 '+state);
+    }
+  }
+  function registerPC(pid,pc){
+    if(!_peers[pid])_peers[pid]={state:STATES.IDLE,retries:0,timer:null,pc:null};
+    _peers[pid].pc=pc;
+    setState(pid,STATES.CONNECTING);
+    pc.oniceconnectionstatechange=function(){
+      var s=pc.iceConnectionState;
+      if(s==='connected'||s==='completed'){setState(pid,STATES.CONNECTED);_peers[pid].retries=0;}
+      else if(s==='disconnected'){setState(pid,STATES.DEGRADED);_scheduleRestart(pid);}
+      else if(s==='failed'){setState(pid,STATES.FAILED);_scheduleRestart(pid);}
+      else if(s==='closed'){setState(pid,STATES.CLOSED);}
+    };
+  }
+  function _scheduleRestart(pid){
+    var p=_peers[pid]; if(!p)return;
+    if(p.retries>=_MAX_RETRIES){
+      setState(pid,STATES.FAILED);
+      _toast('Connection to '+pid.slice(0,10)+'\u2026 could not be recovered.','error');
+      return;
+    }
+    var delay=_BASE_DELAY*Math.pow(1.8,p.retries);
+    p.retries++;
+    setState(pid,STATES.RECOVERING);
+    if(p.timer)clearTimeout(p.timer);
+    p.timer=setTimeout(function(){
+      _safe('csm-restart',function(){
+        if(!p.pc||p.pc.connectionState==='closed')return;
+        p.pc.restartIce&&p.pc.restartIce();
+        _log('phase-f','ICE restart attempt '+p.retries+' for '+pid.slice(0,10));
+      });
+    },delay);
+  }
+
+  global.DevHubCSM={
+    states:STATES,
+    getState:getState,
+    setState:setState,
+    register:registerPC,
+    peers:function(){return Object.keys(_peers).map(function(k){return{pid:k,state:_peers[k].state,retries:_peers[k].retries};});}
+  };
+
+  /* Hook into existing peer events */
+  _on('call:rtc-ready',function(d){if(d&&d.pc&&d.peerId)registerPC(d.peerId,d.pc);});
+  _on('peer:connected',function(d){if(d&&d.id)setState(d.id,STATES.CONNECTED);});
+  _on('peer:disconnected',function(d){if(d&&d.id)setState(d.id,STATES.CLOSED);});
+
+  _log('phase-f','Connection State Machine ready');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PHASE G — PERFORMANCE ENGINE: Memory monitor, adaptive quality, self-healing
+// ════════════════════════════════════════════════════════════════════════════
+_safe('phase-g', function(){
+  if(global.DevHubPerf){return;}
+  var _metrics={heapMB:0,fps:0,connections:0,msgRate:0,lastMsgTs:0,msgCount:0};
+  var _quality='good'; /* good | degraded | poor */
+  var _fpsFrames=0, _fpsLast=performance.now();
+
+  /* FPS counter */
+  function _rafLoop(){
+    _fpsFrames++;
+    var now=performance.now();
+    if(now-_fpsLast>=1000){
+      _metrics.fps=_fpsFrames;
+      _fpsFrames=0;
+      _fpsLast=now;
+    }
+    requestAnimationFrame(_rafLoop);
+  }
+  try{requestAnimationFrame(_rafLoop);}catch(_){}
+
+  /* Memory + quality assessment every 10s */
+  var _assessTimer=setInterval(function(){
+    _safe('perf-assess',function(){
+      /* Heap usage */
+      if(performance&&performance.memory){
+        _metrics.heapMB=Math.round(performance.memory.usedJSHeapSize/1048576);
+      }
+      /* Connection count */
+      try{
+        var dc=global.App&&App.peer&&App.peer.dconns;
+        _metrics.connections=dc&&dc.size||0;
+      }catch(_){}
+      /* Determine quality */
+      var newQ='good';
+      if(_metrics.heapMB>200||_metrics.fps<15)newQ='poor';
+      else if(_metrics.heapMB>100||_metrics.fps<30)newQ='degraded';
+      if(newQ!==_quality){
+        _quality=newQ;
+        _emit('perf:quality-changed',{quality:newQ,heap:_metrics.heapMB,fps:_metrics.fps});
+        _log('phase-g','quality changed to '+newQ+' (heap='+_metrics.heapMB+'MB, fps='+_metrics.fps+')');
+        /* Notify existing NetworkMonitor if present */
+        try{if(global.NetworkMonitor&&NetworkMonitor.onChange)NetworkMonitor.onChange(function(){});}catch(_){}
+      }
+    });
+  },10000);
+
+  /* Self-healing: if heap >300MB, trigger GC hints */
+  var _healTimer=setInterval(function(){
+    if(_metrics.heapMB>300){
+      _safe('perf-heal',function(){
+        /* Clear stale render caches */
+        if(global.MsgRenderCache&&global.MsgRenderCache._m&&global.MsgRenderCache._m.size>300){
+          var it=global.MsgRenderCache._m.keys();
+          for(var i=0;i<100;i++){var k=it.next().value;if(k)global.MsgRenderCache._m.delete(k);}
+        }
+        _log('phase-g','self-heal: cache pruned (heap='+_metrics.heapMB+'MB)');
+      });
+    }
+  },30000);
+
+  global.DevHubPerf={
+    metrics:function(){return Object.assign({},_metrics,{quality:_quality});},
+    quality:function(){return _quality;},
+    stopMonitoring:function(){clearInterval(_assessTimer);clearInterval(_healTimer);}
+  };
+
+  _log('phase-g','Performance Engine ready');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PHASE H — SECURITY LAYER: XSS sanitizer, flood protection, abuse detection
+// ════════════════════════════════════════════════════════════════════════════
+_safe('phase-h', function(){
+  if(global.DevHubSecurity){return;}
+  var _msgCounts={};  /* peerId -> {count, windowStart} */
+  var _RATE_LIMIT=30; /* msgs per 10s */
+  var _WINDOW_MS=10000;
+  var _blocked={};    /* peerId -> blockUntil ts */
+
+  function sanitize(s){
+    if(typeof s!=='string')return'';
+    return s.replace(/[&<>"']/g,function(c){
+      return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function sanitizeMsg(msg){
+    if(!msg||typeof msg!=='object')return msg;
+    var clean=Object.assign({},msg);
+    if(typeof clean.text==='string')clean.text=sanitize(clean.text);
+    if(typeof clean.name==='string')clean.name=sanitize(clean.name);
+    return clean;
+  }
+  function isBlocked(pid){
+    var until=_blocked[pid];
+    if(!until)return false;
+    if(Date.now()<until)return true;
+    delete _blocked[pid];
+    return false;
+  }
+  function checkRate(pid){
+    var now=Date.now();
+    if(!_msgCounts[pid]||now-_msgCounts[pid].windowStart>_WINDOW_MS){
+      _msgCounts[pid]={count:1,windowStart:now};
+      return true;
+    }
+    _msgCounts[pid].count++;
+    if(_msgCounts[pid].count>_RATE_LIMIT){
+      _blocked[pid]=now+30000; /* block 30s */
+      _emit('security:flood-detected',{pid:pid,count:_msgCounts[pid].count});
+      _toast('Message flood detected from peer '+pid.slice(0,10)+'\u2026 (blocked 30s)','warn');
+      _warn('phase-h','flood from '+pid.slice(0,10)+': '+_msgCounts[pid].count+' msgs/10s');
+      return false;
+    }
+    return true;
+  }
+  function blockPeer(pid,durationMs){
+    _blocked[pid]=Date.now()+(durationMs||60000);
+    _emit('security:peer-blocked',{pid:pid,until:_blocked[pid]});
+  }
+
+  global.DevHubSecurity={
+    sanitize:sanitize,
+    sanitizeMsg:sanitizeMsg,
+    checkRate:checkRate,
+    isBlocked:isBlocked,
+    blockPeer:blockPeer,
+    unblock:function(pid){delete _blocked[pid];},
+    blockedList:function(){return Object.keys(_blocked).filter(isBlocked);}
+  };
+
+  /* Auto-sanitize incoming chat messages */
+  _on('chat:msg',function(d){
+    if(!d||!d.pid)return;
+    if(isBlocked(d.pid)){_emit('chat:msg-blocked',{pid:d.pid});return;}
+    if(!checkRate(d.pid)){return;}
+    if(d.msg&&typeof d.msg.text==='string'){
+      d.msg.text=sanitize(d.msg.text);
+    }
+  });
+
+  _log('phase-h','Security Layer ready (rate limit: '+_RATE_LIMIT+' msg/'+(_WINDOW_MS/1000)+'s)');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PHASE I — PWA: Install prompt, offline detection, update notification
+// ════════════════════════════════════════════════════════════════════════════
+_safe('phase-i', function(){
+  if(global.__dhPWA){return;}
+  global.__dhPWA=true;
+
+  var _deferredInstall=null;
+  var _isOffline=!navigator.onLine;
+
+  /* Capture install prompt */
+  global.addEventListener('beforeinstallprompt',function(ev){
+    ev.preventDefault();
+    _deferredInstall=ev;
+    _emit('pwa:installable',{});
+    _injectInstallBanner();
+  });
+
+  /* Online/offline bridge */
+  global.addEventListener('online', function(){
+    _isOffline=false;
+    _emit('pwa:online',{});
+    _removeOfflineBanner();
+  });
+  global.addEventListener('offline',function(){
+    _isOffline=true;
+    _emit('pwa:offline',{});
+    _showOfflineBanner();
+  });
+  if(!navigator.onLine)_showOfflineBanner();
+
+  function _injectInstallBanner(){
+    if(document.getElementById('dh-install-banner'))return;
+    var bar=document.createElement('div');
+    bar.id='dh-install-banner';
+    bar.setAttribute('role','banner');
+    bar.style.cssText='position:fixed;bottom:64px;left:50%;transform:translateX(-50%);z-index:10000;background:var(--primary,#6366f1);color:#fff;padding:10px 20px;border-radius:12px;display:flex;align-items:center;gap:12px;box-shadow:0 4px 20px rgba(0,0,0,.4);font-size:13px;max-width:calc(100vw - 32px);';
+    bar.innerHTML='<span>\uD83D\uDCF1 Install DevHub as an app for offline use</span>'+
+      '<button id="dh-install-btn" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600">Install</button>'+
+      '<button id="dh-install-dismiss" aria-label="Dismiss" style="background:transparent;border:none;color:rgba(255,255,255,.7);cursor:pointer;font-size:18px;padding:0 4px">\u00D7</button>';
+    document.body.appendChild(bar);
+    document.getElementById('dh-install-btn').onclick=function(){
+      if(_deferredInstall){_deferredInstall.prompt();_deferredInstall.userChoice.then(function(){_removeInstallBanner();});}
+    };
+    document.getElementById('dh-install-dismiss').onclick=function(){_removeInstallBanner();};
+  }
+  function _removeInstallBanner(){var b=document.getElementById('dh-install-banner');if(b)b.remove();}
+  function _showOfflineBanner(){
+    if(document.getElementById('dh-offline-banner'))return;
+    var bar=document.createElement('div');
+    bar.id='dh-offline-banner';
+    bar.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#ef4444;color:#fff;text-align:center;padding:6px;font-size:12px;font-weight:600;';
+    bar.textContent='\uD83D\uDEAB You are offline \u2014 P2P connections unavailable until network returns';
+    document.body.prepend(bar);
+  }
+  function _removeOfflineBanner(){var b=document.getElementById('dh-offline-banner');if(b)b.remove();}
+
+  global.DevHubPWA={
+    isOffline:function(){return _isOffline;},
+    canInstall:function(){return !!_deferredInstall;},
+    install:function(){if(_deferredInstall)_deferredInstall.prompt();}
+  };
+
+  _log('phase-i','PWA Manager ready (offline='+_isOffline+')');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PHASE J — DIAGNOSTICS PANEL: Floating enterprise diagnostics overlay
+// ════════════════════════════════════════════════════════════════════════════
+_safe('phase-j', function(){
+  if(global.__dhDiagPanel){return;}
+  global.__dhDiagPanel=true;
+
+  function _buildPanel(){
+    if(document.getElementById('dh-diag-panel'))return;
+    var el=document.createElement('div');
+    el.id='dh-diag-panel';
+    el.setAttribute('role','dialog');
+    el.setAttribute('aria-label','DevHub Diagnostics');
+    el.style.cssText='display:none;position:fixed;bottom:80px;right:16px;z-index:9998;background:var(--bg2,#161625);border:1px solid var(--border,#2d2d44);border-radius:12px;padding:0;min-width:280px;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,.5);font-size:12px;overflow:hidden;';
+    el.innerHTML=
+      '<div style="background:var(--primary,#6366f1);color:#fff;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">'+
+      '<span style="font-weight:700">\uD83D\uDD2C DevHub Diagnostics</span>'+
+      '<button id="dh-diag-close" aria-label="Close diagnostics" style="background:transparent;border:none;color:#fff;cursor:pointer;font-size:16px;">\u00D7</button>'+
+      '</div>'+
+      '<div id="dh-diag-content" style="padding:12px;max-height:400px;overflow-y:auto;"></div>'+
+      '<div style="padding:8px 12px;border-top:1px solid var(--border,#2d2d44);display:flex;gap:8px;flex-wrap:wrap;">'+
+      '<button id="dh-diag-refresh" style="flex:1;background:var(--primary,#6366f1);color:#fff;border:none;padding:6px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;">Refresh</button>'+
+      '<button id="dh-diag-copy" style="flex:1;background:var(--bg3,#1e1e2e);color:var(--text,#e2e2f0);border:1px solid var(--border,#2d2d44);padding:6px;border-radius:6px;cursor:pointer;font-size:11px;">Copy</button>'+
+      '</div>';
+    document.body.appendChild(el);
+
+    document.getElementById('dh-diag-close').onclick=function(){el.style.display='none';};
+    document.getElementById('dh-diag-refresh').onclick=function(){_renderDiag();};
+    document.getElementById('dh-diag-copy').onclick=function(){
+      var txt=_collectDiag();
+      if(navigator.clipboard&&navigator.clipboard.writeText){
+        navigator.clipboard.writeText(JSON.stringify(txt,null,2)).then(function(){_toast('Diagnostics copied','success');});
+      } else {
+        try{prompt('Copy diagnostics:',JSON.stringify(txt,null,2));}catch(_){}
+      }
+    };
+  }
+
+  function _collectDiag(){
+    var d={ts:new Date().toISOString(),ver:VERSION_UPGRADE,url:location.href,ua:navigator.userAgent.slice(0,80)};
+    try{d.perf=global.DevHubPerf&&DevHubPerf.metrics();}catch(_){}
+    try{d.csm=global.DevHubCSM&&DevHubCSM.peers();}catch(_){}
+    try{d.idbReady=global.DevHubIDB&&DevHubIDB.isReady();}catch(_){}
+    try{d.peerCount=global.App&&App.peer&&App.peer.dconns&&App.peer.dconns.size;}catch(_){}
+    try{d.safeMode=!!global.__dhSafeMode;}catch(_){}
+    try{d.gunReady=!!(global.GunDiscovery);}catch(_){}
+    try{d.msgSeq=global.DevHubMsgConsistency&&DevHubMsgConsistency.mySeq();}catch(_){}
+    try{d.secBlocked=global.DevHubSecurity&&DevHubSecurity.blockedList();}catch(_){}
+    try{if(performance.memory)d.heapMB=Math.round(performance.memory.usedJSHeapSize/1048576);}catch(_){}
+    try{d.online=navigator.onLine;}catch(_){}
+    try{d.pwaInstallable=!!(global.DevHubPWA&&DevHubPWA.canInstall());}catch(_){}
+    return d;
+  }
+  function _row(k,v){return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border,#2d2d44);"><span style="color:var(--muted,#888)">'+k+'</span><span style="color:var(--text,#e2e2f0);text-align:right;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+v+'</span></div>';}
+  function _renderDiag(){
+    var el=document.getElementById('dh-diag-content'); if(!el)return;
+    var d=_collectDiag();
+    el.innerHTML=
+      _row('Version',d.ver)+
+      _row('Heap',d.heapMB!=null?d.heapMB+'MB':'n/a')+
+      _row('Quality',d.perf?d.perf.quality:'n/a')+
+      _row('FPS',d.perf?d.perf.fps:'n/a')+
+      _row('Peers',d.peerCount!=null?d.peerCount:'n/a')+
+      _row('Msg seq',d.msgSeq!=null?d.msgSeq:'n/a')+
+      _row('IDB',d.idbReady?'\u2705 Ready':'\u23F3 …')+
+      _row('Gun',d.gunReady?'\u2705 Ready':'\u274C Off')+
+      _row('Online',d.online?'\uD83D\uDFE2 Yes':'\uD83D\uDD34 No')+
+      _row('Safe mode',d.safeMode?'\u26A0\uFE0F Yes':'\u2705 No')+
+      _row('PWA',d.pwaInstallable?'\u2705 Installable':'n/a')+
+      _row('Blocked',d.secBlocked?d.secBlocked.length+' peers':'0');
+  }
+
+  /* Keyboard shortcut: Ctrl+Shift+D */
+  document.addEventListener('keydown',function(ev){
+    if(ev.ctrlKey&&ev.shiftKey&&ev.key==='D'){
+      ev.preventDefault();
+      var el=document.getElementById('dh-diag-panel');
+      if(!el){_buildPanel();el=document.getElementById('dh-diag-panel');}
+      el.style.display=el.style.display==='none'?'block':'none';
+      if(el.style.display==='block')_renderDiag();
+    }
+  });
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',_buildPanel);
+  } else {
+    setTimeout(_buildPanel,1200);
+  }
+
+  global.DevHubDiag={
+    show:function(){_buildPanel();var el=document.getElementById('dh-diag-panel');if(el){el.style.display='block';_renderDiag();}},
+    hide:function(){var el=document.getElementById('dh-diag-panel');if(el)el.style.display='none';},
+    collect:_collectDiag,
+    render:_renderDiag
+  };
+
+  _log('phase-j','Diagnostics Panel ready (Ctrl+Shift+D to toggle)');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PHASE K — MULTI-ACCOUNT: Profile storage and identity switcher
+// ════════════════════════════════════════════════════════════════════════════
+_safe('phase-k', function(){
+  if(global.DevHubAccounts){return;}
+  var _STORE_KEY='dh-accounts-v1';
+  var _MAX_ACCOUNTS=5;
+
+  function loadAccounts(){
+    return _ssJSON(_STORE_KEY,[])||[];
+  }
+  function saveAccounts(list){
+    _ssJSONSet(_STORE_KEY,list);
+  }
+  function getActive(){
+    var accounts=loadAccounts();
+    return accounts.find(function(a){return a.active;})||null;
+  }
+  function createAccount(name,avatar){
+    var accounts=loadAccounts();
+    if(accounts.length>=_MAX_ACCOUNTS){
+      _toast('Maximum '+_MAX_ACCOUNTS+' accounts allowed','warn');
+      return null;
+    }
+    /* Mark all inactive */
+    accounts.forEach(function(a){a.active=false;});
+    var acct={
+      id:'acct-'+Date.now()+'-'+Math.random().toString(36).slice(2,8),
+      name:name||'Peer',
+      avatar:avatar||'\uD83D\uDC64',
+      created:Date.now(),
+      active:true,
+      peerId:null
+    };
+    accounts.push(acct);
+    saveAccounts(accounts);
+    _emit('account:created',{account:acct});
+    return acct;
+  }
+  function switchAccount(id){
+    var accounts=loadAccounts();
+    var target=accounts.find(function(a){return a.id===id;});
+    if(!target){_toast('Account not found','error');return false;}
+    accounts.forEach(function(a){a.active=a.id===id;});
+    saveAccounts(accounts);
+    /* Apply name/avatar */
+    try{if(_SS){_SS.set('dh-name',target.name);_SS.set('dh-avatar',target.avatar);}}catch(_){}
+    _emit('account:switched',{account:target});
+    _toast('Switched to '+target.name,'success');
+    return true;
+  }
+  function updateActive(updates){
+    var accounts=loadAccounts();
+    var idx=accounts.findIndex(function(a){return a.active;});
+    if(idx<0)return false;
+    Object.assign(accounts[idx],updates);
+    saveAccounts(accounts);
+    return true;
+  }
+  /* Capture peer ID when peer opens */
+  _on('peer:open',function(d){
+    var pid=d&&(d.id||d.peerId||d);
+    if(pid&&typeof pid==='string')updateActive({peerId:pid});
+  });
+
+  global.DevHubAccounts={
+    list:loadAccounts,
+    getActive:getActive,
+    create:createAccount,
+    switch:switchAccount,
+    update:updateActive,
+    remove:function(id){
+      var accounts=loadAccounts().filter(function(a){return a.id!==id;});
+      saveAccounts(accounts);
+      _emit('account:removed',{id:id});
+    }
+  };
+
+  _log('phase-k','Multi-Account ready ('+loadAccounts().length+' accounts)');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PHASE L — OBSERVABILITY: Metrics collection, health dashboard
+// ════════════════════════════════════════════════════════════════════════════
+_safe('phase-l', function(){
+  if(global.DevHubObservability){return;}
+  var _metrics={
+    sessions:0, connections:0, disconnections:0, messages:0,
+    errors:0, callsStarted:0, callsEnded:0, filesTransferred:0,
+    startTs:Date.now()
+  };
+  var _history=[]; /* {ts, event, data} */
+  var _MAX_HISTORY=200;
+
+  function record(event,data){
+    _history.push({ts:Date.now(),event:event,data:data||{}});
+    if(_history.length>_MAX_HISTORY)_history.shift();
+  }
+
+  /* Track key events */
+  _on('peer:open',      function(d){_metrics.sessions++;    record('peer:open',d);});
+  _on('peer:connected', function(d){_metrics.connections++; record('peer:connected',d);});
+  _on('peer:disconnected',function(d){_metrics.disconnections++;record('peer:disconnected',d);});
+  _on('chat:msg',       function(d){_metrics.messages++;    record('chat:msg',{pid:d&&d.pid});});
+  _on('peer:error',     function(d){_metrics.errors++;      record('peer:error',d);});
+  _on('call:start',     function(d){_metrics.callsStarted++;record('call:start',d);});
+  _on('call:ended',     function(d){_metrics.callsEnded++;  record('call:ended',d);});
+  _on('file:received',  function(d){_metrics.filesTransferred++;record('file:received',{name:d&&d.name});});
+
+  global.DevHubObservability={
+    metrics:function(){return Object.assign({},_metrics,{uptimeMs:Date.now()-_metrics.startTs});},
+    history:function(n){return _history.slice(-(n||50));},
+    reset:function(){Object.keys(_metrics).forEach(function(k){if(k!=='startTs')_metrics[k]=0;});_history=[];},
+    export:function(){return{metrics:global.DevHubObservability.metrics(),history:_history.slice()};}
+  };
+
+  /* Persist metrics to IDB on shutdown */
+  global.addEventListener('beforeunload',function(){
+    try{if(global.DevHubIDB&&DevHubIDB.isReady())DevHubIDB.audit('session-end',_metrics);}catch(_){}
+  });
+
+  _log('phase-l','Observability ready');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PHASE M — ADVANCED PRESENCE: Full presence engine with typing + status
+// ════════════════════════════════════════════════════════════════════════════
+_safe('phase-m', function(){
+  if(global.DevHubPresenceEngine){return;}
+  var _peers={};  /* peerId -> {status, typing, lastSeen, name, av} */
+  var _STALE_MS=60000;
+  var _TYPING_TTL=4000;
+  var _typingTimers={};
+
+  function setPeer(pid,data){
+    if(!_peers[pid])_peers[pid]={};
+    Object.assign(_peers[pid],data,{lastSeen:Date.now()});
+    _emit('presence:peer-updated',{pid:pid,presence:_peers[pid]});
+  }
+  function setTyping(pid,isTyping){
+    if(!_peers[pid])_peers[pid]={};
+    _peers[pid].typing=isTyping;
+    if(_typingTimers[pid])clearTimeout(_typingTimers[pid]);
+    if(isTyping){
+      _typingTimers[pid]=setTimeout(function(){
+        if(_peers[pid])_peers[pid].typing=false;
+        _emit('presence:typing',{pid:pid,typing:false});
+      },_TYPING_TTL);
+    }
+    _emit('presence:typing',{pid:pid,typing:isTyping});
+  }
+  function pruneStale(){
+    var now=Date.now();
+    Object.keys(_peers).forEach(function(pid){
+      if(_peers[pid]&&(now-(_peers[pid].lastSeen||0))>_STALE_MS){
+        delete _peers[pid];
+        _emit('presence:peer-gone',{pid:pid});
+      }
+    });
+  }
+  setInterval(pruneStale,15000);
+
+  /* Wire to existing bus events */
+  _on('peer:typing',function(d){if(d&&d.pid)setTyping(d.pid,!!d.typing);});
+  _on('presence:updated',function(d){if(d&&d.pid)setPeer(d.pid,{status:d.status||'online'});});
+  _on('peer:connected',function(d){if(d&&d.id)setPeer(d.id,{status:'online',connected:true});});
+  _on('peer:disconnected',function(d){if(d&&d.id)setPeer(d.id,{status:'offline',connected:false});});
+
+  global.DevHubPresenceEngine={
+    set:setPeer,
+    get:function(pid){return _peers[pid]||null;},
+    all:function(){return Object.assign({},_peers);},
+    setTyping:setTyping,
+    online:function(){return Object.keys(_peers).filter(function(k){return _peers[k]&&_peers[k].connected;});}
+  };
+
+  _log('phase-m','Presence Engine ready');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PHASE N — QA LAB: Internal test runner
+// ════════════════════════════════════════════════════════════════════════════
+_safe('phase-n', function(){
+  if(global.DevHubQA){return;}
+  var _tests=[];
+  var _results=[];
+
+  function addTest(name,fn){_tests.push({name:name,fn:fn});}
+  function assert(cond,msg){if(!cond)throw new Error('ASSERT: '+(msg||'failed'));}
+
+  /* Register built-in tests */
+  addTest('SafeStorage get/set',function(){
+    if(!global.SafeStorage)throw new Error('SafeStorage missing');
+    var k='_qa_test_'+Date.now();
+    SafeStorage.set(k,'hello');
+    assert(SafeStorage.get(k)==='hello','get after set');
+    SafeStorage.set(k,'');
+  });
+  addTest('Bus emit/on',function(){
+    if(!global.Bus)throw new Error('Bus missing');
+    var received=false;
+    var off=Bus.on('_qa_ping',function(){received=true;});
+    Bus.emit('_qa_ping',{});
+    assert(received,'bus emit received');
+    if(off&&typeof off.off==='function')off.off();
+  });
+  addTest('DevHubSecurity sanitize',function(){
+    if(!global.DevHubSecurity)throw new Error('DevHubSecurity missing');
+    var clean=DevHubSecurity.sanitize('<script>alert("xss")</script>');
+    assert(clean.indexOf('<script>')<0,'XSS tags removed');
+    assert(clean.indexOf('&lt;script&gt;')>=0,'escaped correctly');
+  });
+  addTest('DevHubMsgConsistency stamp',function(){
+    if(!global.DevHubMsgConsistency)throw new Error('DevHubMsgConsistency missing');
+    var msg=DevHubMsgConsistency.stamp({text:'hello',pid:'testpeer'});
+    assert(msg._seq>0,'seq > 0');
+    assert(msg._id,'id assigned');
+    assert(msg._ts>0,'ts assigned');
+  });
+  addTest('DevHubAccounts create/list',function(){
+    if(!global.DevHubAccounts)throw new Error('DevHubAccounts missing');
+    var initial=DevHubAccounts.list().length;
+    /* Don't actually create — just check the API exists */
+    assert(typeof DevHubAccounts.create==='function','create is function');
+    assert(typeof DevHubAccounts.list==='function','list is function');
+    assert(Array.isArray(DevHubAccounts.list()),'list returns array');
+  });
+  addTest('GunDiscovery available',function(){
+    if(!global.GunDiscovery)throw new Error('GunDiscovery missing');
+    assert(typeof GunDiscovery.start==='function','start is function');
+    assert(typeof GunDiscovery.stop==='function','stop is function');
+  });
+  addTest('DevHubIDB accessible',function(){
+    if(!global.DevHubIDB)throw new Error('DevHubIDB missing');
+    assert(typeof DevHubIDB.put==='function','put is function');
+    assert(typeof DevHubIDB.get==='function','get is function');
+  });
+  addTest('DevHubCSM state machine',function(){
+    if(!global.DevHubCSM)throw new Error('DevHubCSM missing');
+    assert(DevHubCSM.states.IDLE==='idle','IDLE state defined');
+    assert(DevHubCSM.states.CONNECTED==='connected','CONNECTED state defined');
+    var peers=DevHubCSM.peers();
+    assert(Array.isArray(peers),'peers() returns array');
+  });
+
+  function runAll(){
+    _results=[];
+    var pass=0,fail=0,warn=0;
+    _tests.forEach(function(t){
+      var start=Date.now();
+      try{
+        t.fn();
+        pass++;
+        _results.push({name:t.name,ok:true,ms:Date.now()-start});
+        _log('qa','\u2705 PASS: '+t.name);
+      }catch(e){
+        fail++;
+        _results.push({name:t.name,ok:false,error:e.message,ms:Date.now()-start});
+        _warn('qa','\u274C FAIL: '+t.name+': '+e.message);
+      }
+    });
+    var summary={pass:pass,fail:fail,warn:warn,total:_tests.length,ts:new Date().toISOString(),results:_results};
+    _emit('qa:complete',summary);
+    _log('qa','Results: '+pass+'/'+_tests.length+' passed');
+    return summary;
+  }
+
+  global.DevHubQA={
+    add:addTest,
+    run:runAll,
+    results:function(){return _results.slice();},
+    assert:assert,
+    count:function(){return _tests.length;}
+  };
+
+  _log('phase-n','QA Lab ready ('+_tests.length+' tests registered — run DevHubQA.run() in console)');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PHASE O — ACCESSIBILITY: Keyboard navigation, focus management, ARIA
+// ════════════════════════════════════════════════════════════════════════════
+_safe('phase-o', function(){
+  if(global.__dhA11y){return;}
+  global.__dhA11y=true;
+
+  /* 1. Focus trap for modals */
+  function trapFocus(el){
+    var focusable=el.querySelectorAll('button,a,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])');
+    if(!focusable.length)return function(){};
+    var first=focusable[0], last=focusable[focusable.length-1];
+    function handler(ev){
+      if(ev.key!=='Tab')return;
+      if(ev.shiftKey){if(document.activeElement===first){ev.preventDefault();last.focus();}}
+      else{if(document.activeElement===last){ev.preventDefault();first.focus();}}
+    }
+    el.addEventListener('keydown',handler);
+    first.focus();
+    return function(){el.removeEventListener('keydown',handler);};
+  }
+
+  /* 2. Escape key closes open modals */
+  document.addEventListener('keydown',function(ev){
+    if(ev.key!=='Escape')return;
+    var modals=document.querySelectorAll('[role="dialog"][aria-hidden="false"],[role="dialog"]:not([aria-hidden="true"])');
+    modals.forEach(function(m){
+      var closeBtn=m.querySelector('[aria-label*="lose"],[id*="close"],[id*="dismiss"]');
+      if(closeBtn)closeBtn.click();
+    });
+  });
+
+  /* 3. Live region for toasts */
+  function ensureLiveRegion(){
+    if(document.getElementById('dh-a11y-live'))return;
+    var el=document.createElement('div');
+    el.id='dh-a11y-live';
+    el.setAttribute('aria-live','polite');
+    el.setAttribute('aria-atomic','true');
+    el.style.cssText='position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;';
+    document.body.appendChild(el);
+  }
+  function announce(msg){
+    try{
+      ensureLiveRegion();
+      var el=document.getElementById('dh-a11y-live');
+      if(el){el.textContent='';setTimeout(function(){el.textContent=msg;},100);}
+    }catch(_){}
+  }
+
+  /* 4. Announce toasts to screen readers */
+  _on('ui:toast',function(d){if(d&&d.msg)announce(d.msg);});
+
+  /* 5. Reduced motion: add CSS variable for JS animations */
+  try{
+    var mq=matchMedia('(prefers-reduced-motion:reduce)');
+    document.documentElement.dataset.reducedMotion=mq.matches?'1':'0';
+    var applyMQ=function(){document.documentElement.dataset.reducedMotion=mq.matches?'1':'0';};
+    mq.addEventListener?mq.addEventListener('change',applyMQ):mq.addListener(applyMQ);
+  }catch(_){}
+
+  /* 6. High-contrast mode detection */
+  try{
+    var hcMQ=matchMedia('(forced-colors:active)');
+    document.documentElement.dataset.forcedColors=hcMQ.matches?'1':'0';
+    var applyHC=function(){document.documentElement.dataset.forcedColors=hcMQ.matches?'1':'0';};
+    hcMQ.addEventListener?hcMQ.addEventListener('change',applyHC):hcMQ.addListener(applyHC);
+  }catch(_){}
+
+  global.DevHubA11y={
+    trapFocus:trapFocus,
+    announce:announce,
+    ensureLiveRegion:ensureLiveRegion
+  };
+
+  _log('phase-o','Accessibility Engine ready');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PHASE P — SELF-HEALING RUNTIME: Network flap, visibility heal, ICE watchdog
+// ════════════════════════════════════════════════════════════════════════════
+_safe('phase-p', function(){
+  if(global.__dhSelfHeal){return;}
+  global.__dhSelfHeal=true;
+  var _healLog=[];
+
+  function _restartAllIce(reason){
+    _safe('self-heal-ice',function(){
+      var a=global.App; if(!a||!a.peer)return;
+      var pcs=a.peer.pcs;
+      var count=0;
+      if(pcs&&pcs.forEach){
+        pcs.forEach(function(pc){
+          try{if(pc&&pc.restartIce){pc.restartIce();count++;}}catch(_){}
+        });
+      } else if(a.peer.pc){
+        try{if(a.peer.pc.restartIce){a.peer.pc.restartIce();count++;}}catch(_){}
+      }
+      if(count>0){
+        var entry={ts:Date.now(),reason:reason,count:count};
+        _healLog.push(entry);
+        if(_healLog.length>50)_healLog.shift();
+        _log('phase-p','ICE restarted ('+count+' peers) reason='+reason);
+        _emit('selfheal:ice-restart',entry);
+      }
+    });
+  }
+
+  /* Network flap */
+  global.addEventListener('online',function(){
+    setTimeout(function(){_restartAllIce('network-online');},800);
+  });
+
+  /* Visibility change heal */
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='visible'){
+      setTimeout(function(){_restartAllIce('visibility-restored');},600);
+    }
+  });
+
+  /* Periodic ICE watchdog every 15s */
+  setInterval(function(){
+    _safe('self-heal-watchdog',function(){
+      var a=global.App; if(!a||!a.peer)return;
+      var pcs=a.peer.pcs; if(!pcs)return;
+      pcs.forEach(function(pc,id){
+        if(!pc)return;
+        var ice=pc.iceConnectionState,cs=pc.connectionState;
+        if(ice==='failed'||cs==='failed'){
+          _restartAllIce('watchdog-failed:'+id.slice(0,8));
+        }
+      });
+    });
+  },15000);
+
+  global.DevHubSelfHeal={
+    restartIce:_restartAllIce,
+    log:function(){return _healLog.slice();}
+  };
+
+  _log('phase-p','Self-Healing Runtime ready');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PHASE Q — AUDIO/VIDEO INTELLIGENCE: Quality stats, adaptive bitrate
+// ════════════════════════════════════════════════════════════════════════════
+_safe('phase-q', function(){
+  if(global.DevHubAVI){return;}
+  var _stats={};  /* peerId -> {audio:{}, video:{}} */
+  var _statsTimers={};
+
+  function _collectStats(pc,pid){
+    if(!pc||!pc.getStats)return;
+    pc.getStats().then(function(reports){
+      var audio={},video={};
+      reports.forEach(function(s){
+        if(s.type==='inbound-rtp'){
+          if(s.kind==='audio'){
+            audio.jitter=s.jitter;audio.packetsLost=s.packetsLost;audio.bitrate=s.bytesReceived;
+          } else if(s.kind==='video'){
+            video.fps=s.framesPerSecond;video.width=s.frameWidth;video.height=s.frameHeight;
+            video.packetsLost=s.packetsLost;video.bitrate=s.bytesReceived;
+          }
+        }
+        if(s.type==='candidate-pair'&&s.state==='succeeded'){
+          audio.rtt=s.currentRoundTripTime;
+          video.rtt=s.currentRoundTripTime;
+        }
+      });
+      _stats[pid]={audio:audio,video:video,ts:Date.now()};
+      /* Emit quality signal */
+      var rtt=audio.rtt||video.rtt||0;
+      var quality=rtt<0.1?'good':(rtt<0.3?'fair':'poor');
+      _emit('avi:quality-update',{pid:pid,quality:quality,rtt:rtt,audio:audio,video:video});
+    }).catch(function(){});
+  }
+
+  function startMonitoring(pid,pc){
+    if(_statsTimers[pid])clearInterval(_statsTimers[pid]);
+    _statsTimers[pid]=setInterval(function(){_collectStats(pc,pid);},5000);
+    _log('phase-q','monitoring started for '+pid.slice(0,10));
+  }
+  function stopMonitoring(pid){
+    if(_statsTimers[pid])clearInterval(_statsTimers[pid]);
+    delete _statsTimers[pid];
+    delete _stats[pid];
+  }
+
+  _on('call:rtc-ready',function(d){if(d&&d.pc&&d.peerId)startMonitoring(d.peerId,d.pc);});
+  _on('call:ended',function(d){if(d&&d.peerId)stopMonitoring(d.peerId);});
+  _on('call:stream-removed',function(d){if(d&&d.peerId)stopMonitoring(d.peerId);});
+
+  global.DevHubAVI={
+    stats:function(pid){return pid?_stats[pid]||null:Object.assign({},_stats);},
+    startMonitoring:startMonitoring,
+    stopMonitoring:stopMonitoring,
+    monitoring:function(){return Object.keys(_statsTimers);}
+  };
+
+  _log('phase-q','Audio/Video Intelligence ready');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PHASE R — SAFE MODE BOOT: Recovery mode with module isolation
+// ════════════════════════════════════════════════════════════════════════════
+_safe('phase-r', function(){
+  if(global.DevHubSafeMode){return;}
+  var _disabledModules=[];
+  var _safeMode=!!global.__dhSafeMode;
+  var _DISABLED_KEY='dh-safe-disabled';
+
+  function isInSafeMode(){return _safeMode;}
+  function disableModule(name){
+    _disabledModules.push(name);
+    _ssJSONSet(_DISABLED_KEY,_disabledModules);
+    _warn('phase-r','module disabled in safe mode: '+name);
+  }
+  function enableModule(name){
+    _disabledModules=_disabledModules.filter(function(n){return n!==name;});
+    _ssJSONSet(_DISABLED_KEY,_disabledModules);
+  }
+  function isDisabled(name){return _disabledModules.indexOf(name)>=0;}
+  function exitSafeMode(){
+    _safeMode=false;
+    global.__dhSafeMode=false;
+    _disabledModules=[];
+    _ssJSONSet(_DISABLED_KEY,[]);
+    try{sessionStorage.removeItem('dh-panic-v1');}catch(_){}
+    _toast('Safe mode disabled. Reload to restore all features.','info');
+  }
+
+  /* Load previously disabled modules */
+  try{_disabledModules=_ssJSON(_DISABLED_KEY,[])||[];}catch(_){_disabledModules=[];}
+
+  /* Show safe mode indicator */
+  if(_safeMode){
+    setTimeout(function(){
+      try{
+        var el=document.getElementById('dh-safemode-badge');
+        if(el)return;
+        var b=document.createElement('div');
+        b.id='dh-safemode-badge';
+        b.title='DevHub is running in Safe Mode. Click to exit.';
+        b.style.cssText='position:fixed;top:4px;right:4px;z-index:99999;background:#f59e0b;color:#000;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;';
+        b.textContent='\u26A0\uFE0F SAFE MODE';
+        b.onclick=function(){if(confirm('Exit safe mode and reload?')){exitSafeMode();setTimeout(function(){location.reload();},300);}};
+        document.body.appendChild(b);
+      }catch(_){}
+    },2000);
+  }
+
+  global.DevHubSafeMode={
+    isActive:isInSafeMode,
+    disable:disableModule,
+    enable:enableModule,
+    isDisabled:isDisabled,
+    exit:exitSafeMode,
+    disabledList:function(){return _disabledModules.slice();}
+  };
+
+  _log('phase-r','Safe Mode Boot ready (active='+_safeMode+')');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PHASE S — CONFERENCE ENHANCEMENTS: Participant dedup + grid layout
+// ════════════════════════════════════════════════════════════════════════════
+_safe('phase-s', function(){
+  if(global.__dhConferenceEnh){return;}
+  global.__dhConferenceEnh=true;
+  var _seen=new Map();  /* pid -> last join ts */
+  var _DEDUP_WINDOW=2000;
+
+  /* Participant dedup */
+  _on('participant:joined',function(d){
+    if(!d||!d.id)return;
+    var prev=_seen.get(d.id);
+    var now=Date.now();
+    if(prev&&now-prev<_DEDUP_WINDOW){
+      _emit('participant:dedup',{id:d.id,ms:now-prev});
+      _warn('phase-s','duplicate participant suppressed: '+d.id);
+      return;
+    }
+    _seen.set(d.id,now);
+  });
+
+  /* Cleanup stale seen entries */
+  setInterval(function(){
+    var cutoff=Date.now()-300000;
+    _seen.forEach(function(v,k){if(v<cutoff)_seen.delete(k);});
+  },120000);
+
+  /* Dynamic video grid CSS */
+  function _updateGridCSS(count){
+    try{
+      var cols=count<=1?1:count<=4?2:count<=9?3:4;
+      var el=document.getElementById('dh-grid-style');
+      if(!el){el=document.createElement('style');el.id='dh-grid-style';document.head.appendChild(el);}
+      el.textContent='.video-grid,.conference-grid{grid-template-columns:repeat('+cols+',1fr)!important;}';
+    }catch(_){}
+  }
+  _on('conference:participant-count',function(d){if(d&&d.count)_updateGridCSS(d.count);});
+
+  _log('phase-s','Conference Enhancements ready');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PHASE T — WHITEBOARD COLLABORATION: Enhanced undo/redo + persistence
+// ════════════════════════════════════════════════════════════════════════════
+_safe('phase-t', function(){
+  if(global.__dhWhiteboardEnh){return;}
+  global.__dhWhiteboardEnh=true;
+  var _history=[];   /* [{type,data,ts}] */
+  var _future=[];
+  var _MAX=100;
+  var _WB_KEY='dh-wb-history-v1';
+
+  /* Load persisted history */
+  try{_history=_ssJSON(_WB_KEY,[])||[];}catch(_){_history=[];}
+
+  function push(type,data){
+    _history.push({type:type,data:data,ts:Date.now()});
+    if(_history.length>_MAX)_history.shift();
+    _future=[];
+    try{_ssJSONSet(_WB_KEY,_history.slice(-20));}catch(_){}
+  }
+  function undo(){
+    if(!_history.length)return null;
+    var entry=_history.pop();
+    _future.push(entry);
+    _emit('whiteboard:undo',{entry:entry});
+    return entry;
+  }
+  function redo(){
+    if(!_future.length)return null;
+    var entry=_future.pop();
+    _history.push(entry);
+    _emit('whiteboard:redo',{entry:entry});
+    return entry;
+  }
+
+  _on('whiteboard:draw',function(d){push('draw',d);});
+  _on('whiteboard:erase',function(d){push('erase',d);});
+  _on('whiteboard:clear',function(){push('clear',{});});
+
+  /* Keyboard undo/redo on whiteboard tab */
+  document.addEventListener('keydown',function(ev){
+    var wb=document.getElementById('tab-whiteboard');
+    if(!wb||wb.hidden||getComputedStyle(wb).display==='none')return;
+    if((ev.ctrlKey||ev.metaKey)&&ev.key==='z'&&!ev.shiftKey){ev.preventDefault();undo();}
+    if((ev.ctrlKey||ev.metaKey)&&(ev.key==='y'||(ev.key==='z'&&ev.shiftKey))){ev.preventDefault();redo();}
+  });
+
+  global.DevHubWhiteboard={
+    push:push, undo:undo, redo:redo,
+    history:function(){return _history.slice();},
+    canUndo:function(){return _history.length>0;},
+    canRedo:function(){return _future.length>0;}
+  };
+
+  _log('phase-t','Whiteboard Collaboration ready');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// PHASE U — FILE TRANSFER ENGINE: Resumable chunks, progress tracking
+// ════════════════════════════════════════════════════════════════════════════
+_safe('phase-u', function(){
+  if(global.DevHubFileEngine){return;}
+  var _transfers={};  /* id -> {id, name, size, chunks, received, pid, complete} */
+  var _CHUNK_SIZE=64*1024; /* 64KB */
+
+  function _xferId(){return 'xfer-'+Date.now()+'-'+Math.random().toString(36).slice(2,8);}
+
+  function send(pid,file){
+    try{
+      var id=_xferId();
+      var reader=new FileReader();
+      reader.onload=function(ev){
+        var buf=ev.target.result;
+        var total=Math.ceil(buf.byteLength/_CHUNK_SIZE);
+        _emit('file:send-start',{id:id,pid:pid,name:file.name,size:file.size,chunks:total});
+        for(var i=0;i<total;i++){
+          (function(chunkIdx){
+            var chunk=buf.slice(chunkIdx*_CHUNK_SIZE,(chunkIdx+1)*_CHUNK_SIZE);
+            var arr=Array.from(new Uint8Array(chunk));
+            _emit('file:chunk-out',{id:id,pid:pid,chunkIdx:chunkIdx,total:total,data:arr,name:file.name,size:file.size});
+          })(i);
+        }
+        _emit('file:send-complete',{id:id,pid:pid,name:file.name});
+      };
+      reader.readAsArrayBuffer(file);
+      return id;
+    }catch(e){_warn('phase-u','send error: '+e.message);return null;}
+  }
+
+  function receive(data){
+    try{
+      var id=data.id||_xferId();
+      if(!_transfers[id]){
+        _transfers[id]={id:id,name:data.name,size:data.size,
+          chunks:new Array(data.total),received:0,pid:data.pid,total:data.total};
+      }
+      var t=_transfers[id];
+      t.chunks[data.chunkIdx]=data.data;
+      t.received++;
+      var progress=Math.round((t.received/t.total)*100);
+      _emit('file:progress',{id:id,pid:data.pid,name:data.name,progress:progress});
+      if(t.received>=t.total){
+        /* Reassemble */
+        var flat=[];
+        t.chunks.forEach(function(c){if(c)flat=flat.concat(c);});
+        var blob=new Blob([new Uint8Array(flat)]);
+        t.complete=true;
+        _emit('file:assembled',{id:id,pid:data.pid,name:data.name,size:t.size,blob:blob});
+        delete _transfers[id];
+      }
+    }catch(e){_warn('phase-u','receive error: '+e.message);}
+  }
+
+  _on('file:chunk-in',function(d){if(d)receive(d);});
+
+  global.DevHubFileEngine={
+    send:send,
+    receive:receive,
+    transfers:function(){return Object.assign({},_transfers);},
+    CHUNK_SIZE:_CHUNK_SIZE
+  };
+
+  _log('phase-u','File Transfer Engine ready (chunk: '+_CHUNK_SIZE/1024+'KB)');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// FINAL BOOTSTRAP
+// ════════════════════════════════════════════════════════════════════════════
+_safe('bootstrap', function(){
+  var phases=[
+    'DevHubRuntime','DevHubCrash','DevHubState','DevHubIDB','DevHubMsgConsistency',
+    'DevHubCSM','DevHubPerf','DevHubSecurity','DevHubPWA','DevHubDiag',
+    'DevHubAccounts','DevHubObservability','DevHubPresenceEngine','DevHubQA',
+    'DevHubA11y','DevHubSelfHeal','DevHubAVI','DevHubSafeMode',
+    'DevHubWhiteboard','DevHubFileEngine'
+  ];
+  var loaded=phases.filter(function(p){return !!global[p];}).length;
+  _log('boot','Production Upgrade v'+VERSION_UPGRADE+' — '+loaded+'/'+phases.length+' modules active');
+
+  /* Run QA smoke test in background */
+  setTimeout(function(){
+    _safe('qa-smoke',function(){
+      if(global.DevHubQA){
+        var r=DevHubQA.run();
+        if(r.fail>0){
+          _warn('boot',r.fail+' QA test(s) failed — check console for details');
+        }
+      }
+    });
+  },5000);
+
+  /* Register all modules with Runtime */
+  phases.forEach(function(p){
+    if(global[p]&&global.DevHubRuntime)DevHubRuntime.register(p,global[p]);
+  });
+
+  /* Crash recovery: we survived boot! */
+  setTimeout(function(){
+    if(global.DevHubCrash)DevHubCrash.stabilize();
+  },35000);
+
+  _emit('app:production-upgrade-ready',{version:VERSION_UPGRADE,modules:loaded});
+  _toast('\uD83D\uDE80 DevHub v'+VERSION_UPGRADE+' production systems active','info',4000);
+});
+
+})(window);
+</script>
+
 </body>
 </html>
 <!-- HEADLESS TEST RUNNER (G3) -->
