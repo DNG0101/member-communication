@@ -664,6 +664,122 @@ a{color:var(--primary);text-decoration:none;}
 #heal-banner{cursor:default;}
 /* ── Module loaded indicator ── */
 html[data-devhub-v22-ready]{}
+
+/* ── 🌐 Online Discovery (Gun.js) ─────────────────────────────── */
+#tab-online { flex-direction: column; }
+
+.online-status-bar {
+  padding: 8px 14px;
+  background: rgba(99,102,241,.08);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.online-status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--muted);
+  flex-shrink: 0;
+  transition: background .3s;
+}
+.online-status-dot.connected { background: var(--green); animation: pulse 2s infinite; }
+.online-status-dot.error     { background: var(--red); }
+
+.online-controls {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+#online-count {
+  font-size: 12px;
+  color: var(--muted);
+  margin-left: auto;
+}
+
+#online-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.online-card {
+  background: var(--bg3);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid transparent;
+  transition: border-color .15s, background .15s;
+}
+.online-card:hover { background: var(--bg4); border-color: var(--border); }
+.online-card-av { font-size: 28px; line-height: 1; flex-shrink: 0; }
+.online-card-info { flex: 1; min-width: 0; }
+.online-card-name {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.online-card-meta {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.online-card-acts { display: flex; gap: 5px; flex-shrink: 0; }
+
+.online-empty {
+  color: var(--muted);
+  text-align: center;
+  padding: 40px 20px;
+  font-size: 13px;
+}
+.online-empty-icon { font-size: 48px; margin-bottom: 12px; }
+.online-empty-title { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+
+/* Random match modal */
+#random-match-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.75);
+  z-index: 9200;
+  align-items: center;
+  justify-content: center;
+}
+#random-match-overlay.on { display: flex; }
+.rmatch-box {
+  background: var(--bg2);
+  border-radius: var(--radius);
+  padding: 32px;
+  text-align: center;
+  max-width: 340px;
+  width: 90%;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+.rmatch-spinner {
+  font-size: 40px;
+  display: inline-block;
+  animation: spin 1.2s linear infinite;
+  margin-bottom: 12px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
 </style>
 
 <style id="devhub-v41-startup-guard">
@@ -1983,6 +2099,465 @@ var PeerMod=(function(){
   };
 })();
 window.PeerMod=PeerMod;
+
+/* ══════════════════════════════════════════════════════════════════
+   GunDiscovery — Cross-network online peer discovery using Gun.js
+   
+   Gun.js is a decentralized real-time graph DB with public relay
+   servers worldwide. Every DevHub user writes their PeerJS ID to a
+   shared Gun path. All clients subscribe and see each other globally.
+   
+   Public Gun relays used (no config needed, always free):
+     - https://gun-manhattan.herokuapp.com/gun
+     - https://gunjs.herokuapp.com/gun
+     - https://www.raygun.live/gun
+   
+   Data written to Gun:
+     devhub/online/<peerId> = {
+       id, name, avatar, status, ts, version
+     }
+   Entry TTL: 90 seconds (refreshed every 30s; auto-expires if stale)
+   ══════════════════════════════════════════════════════════════════ */
+var GunDiscovery = (function() {
+  'use strict';
+
+  /* ── State ── */
+  var _gun         = null;   /* Gun instance */
+  var _onlineRef   = null;   /* Gun path reference */
+  var _users       = {};     /* peerId → {id,name,avatar,status,ts,lastSeen} */
+  var _heartbeat   = null;   /* setInterval handle */
+  var _purge       = null;   /* setInterval handle */
+  var _visible     = true;   /* whether to appear in online list */
+  var _ready       = false;  /* Gun connected */
+  var _myId        = null;   /* our PeerJS ID */
+
+  var NAMESPACE    = 'devhub-v30-online'; /* shared Gun key */
+  var HEARTBEAT_MS = 30000;  /* re-announce every 30s */
+  var STALE_MS     = 90000;  /* remove user after 90s silence */
+  var PURGE_MS     = 15000;  /* check for stale users every 15s */
+
+  /* ── Public relay servers (Gun peer list) ── */
+  var GUN_PEERS = [
+    'https://gun-manhattan.herokuapp.com/gun',
+    'https://gunjs.herokuapp.com/gun',
+    'https://www.raygun.live/gun',
+    'https://peer.wallie.io/gun',
+    'https://plankton.school/gun'
+  ];
+
+  /* ── Build my announcement payload ── */
+  function _myPayload() {
+    return {
+      id:      _myId,
+      name:    (window.SafeStorage && SafeStorage.get('dh-name', '')) ||
+               localStorage.getItem('dh-name') || 'Anonymous',
+      avatar:  (window.SafeStorage && SafeStorage.get('dh-avatar', '')) ||
+               localStorage.getItem('dh-avatar') || '\u{1F464}',
+      status:  (window.SafeStorage && SafeStorage.get('dh-presence', '')) || 'online',
+      ts:      Date.now(),
+      version: (window.CFG && CFG.VERSION) || '30.0.0'
+    };
+  }
+
+  /* ── Announce self to Gun ── */
+  function _announce() {
+    if (!_gun || !_onlineRef || !_myId || !_visible) return;
+    try {
+      _onlineRef.get(_myId).put(_myPayload());
+    } catch(e) {}
+  }
+
+  /* ── Remove self from Gun ── */
+  function _depart() {
+    if (!_gun || !_onlineRef || !_myId) return;
+    try {
+      /* Gun doesn't truly delete; we set a tombstone with ts=0 */
+      _onlineRef.get(_myId).put({ id: _myId, ts: 0, _departed: true });
+    } catch(e) {}
+  }
+
+  /* ── Upsert a discovered user ── */
+  function _upsertUser(data) {
+    if (!data || !data.id) return;
+    if (data.id === _myId) return;          /* skip self */
+    if (data.ts === 0 || data._departed) {  /* tombstone */
+      _removeUser(data.id);
+      return;
+    }
+    var now = Date.now();
+    /* Reject entries older than STALE_MS */
+    if (data.ts && (now - data.ts) > STALE_MS) return;
+
+    _users[data.id] = {
+      id:       data.id,
+      name:     data.name     || 'Unknown',
+      avatar:   data.avatar   || '\u{1F464}',
+      status:   data.status   || 'online',
+      ts:       data.ts       || now,
+      lastSeen: now,
+      version:  data.version  || ''
+    };
+    _renderOnlineList();
+  }
+
+  /* ── Remove a user from the list ── */
+  function _removeUser(peerId) {
+    if (_users[peerId]) {
+      delete _users[peerId];
+      _renderOnlineList();
+    }
+  }
+
+  /* ── Purge stale entries ── */
+  function _startPurge() {
+    if (_purge) clearInterval(_purge);
+    _purge = setInterval(function() {
+      var now = Date.now();
+      var changed = false;
+      Object.keys(_users).forEach(function(id) {
+        if (now - _users[id].lastSeen > STALE_MS) {
+          delete _users[id];
+          changed = true;
+        }
+      });
+      if (changed) _renderOnlineList();
+    }, PURGE_MS);
+  }
+
+  /* ── Start heartbeat ── */
+  function _startHeartbeat() {
+    if (_heartbeat) clearInterval(_heartbeat);
+    _announce(); /* immediate */
+    _heartbeat = setInterval(_announce, HEARTBEAT_MS);
+  }
+
+  /* ── Update status bar ── */
+  function _setStatus(state, msg) {
+    var dot  = document.getElementById('gun-status-dot');
+    var text = document.getElementById('gun-status-text');
+    if (dot)  { dot.className  = 'online-status-dot' + (state === 'ok' ? ' connected' : state === 'err' ? ' error' : ''); }
+    if (text) { text.textContent = msg; }
+  }
+
+  /* ── Initialize Gun when PeerJS is ready ── */
+  function _initGun(peerId) {
+    _myId = peerId;
+
+    if (window._gunFailed || typeof window.Gun === 'undefined') {
+      _setStatus('err', '\u26A0\uFE0F Gun.js failed to load — online discovery unavailable');
+      return;
+    }
+
+    try {
+      _gun = Gun({ peers: GUN_PEERS, localStorage: false });
+      _onlineRef = _gun.get(NAMESPACE);
+
+      /* Subscribe to ALL online entries */
+      _onlineRef.map().on(function(data, key) {
+        if (!data) { _removeUser(key); return; }
+        /* Gun passes Gun meta-fields; merge cleanly */
+        var clean = {
+          id:       data.id       || key,
+          name:     data.name     || 'Unknown',
+          avatar:   data.avatar   || '\u{1F464}',
+          status:   data.status   || 'online',
+          ts:       data.ts       || 0,
+          version:  data.version  || '',
+          _departed: data._departed || false
+        };
+        _upsertUser(clean);
+      });
+
+      /* Gun doesn't emit a "connected" event; mark ready after 2s */
+      setTimeout(function() {
+        _ready = true;
+        _setStatus('ok', '\uD83C\uDF10 Connected to global network — ' + GUN_PEERS.length + ' relay servers');
+        _startHeartbeat();
+        _startPurge();
+      }, 2000);
+
+      /* Optimistic status while connecting */
+      _setStatus('', '\u23F3 Joining global network\u2026');
+
+    } catch(e) {
+      _setStatus('err', '\u274C Gun error: ' + e.message);
+    }
+  }
+
+  /* ── Render the online list UI ── */
+  function _renderOnlineList() {
+    var host  = document.getElementById('online-list');
+    var empty = document.getElementById('online-empty');
+    var count = document.getElementById('online-count');
+    if (!host) return;
+
+    var users = Object.values(_users);
+
+    /* Count */
+    if (count) count.textContent = users.length + (users.length === 1 ? ' online' : ' online');
+
+    /* Empty state */
+    if (empty) empty.style.display = users.length ? 'none' : 'block';
+
+    /* Remove cards for departed users */
+    var existing = {};
+    host.querySelectorAll('.online-card[data-pid]').forEach(function(card) {
+      existing[card.dataset.pid] = card;
+    });
+
+    /* Sort: already connected first, then by name */
+    var myConns = {};
+    try {
+      if (window.App && App.peer && App.peer.dconns) {
+        App.peer.dconns.forEach(function(conn, pid) { myConns[pid] = conn.open; });
+      } else if (window.PeerMod && PeerMod.getConns) {
+        var conns = PeerMod.getConns();
+        Object.keys(conns).forEach(function(pid) { myConns[pid] = conns[pid] && conns[pid].open; });
+      }
+    } catch(_) {}
+
+    users.sort(function(a, b) {
+      var ac = myConns[a.id] ? 0 : 1;
+      var bc = myConns[b.id] ? 0 : 1;
+      if (ac !== bc) return ac - bc;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    /* Render/update cards */
+    var frag = document.createDocumentFragment();
+    users.forEach(function(u) {
+      var card = existing[u.id];
+      delete existing[u.id];
+
+      var isConn   = !!myConns[u.id];
+      var ago      = Math.round((Date.now() - u.lastSeen) / 1000);
+      var agoStr   = ago < 5 ? 'just now' : ago < 60 ? ago + 's ago' : Math.round(ago/60) + 'm ago';
+      var dotColor = { online:'#22c55e', away:'#f59e0b', busy:'#ef4444' }[u.status] || '#22c55e';
+
+      if (!card) {
+        card = document.createElement('div');
+        card.className = 'online-card';
+        card.dataset.pid = u.id;
+      }
+
+      /* Safe escape */
+      function esc(s) {
+        return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      }
+
+      card.innerHTML =
+        '<div class="online-card-av">' + esc(u.avatar) + '</div>' +
+        '<div class="online-card-info">' +
+          '<div class="online-card-name">' + esc(u.name) + '</div>' +
+          '<div class="online-card-meta">' +
+            '<span style="width:7px;height:7px;border-radius:50%;background:' + dotColor + ';display:inline-block;flex-shrink:0;"></span>' +
+            esc(u.status) + ' \u00B7 ' + esc(agoStr) +
+            (u.version ? ' \u00B7 v' + esc(u.version) : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="online-card-acts">' +
+          (isConn
+            ? '<button class="btn btn-g btn-xs" data-action="chat" data-pid="' + esc(u.id) + '">\uD83D\uDCAC Chat</button>'
+            : '<button class="btn btn-p btn-xs" data-action="connect" data-pid="' + esc(u.id) + '">\uD83D\uDD17 Connect</button>'
+          ) +
+          '<button class="btn btn-s btn-xs" data-action="call" data-pid="' + esc(u.id) + '">\uD83D\uDCDE Call</button>' +
+        '</div>';
+
+      frag.appendChild(card);
+    });
+
+    /* Remove departed cards */
+    Object.values(existing).forEach(function(card) { card.remove(); });
+
+    /* Clear and re-append in sorted order */
+    var cards = host.querySelectorAll('.online-card');
+    cards.forEach(function(c) { c.remove(); });
+    host.appendChild(frag);
+  }
+
+  /* ── Random match ── */
+  function _randomMatch() {
+    var myConns = {};
+    try {
+      if (window.App && App.peer && App.peer.dconns) {
+        App.peer.dconns.forEach(function(conn, pid) { myConns[pid] = true; });
+      } else if (window.PeerMod && PeerMod.getConns) {
+        Object.assign(myConns, PeerMod.getConns());
+      }
+    } catch(_) {}
+
+    var candidates = Object.values(_users).filter(function(u) {
+      return u.status !== 'busy' && !myConns[u.id];
+    });
+
+    if (!candidates.length) {
+      var ov = document.getElementById('random-match-overlay');
+      if (ov) ov.classList.add('on');
+      setTimeout(function() {
+        if (ov) ov.classList.remove('on');
+        _showToast('No available users right now — try again in a moment!', 'warn');
+      }, 1500);
+      return;
+    }
+
+    var ov = document.getElementById('random-match-overlay');
+    if (ov) ov.classList.add('on');
+
+    setTimeout(function() {
+      if (ov) ov.classList.remove('on');
+      var pick = candidates[Math.floor(Math.random() * candidates.length)];
+      _connectToPeer(pick.id);
+      _showToast('\uD83C\uDFB2 Connecting to ' + (pick.name || 'a stranger') + '\u2026', 'info');
+    }, 1200);
+  }
+
+  /* ── Connect to a peer using whichever PeerMod is active ── */
+  function _connectToPeer(peerId) {
+    try {
+      if (window.App && App.peer && App.peer.connectTo) {
+        App.peer.connectTo(peerId);
+      } else if (window.PeerMod && PeerMod.connectTo) {
+        PeerMod.connectTo(peerId);
+      }
+    } catch(e) {
+      _showToast('Connect failed: ' + e.message, 'error');
+    }
+  }
+
+  /* ── Show chat with a peer ── */
+  function _chatWithPeer(peerId) {
+    _connectToPeer(peerId);
+    setTimeout(function() {
+      try {
+        if (window.App && App.ui && App.ui.selectPeer) {
+          App.ui.selectPeer(peerId);
+          App.ui.setTab('chat');
+        } else if (window.selectPeer) {
+          selectPeer(peerId);
+          setTab('chat');
+        }
+      } catch(_) {}
+    }, 600);
+  }
+
+  /* ── Shared toast helper ── */
+  function _showToast(msg, type) {
+    try {
+      if (window.App && App.toast) { App.toast.show(msg, type); }
+      else if (window.toast) { toast(msg, type); }
+    } catch(_) {}
+  }
+
+  /* ── Wire up button actions on the online list (delegated) ── */
+  function _wireListActions() {
+    var list = document.getElementById('online-list');
+    if (!list) return;
+    list.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-action][data-pid]');
+      if (!btn) return;
+      var action = btn.dataset.action;
+      var pid    = btn.dataset.pid;
+      if (action === 'connect') { _connectToPeer(pid); _showToast('Connecting\u2026', 'info'); }
+      if (action === 'chat')    { _chatWithPeer(pid); }
+      if (action === 'call')    {
+        _connectToPeer(pid);
+        setTimeout(function() {
+          try {
+            if (window.App && App.directCall) App.directCall.ring(pid, false);
+          } catch(_) {}
+        }, 800);
+      }
+    });
+  }
+
+  /* ── Wire all UI controls ── */
+  function _wireControls() {
+    var btnRefresh = document.getElementById('btn-online-refresh');
+    if (btnRefresh) btnRefresh.onclick = function() {
+      _renderOnlineList();
+      _showToast('Refreshed online list', 'info');
+    };
+
+    var btnRandom = document.getElementById('btn-online-random');
+    if (btnRandom) btnRandom.onclick = _randomMatch;
+
+    var btnCancel = document.getElementById('btn-rmatch-cancel');
+    if (btnCancel) btnCancel.onclick = function() {
+      var ov = document.getElementById('random-match-overlay');
+      if (ov) ov.classList.remove('on');
+    };
+
+    var toggleVis = document.getElementById('online-visible-toggle');
+    if (toggleVis) {
+      toggleVis.onchange = function() {
+        _visible = toggleVis.checked;
+        if (_visible) {
+          _announce();
+          _setStatus('ok', '\uD83C\uDF10 You are visible to other users');
+        } else {
+          _depart();
+          _setStatus('', '\uD83D\uDC41\uFE0F You are hidden — others cannot see you');
+        }
+      };
+    }
+
+    _wireListActions();
+  }
+
+  /* ── Listen for PeerJS peer open events from both runtimes ── */
+  function _listenForPeerOpen() {
+    if (window.Bus) {
+      Bus.on('peer:open', function(d) {
+        var id = (d && d.id) ? d.id : (window.PeerMod && PeerMod.getMyId ? PeerMod.getMyId() : null);
+        if (id && !_myId) _initGun(id);
+      });
+    }
+
+    var _pollCount = 0;
+    var _poll = setInterval(function() {
+      _pollCount++;
+      var id = null;
+      try {
+        if (window.App && App.peer && App.peer.myId) id = App.peer.myId;
+        else if (window.PeerMod && PeerMod.getMyId) id = PeerMod.getMyId();
+        else if (window.peer && window.peer.id) id = window.peer.id;
+      } catch(_) {}
+
+      if (id && !_myId) {
+        clearInterval(_poll);
+        _initGun(id);
+      }
+      if (_pollCount > 150) clearInterval(_poll);
+    }, 200);
+  }
+
+  /* ── Handle page unload ── */
+  function _onUnload() {
+    try { _depart(); } catch(_) {}
+  }
+
+  /* ── Public API ── */
+  function init() {
+    _wireControls();
+    _listenForPeerOpen();
+    window.addEventListener('beforeunload', _onUnload);
+    window.addEventListener('pagehide',     _onUnload);
+    setTimeout(function() {
+      if (!_ready && !_myId) {
+        _setStatus('', '\u23F3 Waiting for P2P connection\u2026');
+      }
+    }, 5000);
+  }
+
+  function getOnlineUsers()    { return Object.values(_users); }
+  function getOnlineCount()    { return Object.keys(_users).length; }
+  function isReady()           { return _ready; }
+
+  return { init: init, getOnlineUsers: getOnlineUsers, getOnlineCount: getOnlineCount, isReady: isReady };
+
+})();
+window.GunDiscovery = GunDiscovery;
+
 
 /* ── CALL STATS OVERLAY ───────────────────────────────────────── */
 var CallStats=(function(){
@@ -3366,6 +3941,7 @@ if(document.readyState==='loading'){
       <button class="tn" data-tab="notifications" id="tabn-notifs" role="tab" aria-selected="false" aria-controls="tab-notifications">🔔 Notifs</button>
       <button class="tn" data-tab="history" id="tabn-hist" role="tab" aria-selected="false" aria-controls="tab-history">📖 History</button>
       <button class="tn" data-tab="settings" id="tabn-set" role="tab" aria-selected="false" aria-controls="tab-settings">⚙️ Settings</button>
+      <button class="tn" data-tab="online" id="tabn-online" role="tab" aria-selected="false" aria-controls="tab-online">🌐 Online</button>
     </div>
 
     <div id="content" role="main" aria-label="Main content">
@@ -3925,6 +4501,48 @@ if(document.readyState==='loading'){
               <button id="btn-clr-storage" class="btn btn-d btn-sm">Clear Local Data</button>
             </div>
           </div>
+        </div>
+      </div>
+
+
+      <!-- 🌐 ONLINE DISCOVERY TAB (Gun.js cross-network) -->
+      <div id="tab-online" class="tabview" style="flex-direction:column;"
+        role="tabpanel" aria-labelledby="tabn-online">
+
+        <!-- Status bar -->
+        <div class="online-status-bar">
+          <div class="online-status-dot" id="gun-status-dot"></div>
+          <span id="gun-status-text">Connecting to global network…</span>
+          <span id="online-count" aria-live="polite">0 online</span>
+        </div>
+
+        <!-- Controls -->
+        <div class="online-controls">
+          <button id="btn-online-refresh" class="btn btn-s btn-xs">🔄 Refresh</button>
+          <button id="btn-online-random"  class="btn btn-p btn-xs">🎲 Random Chat</button>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+            <input type="checkbox" id="online-visible-toggle" checked>
+            <span>Appear online</span>
+          </label>
+        </div>
+
+        <!-- User list -->
+        <div id="online-list" role="list" aria-label="Online users">
+          <div class="online-empty" id="online-empty">
+            <div class="online-empty-icon">🌐</div>
+            <div class="online-empty-title">Scanning the global network…</div>
+            <div>Other DevHub users worldwide will appear here automatically.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Random match overlay -->
+      <div id="random-match-overlay" role="dialog" aria-label="Finding a random match">
+        <div class="rmatch-box">
+          <div class="rmatch-spinner">🎲</div>
+          <div style="font-size:16px;font-weight:700;margin-bottom:8px;">Finding someone…</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:18px;">Matching you with a random online user</div>
+          <button id="btn-rmatch-cancel" class="btn btn-d btn-sm">Cancel</button>
         </div>
       </div>
 
@@ -5005,7 +5623,7 @@ function setTab(name){name=normTab(name);qa('.tabview').forEach(function(v){var 
 function currentPeer(){return S.peers.find(function(p){return p.id===S.activePeer})||{id:'local',name:'Local Demo Peer',lat:1,status:'online',avatar:'👤'}}
 function renderPeerHost(host){if(!host)return;host.innerHTML='';if(!S.peers.length){host.innerHTML='<div id="nopeer" style="padding:12px 10px;font-size:12px;color:var(--muted);text-align:center">No peers connected<br><span style="font-size:11px">Add a Peer ID or invite code to test modules locally</span></div>';return}S.peers.forEach(function(p){var card=document.createElement('div');card.className='pc '+(S.activePeer===p.id?'sel':'');card.setAttribute('role','listitem');card.innerHTML='<div class="pc-top"><span class="pc-av">'+esc(p.avatar||'👤')+'</span><span class="pc-nm">'+esc(p.name||p.id)+'</span><span class="presence-dot pres-online"></span></div><div class="pc-row"><span class="plat-dot lt50"></span><span>'+esc(p.lat||'1')+'ms</span><span style="margin-left:auto">ready</span></div><div class="pc-acts"><button class="btn btn-xs btn-g" data-act="call">📞</button><button class="btn btn-xs btn-s" data-act="video">📹</button><button class="btn btn-xs btn-s" data-act="files">📁</button></div>';card.onclick=function(e){var act=e.target&&e.target.dataset&&e.target.dataset.act;S.activePeer=p.id;save();renderAll();if(act==='call')startCall(false);else if(act==='video')startCall(true);else if(act==='files')setTab('files')};host.appendChild(card)})}
 function renderPeers(){renderPeerHost($('peers-list'));renderPeerHost($('mob-peers-list'));setText('pc-pill',S.peers.length+' connected');setText('tx-info',S.activePeer&&S.activePeer!=='local'?'Ready to send to '+currentPeer().name:'No active peer selected')}
-function connectFrom(id){var inp=$(id||'jin'), val=(inp&&inp.value||'').trim();if(!val){toast('Enter a peer ID or invite code','warn');return false}var clean=val.replace(/^invite:/i,'').trim();if(!clean)return false;var p={id:clean,name:clean,avatar:'👤',lat:Math.max(1,Math.round(Math.random()*24))};if(!S.peers.some(function(x){return x.id===p.id}))S.peers.unshift(p);S.activePeer=p.id;S.messages[p.id]=S.messages[p.id]||[];if(inp)inp.value='';save();renderAll();hist('peer','Connected locally to '+p.name);notify('Peer ready: '+p.name);toast('Peer added and selected');return true}
+function connectFrom(id){var inp=$(id||'jin'), val=(inp&&inp.value||'').trim();if(!val){toast('Enter a peer ID or invite code','warn');return false}var clean=val.replace(/^invite:/i,'').trim();if(!clean)return false;var p={id:clean,name:clean,avatar:'👤',lat:Math.max(1,Math.round(Math.random()*24))};if(!S.peers.some(function(x){return x.id===p.id}))S.peers.unshift(p);S.activePeer=p.id;S.messages[p.id]=S.messages[p.id]||[];if(inp)inp.value='';save();renderAll();hist('peer','Connected locally to '+p.name);notify('Peer ready: '+p.name);toast('Peer added and selected');if(window.PeerMod&&PeerMod.connectTo){try{PeerMod.connectTo(clean);}catch(_){}}return true}
 function renderChat(){var p=currentPeer();setText('chat-hdr-nm',p.name||p.id);setText('chat-hdr-lat','Latency: '+(p.lat||1)+'ms');var h=$('chat-hdr');if(h)h.classList.add('on');var arr=S.messages[S.activePeer]||S.messages.local||[], q=(($('msg-search-inp')||{}).value||'').toLowerCase();var host=$('msgs');if(!host)return;if(!arr.length){host.innerHTML='<div id="chat-empty"><div style="font-size:48px">💬</div><div style="font-size:14px;font-weight:600;">No conversation yet</div><div style="font-size:12px;">Send a local test message or connect a peer.</div></div>';return}host.innerHTML=arr.map(function(m,i){var tx=esc(m.text);if(q&&m.text.toLowerCase().includes(q))tx='<mark>'+tx+'</mark>';return '<div class="mr '+(m.me?'me':'')+'"><div class="mb '+(m.me?'me':'')+'">'+tx+'<div class="mtime">'+fmtTime(m.ts)+' · <button class="btn btn-xs btn-s" data-pin-msg="'+i+'">Pin</button> <button class="btn btn-xs btn-s" data-reply-msg="'+i+'">Reply</button></div></div></div>'}).join('');qa('[data-pin-msg]',host).forEach(function(b){b.onclick=function(e){e.stopPropagation();var m=arr[+b.dataset.pinMsg];S.pinnedMessage=m.text;setText('pinned-msg-text',m.text);show($('pinned-msg-bar'),true);save()}});qa('[data-reply-msg]',host).forEach(function(b){b.onclick=function(e){e.stopPropagation();var m=arr[+b.dataset.replyMsg];S.replyTo=m.text;setText('reply-preview-text','Replying to: '+m.text);show($('reply-preview'),true)}});host.scrollTop=host.scrollHeight}
 function sendChat(){var inp=$('mi'), text=(inp&&inp.value||'').trim();if(!text)return;var pid=S.activePeer||'local';(S.messages[pid]=S.messages[pid]||[]).push({me:true,text:text,reply:S.replyTo||'',ts:Date.now()});S.replyTo='';show($('reply-preview'),false);if(inp)inp.value='';save();renderChat();notify('Message sent to '+currentPeer().name)}
 function addFiles(files){var list=Array.prototype.slice.call(files||[]);if(!list.length)return;list.forEach(function(f){S.files.unshift({id:uid('file'),name:f.name,size:f.size||0,type:f.type||'file',progress:100,status:'ready',ts:Date.now()})});S.files=S.files.slice(0,80);save();renderFiles();toast(list.length+' file(s) staged locally')}
@@ -6276,7 +6894,9 @@ if(document.readyState==='loading'){
 ═══════════════════════════════════════════════════════════════════════════ -->
 
 <!-- Gun.js CDN for Stranger Online System -->
-<script src="https://cdn.jsdelivr.net/npm/gun/gun.js" onerror="console.warn('[DevHub v21] Gun.js CDN failed to load; Stranger system disabled.')"></script>
+<!-- Gun.js: decentralized realtime DB for cross-network peer discovery -->
+<script src="https://cdn.jsdelivr.net/npm/gun/gun.js"
+  onerror="window._gunFailed=true;console.warn('[DevHub] Gun.js failed — online discovery disabled');"></script>
 
 <!-- v21-A: Stranger Online System -->
 <script type="application/devhub-preserved-module" data-module="v21-stranger-online">
@@ -12427,6 +13047,14 @@ g.ModeratorEngine=ModeratorEngine;
 console.info('[DevHub v30.0.0] All 14 engines active | PeerDiscovery Heartbeat GMC Diagnostics ConferenceLayout ActiveSpeaker StreamAdapt ConferenceRecovery ConnectionLadder SHR MPM Unicode CPUProtector Moderator');
 
 })(window);
+</script>
+<script>
+/* Boot GunDiscovery — cross-network online peer discovery module */
+document.addEventListener('DOMContentLoaded', function() {
+  setTimeout(function() {
+    try { if (window.GunDiscovery) GunDiscovery.init(); } catch(e) { console.warn('[GunDiscovery]', e); }
+  }, 800);
+});
 </script>
 </body>
 </html>
