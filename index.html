@@ -1661,6 +1661,11 @@ var PeerMod=(function(){
         var st=$('my-status');
         if(st)st.innerHTML='<div class="pill p-con"><div class="pdot"></div>'+t('reconnecting')+'</div>';
         Bus.emit('peer:disconnected',{});
+        /* FIX 4: mark all peers offline on global disconnect */
+        var _dpeers=S.get('peers')||[];
+        _dpeers.forEach(function(p){p.connected=false;p.presence='offline';});
+        S.set('peers',_dpeers);S.debouncedSave();
+        renderPeerList();
         setTimeout(function(){try{peer&&!peer.destroyed&&peer.reconnect();}catch(_){}},2500);
       });
       peer.on('close',function(){
@@ -1708,6 +1713,8 @@ var PeerMod=(function(){
         GlobalRTCManager.monitorConnection(d.pc,'call-'+id.slice(0,6));
       }
     });
+    /* FIX 6: start presence heartbeat once online */
+    startPresenceHeartbeat();
   }
 
   function connectTo(idOrCode){
@@ -1751,6 +1758,8 @@ var PeerMod=(function(){
           conn.send({type:'ecdh-hello',pub:Array.from(new Uint8Array(raw))});
         }).catch(function(){});
       }
+      /* FIX 3: broadcast own presence right after connection */
+      send(pid,{type:'presence-ping',status:S.get('presence')||'online',name:S.get('name')||'',avatar:S.get('avatar')||'👤'});
     });
     conn.on('data',function(data){_onData(pid,data);});
     conn.on('close',function(){
@@ -1830,6 +1839,13 @@ var PeerMod=(function(){
       case 'file':
         Bus.emit('file:received',{pid:pid,name:data.name,size:data.size,data:data.data});
         break;
+      case 'presence-ping':
+        _updatePeerPresence(pid,{status:data.status||'online',name:data.name,avatar:data.avatar});
+        send(pid,{type:'presence-pong',status:S.get('presence')||'online',name:S.get('name')||'',avatar:S.get('avatar')||'👤'});
+        break;
+      case 'presence-pong':
+        _updatePeerPresence(pid,{status:data.status||'online',name:data.name,avatar:data.avatar});
+        break;
     }
   }
 
@@ -1848,6 +1864,32 @@ var PeerMod=(function(){
     }else{
       Bus.emit('e2e:ready',{pid:pid});
     }
+  }
+
+  function _updatePeerPresence(pid,info){
+    var peers=S.get('peers')||[];
+    peers.forEach(function(p){
+      if(p.id===pid){
+        if(info.status)p.presence=info.status;
+        if(info.name)p.name=info.name;
+        if(info.avatar)p.avatar=info.avatar;
+      }
+    });
+    S.set('peers',peers);S.debouncedSave();
+    renderPeerList();
+    Bus.emit('presence:updated',{pid:pid,status:info.status});
+  }
+
+  var _presenceTimer=null;
+  function startPresenceHeartbeat(){
+    stopPresenceHeartbeat();
+    _presenceTimer=setInterval(function(){
+      var status=S.get('presence')||'online';
+      broadcast({type:'presence-ping',status:status,name:S.get('name')||'',avatar:S.get('avatar')||'👤'});
+    },30000);
+  }
+  function stopPresenceHeartbeat(){
+    if(_presenceTimer){clearInterval(_presenceTimer);_presenceTimer=null;}
   }
 
   function _maybeNotify(pid,text){
@@ -1936,7 +1978,8 @@ var PeerMod=(function(){
     init:init,connectTo:connectTo,send:send,sendMsg:sendMsg,broadcast:broadcast,
     reconnectWithNewIce:reconnectWithNewIce,setParams:setParams,throttleGroupBitrate:throttleGroupBitrate,
     getMyId:getMyId,getPeerCount:getPeerCount,getConn:getConn,getConns:getConns,
-    getPeer:getPeer,getSessionKey:getSessionKey
+    getPeer:getPeer,getSessionKey:getSessionKey,
+    startPresenceHeartbeat:startPresenceHeartbeat,stopPresenceHeartbeat:stopPresenceHeartbeat
   };
 })();
 window.PeerMod=PeerMod;
@@ -2148,7 +2191,7 @@ window.Chat=Chat;
 function validate(){
   var checks=[];
   function chk(name,ok,detail){checks.push({name:name,ok:!!ok,detail:detail||''});}
-  chk('CFG.VERSION',CFG.VERSION==='26.0.0','v22.0.0');
+  chk('CFG.VERSION',!!CFG.VERSION,CFG.VERSION);
   chk('EventBus',!!Bus,'on/off/emit/once');
   chk('State machine v3',S.state._v===3,'migrations v0→v3');
   chk('SafeStorage',!!SafeStorage,'localStorage+mem fallback');
@@ -2322,9 +2365,9 @@ function renderPeerList(){
           '<div class="pc-id" style="font-size:10px;color:var(--muted,#888);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+
             esc(p.id.slice(0,16))+'</div>'+
         '</div>'+
-        '<span class="presence-dot '+(p.connected?'pres-online':'pres-away')+
-          '" title="'+(p.connected?'Online':'Offline')+'" aria-hidden="true"></span>'+
-        '<span data-ice-pill class="pill" style="font-size:9px;padding:1px 6px">'+(p.connected?'open':'closed')+'</span>'+
+        '<span class="presence-dot pres-'+(p.presence||(p.connected?'online':'offline'))+
+          '" title="'+(p.presence||(p.connected?'Online':'Offline'))+'" aria-hidden="true"></span>'+
+        '<span data-ice-pill class="pill" style="font-size:9px;padding:1px 6px">'+(p.presence||(p.connected?'open':'closed'))+'</span>'+
       '</div>';
     div.onclick=function(){selectPeer(p.id);};
     div.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();div.click();}};
@@ -2692,6 +2735,16 @@ function bindSettings(){
         (c.detail?'<span style="font-size:10px;color:var(--muted,#888);margin-left:auto">'+esc(c.detail)+'</span>':'')+'</div>';
     }).join('');
   }
+  /* FIX 7: wire #set-presence selector */
+  var _spSel=$('set-presence');
+  if(_spSel){
+    _spSel.value=S.get('presence')||'online';
+    _spSel.onchange=function(){
+      var _v=_spSel.value;
+      S.set('presence',_v);S.debouncedSave();
+      PeerMod.broadcast({type:'presence-ping',status:_v,name:S.get('name')||'',avatar:S.get('avatar')||'👤'});
+    };
+  }
 }
 window._bindSettings=bindSettings;
 
@@ -3035,6 +3088,10 @@ function wire(){
   if(drag&&sidebar){
     var _drag=false,_sx=0,_sw=0;
     drag.addEventListener('mousedown',function(e){_drag=true;_sx=e.clientX;_sw=sidebar.offsetWidth;document.body.style.userSelect='none';});
+    drag.addEventListener('keydown',function(e){
+      if(e.key==='ArrowLeft'){sidebar.style.width=Math.max(48,sidebar.offsetWidth-20)+'px';}
+      if(e.key==='ArrowRight'){sidebar.style.width=Math.min(360,sidebar.offsetWidth+20)+'px';}
+    });
     document.addEventListener('mousemove',function(e){if(!_drag)return;sidebar.style.width=Math.max(48,Math.min(360,_sw+(e.clientX-_sx)))+'px';});
     document.addEventListener('mouseup',function(){_drag=false;document.body.style.userSelect='';});
   }
@@ -3090,8 +3147,9 @@ function boot(){
   renderGC();
   renderHistPeers();
 
-  /* Init PeerJS after DOM settle */
-  setTimeout(function(){PeerMod.init();},100);
+  /* Init PeerJS after DOM settle — use requestIdleCallback when available */
+  var _ricInit=window.requestIdleCallback||function(cb){setTimeout(cb,100);};
+  _ricInit(function(){PeerMod.init();});
 
   /* Onboarding */
   OB.maybeShow();
@@ -3138,7 +3196,8 @@ function boot(){
 
   document.documentElement.setAttribute('data-devhub-v19-ready','true');
   document.documentElement.setAttribute('data-devhub-v22-ready','true');
-  console.info('[DevHub v26.0.0] runtime ready | state._v='+S.state._v+' | locale='+CFG.LOCALE+' | crypto='+(!!Crypto)+' | ice_servers='+(CFG.STUN_SERVERS.length+CFG.FREE_TURN.length));
+  document.documentElement.setAttribute('data-devhub-v30-ready','true');
+  console.info('[DevHub v30.0.0] runtime ready | state._v='+S.state._v+' | locale='+CFG.LOCALE+' | crypto='+(!!Crypto)+' | ice_servers='+(CFG.STUN_SERVERS.length+CFG.FREE_TURN.length));
 }
 
 /* v23: global error boundary — managed by core engine */
@@ -3766,6 +3825,15 @@ if(document.readyState==='loading'){
               <input id="set-avatar" placeholder="👤" style="width:60px;text-align:center;font-size:18px" maxlength="2">
             </div>
             <button id="btn-save-identity" class="btn btn-p btn-xs" style="margin-top:8px">Save Identity</button>
+            <div class="set-row" style="margin-top:8px">
+              <div><div class="set-label">Online Status</div><div class="set-sub">Visible to connected peers</div></div>
+              <select id="set-presence" aria-label="Online status">
+                <option value="online">🟢 Online</option>
+                <option value="away">🟡 Away</option>
+                <option value="busy">🔴 Busy</option>
+                <option value="offline">⚫ Appear Offline</option>
+              </select>
+            </div>
           </div>
           <div class="panel-section">
             <div class="panel-section-title">Privacy &amp; Security</div>
