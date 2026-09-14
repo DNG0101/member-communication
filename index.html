@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 
@@ -10,7 +9,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f0f17">
 
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://mozilla.github.io blob:; connect-src *; media-src * blob: data:; img-src * data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src blob:; manifest-src 'self' data: blob:; form-action 'none'; base-uri 'self';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://mozilla.github.io blob:; connect-src *; media-src * blob: data:; img-src * data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src blob:; manifest-src 'self' data: blob:; form-action 'none'; base-uri 'self'; frame-src 'self' about:;">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -18,7 +17,7 @@
 <meta name="format-detection" content="telephone=no">
 <link rel="manifest" href="data:application/json,%7B%22name%22%3A%22DevHub%22%2C%22short_name%22%3A%22DevHub%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230f0f17%22%2C%22theme_color%22%3A%22%236366f1%22%7D">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2316161f'/%3E%3Cpath d='M8 16h16M16 8v16' stroke='%236366f1' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
-<title>DevHub v61.0 — Secure P2P Communication Hub</title>
+<title>DevHub v61.1 — Member Communication</title>
 <style>
 /* ═══════════════════════════════════════════════
    DESIGN TOKENS
@@ -833,7 +832,7 @@ html,body{margin:0;min-height:100%;background:#0f0f17;color:#e2e2f0;overflow:hid
 .toast{position:fixed;right:16px;bottom:16px;z-index:999999;background:#16161f;color:#e2e2f0;border:1px solid #2d2d44;border-radius:8px;padding:10px 12px;font:13px system-ui;box-shadow:0 8px 30px rgba(0,0,0,.4)}
 </style>
 <meta name="devhub-fixed-version" content="v31.0.0">
-<meta name="generator" content="61.0.0">
+<meta name="generator" content="61.1.0">
 
 <style id="devhub-v19-extra">
 /* ── RTL support ─────────────────────────────────────────────── */
@@ -1188,7 +1187,7 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
             <button id="btn-vid-toggle" class="btn btn-s btn-xs" aria-label="Toggle video">📹 Camera</button>
             <button id="btn-screen-share" class="btn btn-s btn-xs" aria-label="Share screen">🖥 Share</button>
             <button id="btn-hang" class="btn btn-d btn-xs" aria-label="Hang up">📵 End</button>
-            <button id="btn-hangup" type="button" hidden aria-hidden="true" tabindex="-1"></button>
+            
             <button id="btn-call-stats" class="btn btn-s btn-xs" title="Toggle call stats" aria-label="Toggle call quality stats">📊 Stats</button>
             
             <button id="btn-pip-toggle" class="btn btn-s btn-xs" title="Picture-in-Picture" aria-label="Toggle picture in picture">⬛ PiP</button>
@@ -1201,8 +1200,8 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
             
             <button id="btn-noise-toggle" class="btn btn-s btn-xs" title="Toggle noise suppression" aria-label="Toggle noise suppression">🎙 Noise</button>
             
-            <button id="btn-vbg-off"   class="btn btn-s btn-xs" title="No virtual background" aria-label="Disable virtual background">🎥 BG:Off</button>
-            <button id="btn-vbg-blur"  class="btn btn-s btn-xs" title="Blur background" aria-label="Blur background">🌫 BG:Blur</button>
+            <button id="btn-vbg-off" class="btn btn-s btn-xs" title="No virtual background" aria-label="Disable virtual background">🎥 BG:Off</button>
+            <button id="btn-vbg-blur" class="btn btn-s btn-xs" title="Blur background" aria-label="Blur background">🌫 BG:Blur</button>
             <button id="btn-vbg-color" class="btn btn-s btn-xs" title="Color background" aria-label="Color background">🎨 BG:Color</button>
             <label for="vol-slider" class="sr-only">Speaker volume</label>
             <input id="vol-slider" type="range" min="0" max="1" step="0.05" value="1" aria-label="Volume">
@@ -1399,7 +1398,8 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
             <button id="btn-code-autosave" class="btn btn-s btn-xs">🔄 Auto</button>
           </div>
           <label for="code-editor-area" class="sr-only">Code editor</label>
-          <textarea id="code-editor-area" placeholder="// Write or paste code here…&#10;// Shared in real time with all connected peers" aria-label="Code editor" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+          <textarea id="code-editor-area" placeholder="// Write or paste code here…
+// Shared in real time with all connected peers" aria-label="Code editor" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
           <div id="ce-output" aria-live="polite" aria-label="Code output"></div>
         </div>
       </div>
@@ -1575,7 +1575,7 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
               </select>
             </div>
           </div>
-          <div class="panel-section"><div class="panel-section-title">Member connections</div><p>One approved connection carries chat and shared content. Discovery only announces available members and is off by default. Both devices must keep this app open.</p><p id="member-main-status" role="status">Starting…</p><p>Your device code: <code id="member-device-code" style="overflow-wrap:anywhere">Starting…</code></p><button id="member-retry" class="btn btn-s">Retry connection</button><p>Internet is needed for signaling and discovery. Configure your own TURN relay below when direct connections cannot cross a network. Use the same signaling settings on every device.</p><small>Connection system <span id="member-version">61.0.0</span></small></div>
+          <div class="panel-section"><div class="panel-section-title">Member connections</div><p>One approved connection carries chat and shared content. Discovery only announces available members and is off by default. Both devices must keep this app open.</p><p id="member-main-status" role="status">Starting…</p><p>Your device code: <code id="member-device-code" style="overflow-wrap:anywhere">Starting…</code></p><button id="member-retry" class="btn btn-s">Retry connection</button><p>Internet is needed for signaling and discovery. Configure your own TURN relay below when direct connections cannot cross a network. Use the same signaling settings on every device.</p><small>Connection system <span id="member-version">61.1.0</span></small></div>
 
           <div class="panel-section">
             <div class="panel-section-title">Privacy &amp; Security</div>
@@ -1656,8 +1656,8 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
             <div class="panel-section-title">Export &amp; Backup</div>
             <div class="set-sub" style="margin-bottom:8px">Export your chat, tasks, vault (encrypted), peers &amp; settings as JSON.</div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-              <button id="btn-export-backup" class="btn btn-s btn-xs">&#128190; Export Backup</button>
-              <label class="btn btn-s btn-xs" style="cursor:pointer" title="Import backup JSON">&#128193; Import Backup<input id="inp-import-backup" type="file" accept=".json" style="display:none" aria-label="Import backup file"></label>
+              <button id="btn-export-backup" class="btn btn-s btn-xs">💾 Export Backup</button>
+              <label class="btn btn-s btn-xs" style="cursor:pointer" title="Import backup JSON">📁 Import Backup<input id="inp-import-backup" type="file" accept=".json" style="display:none" aria-label="Import backup file"></label>
             </div>
           </div>
           <div class="panel-section">
@@ -1672,8 +1672,7 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
 
 
       
-      <div id="tab-online" class="tabview" style="flex-direction:column;"
-        role="tabpanel" aria-labelledby="tabn-online">
+      <div id="tab-online" class="tabview" style="flex-direction:column;" role="tabpanel" aria-labelledby="tabn-online">
 
         
         <div class="online-status-bar">
@@ -1685,11 +1684,11 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
         
         <div class="online-controls">
           <button id="btn-online-refresh" class="btn btn-s btn-xs">🔄 Refresh</button>
-          <button id="btn-online-random"  class="btn btn-p btn-xs">🎲 Random Chat</button>
+          <button id="btn-online-random" class="btn btn-p btn-xs">🎲 Random Chat</button>
           <button id="btn-online-relay-cfg" class="btn btn-s btn-xs" title="Connection settings">⚙️ Setup</button>
-          <button id="btn-online-invite"  class="btn btn-s btn-xs" title="Generate invite code">🔑 Invite</button>
+          <button id="btn-online-invite" class="btn btn-s btn-xs" title="Generate invite code">🔑 Invite</button>
           
-          <button id="btn-online-diag"    class="btn btn-s btn-xs" title="Intelligence dashboard">Dashboard</button>
+          <button id="btn-online-diag" class="btn btn-s btn-xs" title="Intelligence dashboard">Dashboard</button>
           
           <label class="dh-vis-toggle" title="Toggle online visibility">
             <input type="checkbox" id="online-visible-toggle" class="dh-vis-chk">
@@ -1736,14 +1735,7 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
       </div>
 
       
-      <div id="random-match-overlay" role="dialog" aria-label="Finding a random match">
-        <div class="rmatch-box">
-          <div class="rmatch-spinner">🎲</div>
-          <div style="font-size:16px;font-weight:700;margin-bottom:8px;">Finding someone…</div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:18px;">Matching you with a random online user</div>
-          <button id="btn-rmatch-cancel" class="btn btn-d btn-sm">Cancel</button>
-        </div>
-      </div>
+      
 
     </div>
 
@@ -1827,12 +1819,12 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
 <div id="outgoing-call-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="ocall-title">
   <div class="modal-box" style="max-width:340px;">
     <div class="modal-title"><span id="ocall-title">Calling…</span></div>
-    <div class="ocall-avatar" aria-hidden="true">&#128222;</div>
+    <div class="ocall-avatar" aria-hidden="true">📞</div>
     <div class="ocall-ring-anim" aria-hidden="true"></div>
     <div class="ocall-name" id="ocall-name" translate="no" lang="und">—</div>
-    <div class="ocall-type" id="ocall-type">&#128222; Voice Call</div>
+    <div class="ocall-type" id="ocall-type">📞 Voice Call</div>
     <div style="display:flex;gap:10px;justify-content:center;margin-top:8px;">
-      <button id="btn-ocall-cancel" class="btn btn-d" style="min-width:80px">&#128245; Cancel</button>
+      <button id="btn-ocall-cancel" class="btn btn-d" style="min-width:80px">📵 Cancel</button>
     </div>
   </div>
 </div>
@@ -1840,11 +1832,11 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
 
 <div id="conf-invite-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="conf-inv-title">
   <div class="modal-box" style="max-width:360px;">
-    <div class="modal-title"><span id="conf-inv-title">&#128249; Conference Invite</span></div>
+    <div class="modal-title"><span id="conf-inv-title">📹 Conference Invite</span></div>
     <div id="conf-inv-body" style="font-size:13px;margin-bottom:14px;color:var(--text2)"></div>
     <div style="display:flex;gap:8px;">
-      <button id="btn-conf-inv-accept" class="btn btn-p" style="flex:1">&#9989; Join</button>
-      <button id="btn-conf-inv-decline" class="btn btn-d" style="flex:1">&#10060; Decline</button>
+      <button id="btn-conf-inv-accept" class="btn btn-p" style="flex:1">✅ Join</button>
+      <button id="btn-conf-inv-decline" class="btn btn-d" style="flex:1">❌ Decline</button>
     </div>
   </div>
 </div>
@@ -2019,8 +2011,8 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
 <div id="shortcuts-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title">
   <div class="modal-box" style="max-width:500px">
     <div class="modal-title">
-      <span id="shortcuts-title">&#9000; Keyboard Shortcuts</span>
-      <button id="btn-shortcuts-close" class="btn btn-xs btn-s" aria-label="Close shortcuts">&#10005;</button>
+      <span id="shortcuts-title">⌨ Keyboard Shortcuts</span>
+      <button id="btn-shortcuts-close" class="btn btn-xs btn-s" aria-label="Close shortcuts">✕</button>
     </div>
     <div id="shortcuts-list" role="list"></div>
   </div>
@@ -2061,9 +2053,9 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
 #v14-pip-mini .close{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:#fff;border:none;width:22px;height:22px;border-radius:50%;cursor:pointer}
 @media(max-width:600px){#v14-fab{bottom:74px}#v14-panel{bottom:130px}}
 </style>
-<button id="v14-fab" aria-label="Open tools" title="Tools (Ctrl+/)">✨</button>
-<div id="v14-panel" role="menu" aria-label="Collaboration tools"></div>
-<div id="v14-dropzone"><div>📥 Drop file to share</div></div>
+
+
+
 <div id="v14-captions" role="status" aria-live="polite"></div>
 
 
@@ -2096,9 +2088,9 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
 @keyframes v16pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
 @media(max-width:600px){#v16-fab{bottom:74px;left:74px}#v16-panel{bottom:130px;left:74px}}
 </style>
-<button id="v16-fab" aria-label="More tools" title="More tools (Ctrl+.)">🧰</button>
-<div id="v16-panel" role="menu" aria-label="Extended tools"></div>
-<div id="v16-ptt-ind" class="v16-ptt" role="status">🎙 Push-to-talk</div>
+
+
+
 
 
 
@@ -2548,38 +2540,7 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
 .v36-btn.danger:hover{background:#991b1b}
 </style>
 
-<div id="v36-err-overlay" role="alertdialog" aria-modal="true" aria-labelledby="v36-err-title">
-  <div id="v36-err-card">
-    <div id="v36-err-head">
-      <div class="ico">!</div>
-      <div>
-        <h2 id="v36-err-title">Application Error</h2>
-        <div class="sub" id="v36-err-sub">A startup exception was caught</div>
-      </div>
-    </div>
-    <div id="v36-err-body">
-      <div id="v36-err-msg">—</div>
-      <div id="v36-err-tips">
-        <b>Try one of these actions:</b>
-        <ul>
-          <li><b>Reload</b> — refresh and retry initialization.</li>
-          <li><b>Safe Mode</b> — reload with a fresh local cache (keeps your vault).</li>
-          <li><b>Reset App</b> — wipe local storage and IndexedDB (destructive).</li>
-          <li><b>Copy Diagnostics</b> — copy the full error log for support.</li>
-        </ul>
-      </div>
-      <div style="margin-top:14px;font-size:12px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Error log</div>
-      <ul id="v36-err-list"></ul>
-    </div>
-    <div id="v36-err-acts">
-      <button class="v36-btn primary" id="v36-btn-reload">Reload</button>
-      <button class="v36-btn" id="v36-btn-safe">Safe Mode</button>
-      <button class="v36-btn" id="v36-btn-copy">Copy Diagnostics</button>
-      <button class="v36-btn" id="v36-btn-dismiss">Dismiss</button>
-      <button class="v36-btn danger" id="v36-btn-reset" style="margin-left:auto">Reset App</button>
-    </div>
-  </div>
-</div>
+
 
 
 
@@ -3178,11 +3139,7 @@ html[dir="rtl"] .chat-msg-text{text-align:right;}
 
 <div id="v30-nat" role="status" aria-label="NAT type"><span class="dot"></span><span id="v30-nat-lbl">NAT…</span></div>
 <a id="v30-skip" href="#msgs">Skip to chat</a>
-<div id="v30-health" role="dialog" aria-label="Module Health" aria-modal="true">
-  <h4>MODULE HEALTH</h4>
-  <div id="v30-health-rows"></div>
-  <button id="v30-health-close">Close</button>
-</div>
+
 
 
 
@@ -3206,19 +3163,7 @@ html[dir="rtl"] .chat-msg-text{text-align:right;}
 #dh42-close{float:right;background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;line-height:1}
 </style>
 
-<div id="dh42-dash">
-  <div id="dh42-panel">
-    <h2>🏥 DevHub v42 — Enterprise Health Dashboard </h2>
-    <div id="dh42-content">Loading…</div>
-    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-      
-      
-      
-      
-      
-    </div>
-  </div>
-</div>
+
 
 
 
@@ -3358,6 +3303,7 @@ html[dir="rtl"] .chat-msg-text{text-align:right;}
 <script id="member-runtime">
 
 
+
 (function(){
   function showFailBanner(){
     const b=document.getElementById('peerjs-fail-banner');
@@ -3431,7 +3377,7 @@ function assertInterface(obj,shape,name){
    CONFIG
 ══════════════════════════════════════════════════════════ */
 const CFG={
-  VERSION:'61.0.0',
+  VERSION:'61.1.0',
   CALL_RING_TIMEOUT:30000,
   MAX_CONF_PARTICIPANTS:12,
   DB_NAME:'devhub-member-v1',DB_VERSION:7,
@@ -3981,7 +3927,7 @@ class TrustStore{
   constructor(){this._trusted=new Map();this._blocked=new Set();}
   async load(){const data=SafeStorage.getJSON('dh-trust-v1',{trusted:{},blocked:[]});Object.entries(data.trusted||{}).forEach(([k,v])=>this._trusted.set(k,v));(data.blocked||[]).forEach(p=>this._blocked.add(p));}
   trust(pid,name){this._trusted.set(pid,{pid,name,ts:Date.now()});this._save();}
-  block(pid){this._blocked.add(pid);this._trusted.delete(pid);this._save();}
+  block(pid){this._blocked.add(pid);this._trusted.delete(pid);this._save();App.peer?.transport?.pending.get(pid)?.fail(Error('Member blocked.'));App.peer?.conn(pid)?.close();}
   unblock(pid){this._blocked.delete(pid);this._save();}
   isTrusted(pid){return this._trusted.has(pid);}
   isBlocked(pid){return this._blocked.has(pid);}
@@ -4035,7 +3981,7 @@ class ConnectRateLimiter{
 ══════════════════════════════════════════════════════════ */
 class PermissionManager{
   constructor(){this._perms=new Map();}
-  DEFAULT_PERMS={canChat:true,canCall:true,canSendFiles:true,canReceiveFiles:true,canWhiteboard:true,canRC:false,canViewPresence:true};
+  DEFAULT_PERMS={canChat:true,canCall:true,canSendFiles:true,canReceiveFiles:true,canWhiteboard:true,canRC:false,canViewPresence:true,canCollaborate:true};
   get(pid){return{...this.DEFAULT_PERMS,...(this._perms.get(pid)||{})};}
   set(pid,key,value){const p=this.get(pid);p[key]=value;this._perms.set(pid,p);}
   check(pid,action){return this.get(pid)[action]!==false;}
@@ -4521,7 +4467,7 @@ class AuditLog{
 /* ══════════════════════════════════════════════════════════
    SERVICE WORKER MODULE
 ══════════════════════════════════════════════════════════ */
-const AppSW={_status:'single-file-online',init(){window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();this._deferredPrompt=e;});},getStatus(){return this._status;},promptInstall(){this._deferredPrompt?.prompt();}};
+const AppSW={_status:'single-file-online',init(){window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();this._deferredPrompt=e;});},getStatus(){return this._status;},promptInstall(){if(this._deferredPrompt){this._deferredPrompt.prompt();this._deferredPrompt=null;}else App.toast?.show('Use your browser menu to install or add this page to your home screen.','info');}};
 
 /* ══════════════════════════════════════════════════════════
    PRESENCE MANAGER
@@ -5290,14 +5236,14 @@ class ConferenceModule{
       if(!this._participants.has(pid)){this._participants.set(pid,{name:name||pid.substring(0,12),host:false,muted:false});this._joinTimes.set(pid,Date.now());}
       this._render();
       const members=[...this._participants.entries()].map(([p,d])=>({pid:p,name:d.name}));
-      for(const[,conn]of(App.peer?.dconns||[])){if(conn.open)try{conn.send(JSON.stringify({type:'conf-signal',action:'member-list',confId:this._confId,members}));}catch(e){}}
+      /* MemberConferenceModule sends the roster only to accepted participants. */
       App.toast?.show(esc(name||pid)+' joined conference','info');
     }else if(action==='member-list'&&pid===this._host&&confId===this._confId&&Array.isArray(msg.members)&&msg.members.length<=CFG.MAX_CONF_PARTICIPANTS){
       (msg.members||[]).forEach(m=>{if(!this._participants.has(m.pid))this._participants.set(m.pid,{name:m.name,host:false,muted:false});});
       this._render();
     }else if(action==='mute-participant'&&pid===this._host&&confId===this._confId){
       App.toast?.show('You were muted by host','warning');
-      App.media?._localStream?.getAudioTracks().forEach(t=>{t.enabled=false;});
+      this._stream?.getAudioTracks().forEach(t=>{t.enabled=false;});
     }else if(action==='leave'&&confId===this._confId){
       this._participants.delete(pid);this._render();App.toast?.show(esc(msg.name||pid)+' left the conference','info');
     }else if(action==='host-kick'&&pid===this._host&&confId===this._confId&&msg.target===App.peer?.myId){
@@ -5347,7 +5293,7 @@ class ConferenceModule{
       const label=(p.host?'👑 ':'')+esc(p.name||pid.substring(0,12));
       let rm='';
       if(App.conference?._isHost&&pid!==App.peer?.myId){
-        rm='<button class="btn btn-xs btn-d" onclick="App.conference._kickParticipant('+JSON.stringify(pid)+')">Remove</button>';
+        rm='<button class="btn btn-xs btn-d" data-conf-kick="'+esc(pid)+'">Remove</button>';
       }
       return'<div class="conf-participant"><span class="gc-pill" translate="no" lang="und">'+label+'</span>'+rm+'</div>';
     });
@@ -5703,7 +5649,7 @@ class PeerManager{
     }else if(type==='gc-reaction'){App.group?._onReaction?.(pid,msg);
     }else if(type==='gc-typing'){App.group?._onTyping?.(pid,msg.typing);
     }else if(type==='presence'){App.presence?.onRemotePresence?.(pid,msg.status);
-    }else if(type==='signal'){if(msg.call_ended)App.media?.remoteEnded?.(msg.reason||'Remote ended');
+    }else if(type==='signal'){if(msg.call_ended&&App.media?._call?.peer===pid)App.media?._cleanupCall?.(msg.reason||'Remote ended');
     }else if(type==='reaction'){App.ui?.onRemoteReaction?.(pid,msg);
     }else if(type==='room-new-member'){
       const newPeer=msg.newPeer;
@@ -6397,8 +6343,8 @@ class PresentationManager{
         const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0);
         canvas.style.display='block';
         document.getElementById('presentation-wrap')?.classList.add('on');
-        URL.revokeObjectURL(url);
-      };img.src=url;
+        URL.revokeObjectURL(url);this.publishCanvas?.();
+      };img.onerror=()=>{URL.revokeObjectURL(url);App.toast.show('Image could not be loaded.','warning');};img.src=url;
     }
   }
   async _renderPage(n){
@@ -6594,7 +6540,7 @@ class TasksManager{
       if(a.done!==b.done)return a.done?1:-1;
       const aOver=a.due&&!a.done&&a.due<now;const bOver=b.due&&!b.done&&b.due<now;
       if(aOver!==bOver)return aOver?-1:1;
-      const prioW={high:0,med:1,low:2};return(prioW[a.prio]||1)-(prioW[b.prio]||1);
+      const prioW={high:0,med:1,low:2};return(prioW[a.prio]??1)-(prioW[b.prio]??1);
     });
     el.innerHTML=sorted.map(t=>{
       /* B14: overdue detection */
@@ -6689,7 +6635,7 @@ class GroupChatManager{
     const msgs=this._msgs.slice(-80);
     const newContent=msgs.map(m=>{
       const rData=this._reactions.get(m.id)||{};
-      const reactHtml=Object.entries(rData).map(([e,c])=>`<button class="reaction-btn" data-gc-react="${esc(e)}" data-gc-msg-id="${esc(m.id)}">${e} ${c}</button>`).join('');
+      const reactHtml=Object.entries(rData).map(([e,c])=>`<button class="reaction-btn" data-gc-react="${esc(e)}" data-gc-msg-id="${esc(m.id)}">${esc(e)} ${c}</button>`).join('');
       return`<div class="gc-msg"><div class="gc-msg-header"><span class="gc-msg-name" translate="no" lang="und">${esc(m.av||'👤')} ${esc(m.name||'Peer')}</span><span class="gc-msg-ts">${fmtTs(m.ts)}</span><button class="btn btn-xs btn-s" data-gc-pin="${esc(m.id)}" style="min-height:auto;padding:1px 5px;font-size:10px;" aria-label="Pin message">📌</button></div><div class="gc-msg-text">${sanitizeMsgText(m.text)}</div>${reactHtml?`<div class="gc-msg-reactions">${reactHtml}</div>`:''}</div>`;
     }).join('');
     const wasAtBottom=el.scrollHeight-el.scrollTop<=el.clientHeight+50;
@@ -6850,22 +6796,24 @@ class GroupVideoManager extends LazyModule{
     App.moduleHealth?.markOk?.('GroupVideo');
   }
   async _start(){
-    if(!navigator.mediaDevices?.getUserMedia){App.toast?.show('Camera not available','warning');return;}
+    if(this._starting||this._stream)return;this._starting=true;const epoch=this._mediaEpoch=(this._mediaEpoch||0)+1;
+    if(!navigator.mediaDevices?.getUserMedia){this._starting=false;App.toast?.show('Camera not available','warning');return;}
     try{
       const q=App.netq?.getVideoQuality?.();const prof=CFG.VIDEO_QUALITY_PROFILES[q]||CFG.VIDEO_QUALITY_PROFILES.med;
       this._stream=await navigator.mediaDevices.getUserMedia({
         video:{width:{ideal:prof.w},height:{ideal:prof.h},frameRate:{ideal:prof.fps}},
         audio:{noiseSuppression:true,echoCancellation:true,autoGainControl:true}
       });
+      if(epoch!==this._mediaEpoch){this._stream.getTracks().forEach(t=>t.stop());this._stream=null;return;}
       App.streamReg?.register?.('group-video',this._stream);
       const mv=document.getElementById('gv-my-video');if(mv){mv.srcObject=this._stream;mv.play().catch(()=>{});}
       setEl('gv-status','Camera started');
       setEl('gv-quality-badge',q.toUpperCase()+' '+prof.w+'p');
       this._startQualityMonitor();
       App.toast?.show('Group video started','success');
-    }catch(e){App.toast?.show('Camera error: '+e.message,'error');}
+    }catch(e){App.toast?.show('Camera error: '+e.message,'error');}finally{this._starting=false;}
   }
-  _stop(){
+  _stop(){this._mediaEpoch=(this._mediaEpoch||0)+1;
     App.streamReg?.stop?.('group-video');
     this._stream=null;
     const mv=document.getElementById('gv-my-video');if(mv)mv.srcObject=null;
@@ -6967,9 +6915,11 @@ class GroupVoiceManager{
     App.moduleHealth?.markOk?.('GroupVoice');
   }
   async _join(){
-    if(this._stream){App.toast?.show('Already in voice','warning');return;}
+    if(this._starting)return;this._starting=true;const epoch=this._mediaEpoch=(this._mediaEpoch||0)+1;
+    if(this._stream){this._starting=false;App.toast?.show('Already in voice','warning');return;}
     try{
       this._stream=await navigator.mediaDevices.getUserMedia({audio:{noiseSuppression:true,echoCancellation:true,autoGainControl:true},video:false});
+      if(epoch!==this._mediaEpoch){this._stream.getTracks().forEach(t=>t.stop());this._stream=null;return;}
       App.streamReg?.register?.('group-voice',this._stream);
       setEl('gvoice-status','🎤 In voice room');
       this._render();
@@ -6979,9 +6929,9 @@ class GroupVoiceManager{
         }
       }
       App.toast?.show('Joined group voice','success');
-    }catch(e){App.toast?.show('Microphone error: '+e.message,'error');}
+    }catch(e){App.toast?.show('Microphone error: '+e.message,'error');}finally{this._starting=false;}
   }
-  _leave(){
+  _leave(){this._mediaEpoch=(this._mediaEpoch||0)+1;
     App.streamReg?.stop?.('group-voice');this._stream=null;
     this._calls.forEach(call=>{try{call.close();}catch(e){}});this._calls.clear();
     setEl('gvoice-status','');this._render();
@@ -7612,7 +7562,7 @@ class UIManager{
     const presCls=pres==='busy'?'pres-busy':pres==='idle'?'pres-idle':pres==='away'?'pres-away':'pres-online';
     const unread=this._unread.get(pid)||0;
     /* B2: translate="no" lang="und" on peer name span */
-    const html=`<div class="pc-top"><span class="pc-av">${esc(fp?.av||'👤')}</span><span class="pc-nm" translate="no" lang="und">${esc(fp?.name||pid.substring(0,12))}</span>${unread?`<span class="ubadge">${unread}</span>`:''}<span class="presence-dot ${presCls}"></span></div><div class="pc-row"><span class="plat-dot ${latCls}"></span><span>${lat?lat+'ms':'—'}</span><span class="rtt-bar" aria-hidden="true">${lat?(()=>{const c=lat<50?'green':lat<150?'yellow':lat<300?'orange':'red';const n=lat<50?4:lat<150?3:lat<300?2:1;return Array.from({length:4},(_,i)=>i<n?`<span class="rtt-seg active ${c}"></span>`:`<span class="rtt-seg"></span>`).join('');})():''}</span><span style="margin-left:auto;font-size:10px;color:var(--muted)">${esc(fp?.version||'')}</span></div><div class="pc-acts"><button class="btn btn-xs btn-s" data-peer-act="call" aria-label="Call">📞</button><button class="btn btn-xs btn-s" data-peer-act="video" aria-label="Video">📹</button><button class="btn btn-xs btn-s" data-peer-act="file" aria-label="File">📁</button></div>`;
+    const html=`<div class="pc-top"><span class="pc-av">${esc(fp?.av||'👤')}</span><span class="pc-nm" translate="no" lang="und">${esc(fp?.name||pid.substring(0,12))}</span>${unread?`<span class="ubadge">${unread}</span>`:''}<span class="presence-dot ${presCls}"></span></div><div class="pc-row"><span class="plat-dot ${latCls}"></span><span>${lat?lat+'ms':'—'}</span><span class="rtt-bar" aria-hidden="true">${lat?(()=>{const c=lat<50?'green':lat<150?'yellow':lat<300?'orange':'red';const n=lat<50?4:lat<150?3:lat<300?2:1;return Array.from({length:4},(_,i)=>i<n?`<span class="rtt-seg active ${c}"></span>`:`<span class="rtt-seg"></span>`).join('');})():''}</span><span style="margin-left:auto;font-size:10px;color:var(--muted)">${esc(fp?.version||'')}</span></div><div class="pc-acts"><button class="btn btn-xs btn-s" data-peer-act="call" aria-label="Call">📞</button><button class="btn btn-xs btn-s" data-peer-act="video" aria-label="Video">📹</button><button class="btn btn-xs btn-s" data-peer-act="file" aria-label="File">📁</button><button class="btn btn-xs btn-s" data-peer-act="permissions" aria-label="Member permissions">⚙️</button></div>`;
     if(!card){
       card=document.createElement('div');card.className='pc peer-card-new';card.id='pc-'+pid;card.dataset.pid=pid;
       card.setAttribute('role','listitem');card.setAttribute('tabindex','0');card.setAttribute('aria-label',esc(fp?.name||pid));
@@ -7623,7 +7573,7 @@ class UIManager{
         const a=act.dataset.peerAct;
         if(a==='call')App.media?._startCall?.(false);
         else if(a==='video')App.media?._startCall?.(true);
-        else if(a==='file')document.getElementById('file-inp')?.click();
+        else if(a==='file')document.getElementById('file-inp')?.click();else if(a==='permissions')showMemberPermissions(pid);
       });
       list.prepend(card);
     }
@@ -7645,7 +7595,7 @@ class UIManager{
     const mobList=document.getElementById('mob-peers-list');if(!mobList)return;
     const peers=document.querySelectorAll('#peers-list .pc');
     if(!peers.length){mobList.innerHTML='<div class="mob-nopeer" style="font-size:12px;color:var(--muted);text-align:center;padding:16px">No peers connected</div>';return;}
-    mobList.innerHTML=[...peers].map(p=>{const pid=p.dataset.pid;const nm=App.peer?.peerName?.(pid)||pid;return`<div class="pc" data-pid="${esc(pid)}" role="listitem" style="margin-bottom:4px"><div class="pc-top"><span class="pc-av">👤</span><span class="pc-nm" translate="no" lang="und">${esc(nm)}</span></div><div class="pc-acts"><button class="btn btn-xs btn-p" onclick="App.ui.selectPeer('${esc(pid)}');document.getElementById('mobile-peers').classList.remove('on')">Chat</button></div></div>`;}).join('');
+    mobList.innerHTML=[...peers].map(p=>{const pid=p.dataset.pid;const nm=App.peer?.peerName?.(pid)||pid;return`<div class="pc" data-pid="${esc(pid)}" role="listitem" style="margin-bottom:4px"><div class="pc-top"><span class="pc-av">👤</span><span class="pc-nm" translate="no" lang="und">${esc(nm)}</span></div><div class="pc-acts"><button class="btn btn-xs btn-p" data-mobile-chat="${esc(pid)}">Chat</button></div></div>`;}).join('');
   }
   showMobPeers(){document.getElementById('mobile-peers')?.classList.add('on');}
   /** B6: Enhanced per-peer sliding window rate limiter */
@@ -7996,7 +7946,7 @@ function createMemberTransport(deps){
      this.attach(c,false);
     });
     p.on('call',c=>{if(!this.connections.get(c.peer)?.open){c.close();return;}this.media.add(c);c.on('close',()=>this.media.delete(c));this.options.onCall?.(c);});
-    const rawCall=p.call.bind(p);p.call=(id,stream,opts)=>{if(!this.connections.get(id)?.open)throw Error('Accept the member connection before calling.');const c=rawCall(id,stream,opts);if(c){this.media.add(c);c.on('close',()=>this.media.delete(c));}return c;};
+    const rawCall=p.call.bind(p);p.call=(id,stream,opts)=>{if(!this.connections.get(id)?.open||this.options.canCall?.(id)===false)throw Error('Accept the member connection and allow calls before calling.');const c=rawCall(id,stream,opts);if(c){this.media.add(c);c.on('close',()=>this.media.delete(c));}return c;};
     p.on('disconnected',()=>{if(this.closed||epoch!==this.epoch)return;this.ready=false;this.discovery?.suspend();this.status('reconnecting','Reconnecting signaling…');this.reconnect();});
     p.on('error',e=>{if(!settled){fail(e);return;}this.options.onError?.(e.type==='peer-unavailable'?'The destination is unavailable. Keep both pages open.':e.message||'Connection failed.');});
     p.on('close',()=>{if(this.closed||epoch!==this.epoch)return;this.ready=false;this.discovery?.suspend();this.disconnectAll();this.status('offline','Connection closed. Retry to reconnect.');});
@@ -8122,6 +8072,7 @@ class MemberPeerManager extends PeerManager {
    this.transport=new library.Transport({
     identity:{uuid:this.uuid,name:SafeStorage.get('dh-name','Member'),av:SafeStorage.get('dh-avatar','👤')},
     baseUrl:location.href,peerOptions:()=>this.peerOptions(),
+    canCall:id=>App.perms.check(id,'canCall'),
     blocked:id=>App.room?.isBlocked?.(id)||App.trust?.isBlocked?.(id),
     onReady:id=>{this.peer=this.transport.peer;this.myId=id;this._startPing();this.updateInvite();Bus.emit('peer:open',{id,pid:id});if(!this._inviteHandled){this._inviteHandled=true;const u=new URL(location.href),invite=new URLSearchParams(u.hash.slice(1)).get('peer')||u.searchParams.get('peer');if(invite)void this.connectTo(invite);}},
     onState:(state,detail)=>{this.peer=this.transport?.peer||null;App.ui?.setStatus(state==='ready'?'ONLINE':state==='connecting'||state==='reconnecting'?'RECONNECTING':'OFFLINE');setEl('member-main-status',detail||state);this.renderOnline();},
@@ -8129,9 +8080,11 @@ class MemberPeerManager extends PeerManager {
     onRequest:(identity,conn)=>this.requestApproval(identity,conn),
     onRequestClosed:conn=>this.closeApproval(conn),
     onConnected:(conn,fp,dir)=>this.connected(conn,fp,dir),
-    onDisconnected:id=>{this.dconns.delete(id);App.connReg?.unregister?.(id);this.peerMap.delete(id);App.ui?.removePeer?.(id);Bus.emit('peer:disconnected',{id,pid:id});this.renderOnline();},
+    onDisconnected:id=>{this.dconns.delete(id);App.connReg?.unregister?.(id);this.peerMap.delete(id);if(App.media?._pendingCall?.peer===id)App.media._rejectIncoming();if(App.media?._pendingCallPid===id)App.media._cleanupCall('Member disconnected');App.ui?.removePeer?.(id);Bus.emit('peer:disconnected',{id,pid:id});this.renderOnline();},
     onData:(pid,raw)=>{
      let m=raw;try{if(typeof m==='string')m=JSON.parse(m);}catch{return;}
+     if(!memberMessageAllowed(pid,m))return;
+     if(m?.type==='group-room'){void App.group.onRoom(pid,m);return;}if(m?.type==='gc-reaction'||m?.type==='gc-typing'){App.group.onGroupEvent(pid,m);return;}
      if(m?.type==='member-transfer-cancel'){App.files?.cancelRemote(m.id,pid);return;}
      if(m?.type?.startsWith('file-'))return; // File payload uses separately approved version-3 channels.
      super._onData(pid,m);Bus.emit('peer:data',{id:pid,pid,data:m});
@@ -8155,7 +8108,7 @@ class MemberPeerManager extends PeerManager {
  }
  async handleMemberCall(call){
   if(!App.perms?.check(call.peer,'canCall')){call.close();return;}
-  const type=call.metadata?.type;
+  const type=call.metadata?.type;call.on('close',()=>call._memberClosed=true);if(type==='presentation'){void App.presentation.incoming(call);return;}if(type==='conference'){void App.conference.incoming(call);return;}
   if(type!=='group-voice'&&type!=='group-video'){if(App.media?._pendingCall||App.media?._call){call.close();return;}App.media?.handleIncoming?.(call);call.on('close',()=>{if(App.media._pendingCall===call){App.media._pendingCall=null;Modal.hide('incoming-call-modal');}});return;}
   const module=type==='group-voice'?App.groupVoice:App.groupVideo;
   if(!module){call.close();return;}
@@ -8191,6 +8144,7 @@ class MemberPeerManager extends PeerManager {
  closeApproval(conn){const req=this._approvals.find(x=>x.conn===conn);if(!req)return;if(req===this._approvalShowing)req.finish(false);else{this._approvals=this._approvals.filter(x=>x!==req);req.resolve(false);}}
  _onConn(c){return this.transport?.attach(c,false);}
  _setupConn(c){return this._onConn(c);}
+ sendMsg(pid,text,id){if(!App.perms.check(pid,'canChat')){App.toast.show('Chat with this member is disabled.','warning');return false;}return super.sendMsg(pid,text,id);}
  getMyId(){return this.myId;}
  getPeer(){return this.peer;}
  getConn(id){return this.conn(id);}
@@ -8789,6 +8743,10 @@ function configureMemberUI(){
  const p=App.peer;
  const on=(id,fn)=>document.getElementById(id)?.addEventListener('click',fn);
  on('member-retry',()=>p.tryReconnect());
+ document.getElementById('mob-peers-list')?.addEventListener('click',e=>{const b=e.target.closest('[data-mobile-chat]');if(b){App.ui.selectPeer(b.dataset.mobileChat);document.getElementById('mobile-peers').classList.remove('on');}});
+ on('btn-perms-close',()=>{document.getElementById('perms-panel').style.display='none';});on('dh-debug-close',()=>document.getElementById('dh-debug-panel')?.remove());
+ on('btn-sw-install',()=>App.sw?.promptInstall());
+ 
  const toggle=document.getElementById('online-visible-toggle');if(toggle){toggle.checked=false;toggle.onchange=()=>{p.updateIdentity();p.transport?.setDiscovery(toggle.checked);};}
  on('btn-online-refresh',()=>{if(p.transport?.discovery?.enabled)p.transport.discovery.tick();p.renderOnline();});
  on('btn-online-random',()=>{const users=p._users.filter(x=>!p.dconns.has(x.peerId));if(!users.length){App.toast?.show('No new members available. Enable discovery on both devices.','info');return;}p.connectTo(users[Math.floor(Math.random()*users.length)].peerId);});
@@ -8808,10 +8766,243 @@ function configureMemberUI(){
   start:()=>p.transport?.setDiscovery(true),stop:()=>p.transport?.setDiscovery(false),destroy:()=>p.transport?.setDiscovery(false)
  };
  window.MemberCommunication={version:CFG.VERSION,architecture:'main-peer-and-presence-peer',diagnostics:()=>p.diagnostics(),parseInvite:value=>createMemberTransport({Peer:window.Peer}).parseInvite(value,location.href)};
- window.addEventListener('pagehide',()=>{App.files.destroy();p.destroy();});
+ window.addEventListener('pagehide',()=>{App.files.destroy();App.media._cleanupCall('Page closed');App.groupVideo._stop();App.groupVoice._leave();App.conference._leave();App.presentation.stop();App.qr.stopScan();App.code._runnerCleanup?.();p.destroy();});
  window.addEventListener('beforeunload',e=>{if(App.files.active.size){e.preventDefault();e.returnValue='';}});
  window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
- setEl('member-version','61.0.0');
+ setEl('member-version','61.1.0');
+}
+
+
+/* v61.1 lifecycle fixes: one pending media acquisition, bound to an approved member. */
+class MemberMediaManager extends MediaManager {
+ constructor(){super();this._mediaEpoch=0;this._acquiring=false;}
+ async acquire(video){
+  const audio={echoCancellation:true,autoGainControl:true,noiseSuppression:!!document.getElementById('call-noise-suppress')?.checked};
+  try{return await navigator.mediaDevices.getUserMedia({audio,video:video?{width:{ideal:1280},height:{ideal:720}}:false});}
+  catch(e){if(video&&['NotFoundError','NotReadableError','OverconstrainedError'].includes(e.name))return navigator.mediaDevices.getUserMedia({audio,video:false});throw e;}
+ }
+ async _startCall(video){
+  const pid=App.ui?.activePeer;
+  if(!App.peer?.conn(pid)?.open||!App.perms.check(pid,'canCall')){App.toast.show('Connect and accept this member before calling.','warning');return;}
+  if(this._call||this._pendingCall||this._acquiring||this._isCleaningUp){App.toast.show('A call is already active or starting.','warning');return;}
+  const epoch=++this._mediaEpoch;this._acquiring=true;
+  try{
+   const stream=await this.acquire(video);
+   if(epoch!==this._mediaEpoch||!App.peer.conn(pid)?.open){stream.getTracks().forEach(t=>t.stop());return;}
+   this._localStream=stream;App.streamReg.register('local-call',stream);
+   const call=App.peer.peer.call(pid,stream,{metadata:{type:'direct',video:stream.getVideoTracks().length>0}});
+   if(!call)throw Error('Could not start the call.');
+   this._call=call;this._pendingCallPid=pid;this._videoEnabled=stream.getVideoTracks().length>0;
+   const local=document.getElementById('lvid');if(local){local.srcObject=stream;local.muted=true;local.play().catch(()=>{});}
+   App.ui.setTab('call');App.directCall.ring(pid,this._videoEnabled);App.callState.transition('CONNECTING');this._onCallSetup(call,pid);
+   call.on('stream',()=>App.directCall.notifyAccepted(pid));this._abr.start(call);WakeLock.acquire();
+  }catch(e){this._cleanupCall('Could not start call: '+e.message);}finally{this._acquiring=false;}
+ }
+ handleIncoming(call){
+  if(this._call||this._pendingCall||this._acquiring||this._isCleaningUp){call.close();return;}
+  super.handleIncoming(call);
+  const timer=setTimeout(()=>{if(this._pendingCall===call)this._rejectIncoming();},CFG.CALL_RING_TIMEOUT);
+  call.on('close',()=>{clearTimeout(timer);if(this._pendingCall===call){this._mediaEpoch++;this._pendingCall=null;Modal.hide('incoming-call-modal');}});
+ }
+ async _acceptIncoming(){
+  const call=this._pendingCall;if(!call||this._acquiring)return;
+  Modal.hide('incoming-call-modal');const epoch=++this._mediaEpoch;this._acquiring=true;
+  try{
+   const stream=await this.acquire(call.metadata?.video===true);
+   if(epoch!==this._mediaEpoch||this._pendingCall!==call||!App.peer.conn(call.peer)?.open){stream.getTracks().forEach(t=>t.stop());return;}
+   this._pendingCall=null;this._localStream=stream;this._call=call;this._pendingCallPid=call.peer;this._videoEnabled=stream.getVideoTracks().length>0;
+   App.streamReg.register('local-call',stream);
+   const local=document.getElementById('lvid');if(local){local.srcObject=stream;local.muted=true;local.play().catch(()=>{});}
+   this._onCallSetup(call,call.peer);call.answer(stream);this._abr.start(call);App.ui.setTab('call');App.callState.transition('CONNECTING');WakeLock.acquire();
+  }catch(e){call.close();this._cleanupCall('Could not accept call: '+e.message);}finally{this._acquiring=false;}
+ }
+ _rejectIncoming(){this._mediaEpoch++;super._rejectIncoming();}
+ _cleanupCall(reason){this._mediaEpoch++;this._pendingCall?.close();this._pendingCall=null;App.directCall?.notifyAccepted?.();if(App.screenShare?._sharing)App.screenShare.stop();super._cleanupCall(reason);}
+}
+class MemberDirectCallModule extends DirectCallModule {
+ cancel(reason='cancelled'){const pid=this._outgoing?.pid;super.cancel(reason);if(pid&&App.media?._call?.peer===pid)App.media._cleanupCall(reason==='timeout'?'No answer':'Call cancelled');}
+ onRemoteSignal(pid,msg){if(msg.action==='ring')return;if(App.media?._call?.peer!==pid&&App.media?._pendingCall?.peer!==pid)return;if(msg.action==='cancel'||msg.action==='busy')App.media._cleanupCall(msg.action==='busy'?'Member is busy':'Call cancelled');}
+}
+
+
+/* Shared asynchronous consent UI for room and presentation invitations. */
+const MemberQuestion={
+ queue:[],active:null,
+ ask(title,body,label='Accept'){if(this.queue.length>=16)return Promise.resolve(false);return new Promise(resolve=>{this.queue.push({title,body,label,resolve});this.next();});},
+ next(){
+  if(this.active||!this.queue.length)return;const q=this.active=this.queue.shift();
+  let d=document.getElementById('member-question');
+  if(!d){d=document.createElement('dialog');d.id='member-question';d.className='member-dialog';d.innerHTML='<h2></h2><p></p><button class="btn btn-s" data-no>Decline</button><button class="btn btn-p" data-yes>Accept</button>';document.body.append(d);}
+  d.querySelector('h2').textContent=q.title;d.querySelector('p').textContent=q.body;d.querySelector('[data-yes]').textContent=q.label;
+  const finish=ok=>{if(this.active!==q)return;clearTimeout(q.timer);this.active=null;d.close();q.resolve(ok);this.next();};
+  d.querySelector('[data-no]').onclick=()=>finish(false);d.querySelector('[data-yes]').onclick=()=>finish(true);d.oncancel=e=>{e.preventDefault();finish(false);};q.timer=setTimeout(()=>finish(false),90000);d.showModal();
+ }
+};
+class MemberGroupChatManager extends GroupChatManager {
+ constructor(){super();this._inviting=new Set();}
+ init(){super.init();document.getElementById('btn-gc-pin')?.addEventListener('click',()=>{const m=this._msgs.at(-1);if(m)this._pinMessage(m.id);else App.toast.show('No group message to pin.','info');});Bus.on('peer:connected',({pid})=>this.invite(pid));Bus.on('peer:disconnected',({pid})=>{if(!this._room)return;if(pid===this._room.host){this._leave(false);App.toast.show('The group host disconnected.','warning');}else if(this._room.host===App.peer.myId){this._room.members=this._room.members.filter(x=>x!==pid);this.roster();}});}
+ _create(){if(this._room){App.toast.show('Leave the current room before creating another.','warning');return;}super._create();this._room.host=App.peer.myId;this._room.members=[App.peer.myId];for(const pid of App.peer.dconns.keys())this.invite(pid);this._render();}
+ invite(pid){if(this._room?.host===App.peer.myId)App.peer.send(pid,{type:'group-room',action:'invite',room:this._room.id,name:this._room.name,host:App.peer.myId});}
+ async onRoom(pid,m){
+  if(typeof m.room!=='string'||m.room.length>64)return;
+  if(m.action==='invite'){
+   if(m.host!==pid||typeof m.name!=='string'||m.name.length>100||this._room||this._inviting.has(pid))return;
+   this._inviting.add(pid);const yes=await MemberQuestion.ask('Join group room?',App.peer.peerName(pid)+' invited you to '+m.name+'.','Join room');this._inviting.delete(pid);
+   if(!yes||this._room||!App.peer.conn(pid)?.open)return;
+   this._room={id:m.room,name:m.name,host:pid,members:[pid,App.peer.myId]};this._msgs=[];this._reactions.clear();this._render();App.peer.send(pid,{type:'group-room',action:'join',room:m.room});App.ui.setTab('group');return;
+  }
+  if(!this._room||m.room!==this._room.id)return;
+  if(m.action==='join'&&this._room.host===App.peer.myId){if(!this._room.members.includes(pid)&&this._room.members.length<32)this._room.members.push(pid);this.roster();}
+  else if(m.action==='members'&&pid===this._room.host&&Array.isArray(m.members)&&m.members.length<=32&&m.members.every(x=>typeof x==='string'&&CFG.PEER_ID_RE.test(x))){this._room.members=[...new Set(m.members)];this._render();}
+  else if(m.action==='leave'&&this._room.host===App.peer.myId){this._room.members=this._room.members.filter(x=>x!==pid);this.roster();}
+  else if(m.action==='closed'&&pid===this._room.host)this._leave(false);
+ }
+ roster(){if(!this._room)return;this.fanout({type:'group-room',action:'members',room:this._room.id,members:this._room.members});this._render();}
+ fanout(m,except){for(const pid of this._room?.members||[])if(pid!==App.peer.myId&&pid!==except)App.peer.send(pid,m);}
+ sendRoom(m){if(!this._room)return;if(this._room.host===App.peer.myId)this.fanout(m);else App.peer.send(this._room.host,m);}
+ _send(){const text=(document.getElementById('gc-inp')?.value||'').trim();if(!this._room||!text)return;if(text.length>CFG.MSG_SIZE_LIMIT){App.toast.show('Group message is too long.','warning');return;}const m={type:'group-msg',id:uid(16),from:App.peer.myId,name:SafeStorage.get('dh-name','Member'),av:SafeStorage.get('dh-avatar','👤'),text,ts:Date.now(),room:this._room.id};this._msgs.push(m);this._msgs=this._msgs.slice(-200);document.getElementById('gc-inp').value='';this._renderMsgs();this.sendRoom(m);}
+ route(pid,m){if(!this._room||m.room!==this._room.id)return false;if(this._room.host===App.peer.myId){if(!this._room.members.includes(pid))return false;m.from=pid;m.name=App.peer.peerName(pid);this.fanout(m,pid);return true;}return pid===this._room.host&&this._room.members.includes(m.from);}
+ _onMsg(pid,m){if(typeof m.text!=='string'||m.text.length>CFG.MSG_SIZE_LIMIT||typeof m.id!=='string'||m.id.length>64||this._msgs.some(x=>x.id===m.id)||!this.route(pid,m))return;this._msgs.push(m);this._msgs=this._msgs.slice(-200);this._renderMsgs();}
+ _sendTyping(typing){if(this._room)this.sendRoom({type:'gc-typing',typing:!!typing,from:App.peer.myId,room:this._room.id});}
+ _onTyping(pid,typing){/* Room typing uses onGroupEvent to retain its room and sender. */}
+ onGroupEvent(pid,m){if(m.type==='gc-reaction'){if(typeof m.emoji!=='string'||m.emoji.length>16||!this._msgs.some(x=>x.id===m.msgId)||!this.route(pid,m))return;super._onReaction(m.from,m);}else if(this.route(pid,m))super._onTyping(m.from,!!m.typing);}
+ _addReaction(emoji,msgId){if(!this._room||!this._msgs.some(x=>x.id===msgId))return;const m={type:'gc-reaction',emoji,msgId,room:this._room.id,from:App.peer.myId};super._onReaction(App.peer.myId,m);this.sendRoom(m);}
+ _leave(notify=true){if(this._room&&notify){const m={type:'group-room',action:this._room.host===App.peer.myId?'closed':'leave',room:this._room.id};this.sendRoom(m);}clearTimeout(this._typingTimer);super._leave();document.getElementById('gc-msgs')?.replaceChildren();}
+ _render(){super._render();const box=document.getElementById('gc-members');if(box&&this._room)box.textContent=this._room.name+' · '+this._room.members.length+' member(s)';}
+}
+class MemberPresentationManager extends PresentationManager {
+ constructor(){super();this._outgoing=new Map();this._incoming=null;this._published=null;}
+ async _loadDoc(file){if(!file)return;if(file.type!=='application/pdf'&&!file.type.startsWith('image/')){App.toast.show('Choose a PDF or image.','warning');return;}if(file.type==='application/pdf')this._pdf=null;await super._loadDoc(file);if(file.type==='application/pdf'&&this._pdf)this.publishCanvas();}
+ async _renderPage(n){await super._renderPage(n);}
+ publishCanvas(){const canvas=document.getElementById('doc-canvas');if(!canvas?.captureStream){App.toast.show('Live document sharing is unavailable in this browser. Send the file instead.','warning');return;}this.publishStream(canvas.captureStream(5),'document');}
+ publishStream(stream,kind){
+  if(!App.peer.dconns.size){stream.getTracks().forEach(t=>t.stop());App.toast.show('Connect to a member before presenting.','warning');return false;}
+  this.stopPublishing();this._published=stream;
+  for(const pid of App.peer.dconns.keys()){if(!App.perms.check(pid,'canCall'))continue;try{const call=App.peer.peer.call(pid,stream,{metadata:{type:'presentation',kind}});if(call){this._outgoing.set(pid,call);call.on('close',()=>{if(this._outgoing.get(pid)===call)this._outgoing.delete(pid);});}}catch(e){App.toast.show('Presentation connection failed: '+e.message,'warning');}}
+  return true;
+ }
+ async incoming(call){
+  const accepted=await MemberQuestion.ask('View presentation?',App.peer.peerName(call.peer)+' wants to share '+(call.metadata?.kind==='document'?'a document':'their screen')+'.','View');
+  if(!accepted||!App.peer.conn(call.peer)?.open||call._memberClosed){call.close();return;}
+  this._incoming?.close();this._incoming=call;
+  call.on('stream',stream=>{const video=document.getElementById('presenter-video');video.srcObject=stream;video.muted=false;video.play().catch(()=>{});document.getElementById('doc-canvas').style.display='none';document.getElementById('presentation-wrap').classList.add('on');document.getElementById('pres-empty').style.display='none';App.ui.setTab('presentation');});
+  call.on('close',()=>{if(this._incoming===call){this._incoming=null;document.getElementById('presenter-video').srcObject=null;document.getElementById('presentation-wrap').classList.remove('on');}});
+  call.answer();
+ }
+ stopPublishing(){for(const c of this._outgoing.values())c.close();this._outgoing.clear();this._published?.getTracks().forEach(t=>t.stop());this._published=null;}
+ stop(){this.stopPublishing();this._incoming?.close();this._incoming=null;document.getElementById('presentation-wrap')?.classList.remove('on');}
+ _onRemotePage(pid,m){if(this._incoming?.peer===pid)setEl('pres-status','Page '+m.page+' / '+m.total);}
+}
+class MemberScreenShareManager extends ScreenShareManager {
+ async toggleShare(){
+  if(this._sharing){this.stop();return;}if(this._starting)return;
+  if(!App.peer.dconns.size){App.toast.show('Connect to a member before sharing your screen.','warning');return;}
+  this._starting=true;const epoch=this._shareEpoch=(this._shareEpoch||0)+1;
+  try{const stream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});if(epoch!==this._shareEpoch){stream.getTracks().forEach(t=>t.stop());return;}if(!App.presentation.publishStream(stream,'screen'))return;this._stream=stream;this._sharing=true;App.streamReg.register('screen-share',stream);const video=document.getElementById('presenter-video');video.srcObject=stream;video.muted=true;video.play().catch(()=>{});document.getElementById('presentation-wrap').classList.add('on');stream.getVideoTracks()[0]?.addEventListener('ended',()=>this.stop());}
+  catch(e){if(e.name!=='NotAllowedError')App.toast.show('Screen sharing failed: '+e.message,'error');}finally{this._starting=false;}
+ }
+ stop(){this._shareEpoch=(this._shareEpoch||0)+1;App.presentation?.stop();App.streamReg?.stop('screen-share');this._stream=null;this._sharing=false;const video=document.getElementById('presenter-video');if(video)video.srcObject=null;}
+}
+
+
+class MemberConferenceModule extends ConferenceModule {
+ constructor(){super();this._stream=null;this._calls=new Map();this._remote=new Map();this._dialing=new Set();this._epoch=0;this._starting=false;}
+ init(){super.init();document.getElementById('conf-participants')?.addEventListener('click',e=>{const b=e.target.closest('[data-conf-kick]');if(b)this._kickParticipant(b.dataset.confKick);});Bus.on('peer:connected',()=>{if(this._confId)void this.connectMedia();});Bus.on('peer:disconnected',({pid})=>{this._calls.get(pid)?.close();if(pid===this._host&&!this._isHost)this._leave();else if(this._isHost)this.sendRoster();});}
+ async getMedia(){return App.media.acquire(true);}
+ async _create(){
+  if(this._confId||this._starting)return;if(!App.peer.transport?.ready){App.toast.show('Wait for the connection to become ready.','warning');return;}
+  const epoch=++this._epoch;this._starting=true;
+  try{const stream=await this.getMedia();if(epoch!==this._epoch){stream.getTracks().forEach(t=>t.stop());return;}this._stream=stream;App.streamReg.register('conf-local',stream);super._create();this._render();}
+  catch(e){App.toast.show('Conference media unavailable: '+e.message,'error');}finally{this._starting=false;}
+ }
+ async joinConference(confId,hostPid){
+  if(this._confId||this._starting)return;this._starting=true;const epoch=++this._epoch;
+  try{
+   if(!App.peer.conn(hostPid)?.open){const accepted=await App.peer.connectTo(hostPid);if(!accepted)return;}
+   const stream=await this.getMedia();if(epoch!==this._epoch||!App.peer.conn(hostPid)?.open){stream.getTracks().forEach(t=>t.stop());return;}
+   this._stream=stream;App.streamReg.register('conf-local',stream);await super.joinConference(confId,hostPid);
+   this._joinTimer=setTimeout(()=>{if(this._confId===confId&&!this._participants.has(hostPid)){this._leave();App.toast.show('Conference join timed out.','warning');}},30000);
+  }catch(e){this._leave();App.toast.show('Could not join conference: '+e.message,'error');}finally{this._starting=false;}
+ }
+ sendRoster(){
+  if(!this._isHost||!this._confId)return;
+  const members=[...this._participants].map(([pid,p])=>({pid,name:p.name,host:pid===this._host}));
+  for(const pid of this._participants.keys())if(pid!==App.peer.myId)App.peer.send(pid,{type:'conf-signal',action:'member-list',confId:this._confId,members});
+  void this.connectMedia();
+ }
+ onSignal(pid,m){
+  if(m.action==='leave'&&pid===this._host&&!this._isHost&&m.confId===this._confId){this._leave();return;}
+  if(m.action==='join'&&this._isHost&&m.confId===this._confId){if(this._locked||this._participants.size>=CFG.MAX_CONF_PARTICIPANTS){App.peer.send(pid,{type:'conf-signal',action:'join-denied',confId:this._confId});return;}super.onSignal(pid,{...m,name:App.peer.peerName(pid)});this.sendRoster();return;}
+  if(m.action==='join-denied'&&pid===this._host&&m.confId===this._confId){this._leave();App.toast.show('Conference is locked or full.','warning');return;}
+  if(m.action==='member-list'&&pid===this._host&&m.confId===this._confId){
+   if(!Array.isArray(m.members)||m.members.length>CFG.MAX_CONF_PARTICIPANTS||!m.members.every(x=>x&&typeof x.pid==='string'&&CFG.PEER_ID_RE.test(x.pid)&&typeof x.name==='string'&&x.name.length<=100)||!m.members.some(x=>x.pid===App.peer.myId))return;
+   clearTimeout(this._joinTimer);const ids=new Set(m.members.map(x=>x.pid));
+   for(const [id,call]of this._calls)if(!ids.has(id))call.close();
+   this._participants=new Map(m.members.map(x=>[x.pid,{name:x.name,host:x.pid===this._host}]));this._render();void this.connectMedia();return;
+  }
+  super.onSignal(pid,m);if(m.action==='leave'&&this._isHost){this._calls.get(pid)?.close();this.sendRoster();}
+ }
+ async connectMedia(){
+  if(!this._stream||!this._confId)return;const epoch=this._epoch;
+  for(const pid of this._participants.keys()){
+   if(pid===App.peer.myId||App.peer.myId>pid||this._calls.has(pid)||this._dialing.has(pid))continue;
+   this._dialing.add(pid);
+   try{if(!App.peer.conn(pid)?.open){const c=await App.peer.connectTo(pid);if(!c)continue;}if(epoch!==this._epoch||!this._participants.has(pid)||!this._stream)continue;
+    const call=App.peer.peer.call(pid,this._stream,{metadata:{type:'conference',confId:this._confId}});if(call)this.attachCall(call);
+   }catch(e){App.toast.show('Conference connection failed: '+e.message,'warning');}finally{this._dialing.delete(pid);}
+  }
+ }
+ async incoming(call){if(!this._stream||!this._confId||call.metadata?.confId!==this._confId){call.close();return;}for(let n=0;n<30&&!this._participants.has(call.peer)&&!call._memberClosed;n++)await new Promise(r=>setTimeout(r,100));if(!this._participants.has(call.peer)||!this._stream||call._memberClosed){call.close();return;}this._calls.get(call.peer)?.close();this.attachCall(call);call.answer(this._stream);}
+ attachCall(call){this._calls.set(call.peer,call);call.on('stream',stream=>{this._remote.set(call.peer,stream);this._render();});call.on('close',()=>{if(this._calls.get(call.peer)===call){this._calls.delete(call.peer);this._remote.delete(call.peer);this._render();}});call.on('error',()=>call.close());}
+ _muteAll(){if(!this._isHost)return;for(const pid of this._participants.keys())if(pid!==App.peer.myId)App.peer.send(pid,{type:'conf-signal',action:'mute-participant',confId:this._confId});}
+ _kickParticipant(pid){if(!this._isHost)return;super._kickParticipant(pid);this._calls.get(pid)?.close();this.sendRoster();}
+ _leave(){this._epoch++;clearTimeout(this._joinTimer);for(const c of this._calls.values())c.close();this._calls.clear();this._remote.clear();this._dialing.clear();this._stream?.getTracks().forEach(t=>t.stop());this._stream=null;super._leave();}
+ _render(){
+  super._render();if(!this._confId)return;const box=document.getElementById('conf-participants');if(!box)return;
+  for(const [pid,p]of this._participants){const stream=pid===App.peer.myId?this._stream:this._remote.get(pid);if(!stream)continue;const tile=document.createElement('div'),v=document.createElement('video'),label=document.createElement('div');v.autoplay=true;v.playsInline=true;v.muted=pid===App.peer.myId;v.srcObject=stream;v.style.cssText='width:100%;max-height:240px;object-fit:contain';label.textContent=p.name;tile.append(v,label);box.append(tile);v.play().catch(()=>{});}
+ }
+}
+
+
+function memberMessageAllowed(pid,m){
+ if(!m||typeof m!=='object'||typeof m.type!=='string'||m.type.length>64)return false;
+ const t=m.type;
+ if(['msg','typing','reaction'].includes(t)&&!App.perms.check(pid,'canChat'))return false;
+ if(['wb-stroke','whiteboard','cursor'].includes(t)&&!App.perms.check(pid,'canWhiteboard'))return false;
+ if(['tasks','notes','code','uclip'].includes(t)&&!App.perms.check(pid,'canCollaborate'))return false;
+ if(t==='msg')return typeof m.text==='string'&&m.text.length<=CFG.MSG_SIZE_LIMIT&&typeof m.id==='string'&&/^[a-zA-Z0-9_-]{1,128}$/.test(m.id);
+ if(['notes','uclip'].includes(t))return typeof m.text==='string'&&m.text.length<=250000;
+ if(t==='code')return typeof m.code==='string'&&m.code.length<=250000&&(!m.lang||typeof m.lang==='string'&&m.lang.length<32);
+ if(t==='tasks')return Array.isArray(m.tasks)&&m.tasks.length<=1000&&m.tasks.every(x=>x&&typeof x.id==='string'&&x.id.length<=64&&typeof x.title==='string'&&x.title.length<=1000&&typeof x.done==='boolean');
+ const stroke=s=>s&&Array.isArray(s.pts)&&s.pts.length<=5000&&s.pts.every(p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&Math.abs(p.x)<=100000&&Math.abs(p.y)<=100000)&&typeof s.color==='string'&&s.color.length<64&&Number.isFinite(s.size)&&s.size>0&&s.size<=100;
+ if(t==='wb-stroke')return stroke(m.stroke);
+ if(t==='whiteboard')return m.action==='clear'||m.action==='sync'&&Array.isArray(m.strokes)&&m.strokes.length<=1000&&m.strokes.every(stroke);
+ if(t==='cursor')return Number.isFinite(m.x)&&Number.isFinite(m.y)&&m.x>=0&&m.x<=1&&m.y>=0&&m.y<=1;
+ if(t==='hello')return typeof m.name==='string'&&m.name.length<=100&&(!m.av||typeof m.av==='string'&&m.av.length<=48)&&(!m.pubKey||typeof m.pubKey==='string'&&m.pubKey.length<=4096);
+ return true;
+}
+
+
+function showMemberPermissions(pid){
+ const box=document.getElementById('perms-content');if(!box)return;box.replaceChildren();
+ for(const [key,label]of Object.entries({canChat:'Chat',canCall:'Calls and presentations',canSendFiles:'Send files',canReceiveFiles:'Receive files',canWhiteboard:'Shared whiteboard',canCollaborate:'Code, tasks, notes and clipboard'})){
+  const row=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.checked=App.perms.check(pid,key);input.onchange=()=>{App.perms.set(pid,key,input.checked);if(key==='canCall'&&!input.checked)for(const call of App.peer.transport.media)if(call.peer===pid)call.close();};row.style.cssText='display:flex;gap:10px;margin:12px';row.append(input,document.createTextNode(label));box.append(row);
+ }document.getElementById('perms-panel').style.display='block';
+}
+
+
+class MemberCodeEditor extends CodeEditor {
+ _run(){
+  const input=document.getElementById('code-editor-area'),output=document.getElementById('ce-output');
+  if(document.getElementById('ce-lang')?.value!=='js'){output.textContent='Run supports JavaScript.';return;}
+  this._runnerCleanup?.();const frame=document.createElement('iframe');frame.hidden=true;frame.setAttribute('sandbox','allow-scripts');frame.setAttribute('referrerpolicy','no-referrer');
+  const token=crypto.randomUUID(),source=input.value.replace(/<\/script/gi,'<\\/script');
+  const workerBody="const lines=[];const console={log:(...args)=>lines.push(args.map(x=>typeof x==='string'?x:JSON.stringify(x)).join(' ')),error:(...args)=>lines.push(args.join(' '))};(async()=>{try{"+source+"\n;parent.postMessage({token:"+JSON.stringify(token)+",output:lines.join('\\n')||'(no output)'},'*');}catch(e){parent.postMessage({token:"+JSON.stringify(token)+",output:'Error: '+e.message},'*');}})();";
+  frame.srcdoc='<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; script-src &#39;unsafe-inline&#39;; connect-src &#39;none&#39;;"><scr'+'ipt>'+workerBody+'</scr'+'ipt>';
+  const listener=e=>{if(e.source!==frame.contentWindow||e.data?.token!==token)return;output.textContent=String(e.data.output).slice(0,50000);cleanup();};
+  const cleanup=()=>{clearTimeout(timer);window.removeEventListener('message',listener);frame.remove();this._runnerCleanup=null;};
+  const timer=setTimeout(()=>{output.textContent='Execution timed out.';cleanup();},5000);this._runnerCleanup=cleanup;window.addEventListener('message',listener);output.textContent='Running…';document.body.append(frame);
+ }
 }
 
 async function bootApp(){
@@ -8870,25 +9061,25 @@ async function bootApp(){
   try{App.qr=new QRManager();}catch(_e){console.warn('[DH]qr',_e.message);}
   try{App.heal=new SelfHealingEngine();}catch(_e){console.warn('[DH]heal',_e.message);}
   try{App.broadcastDisc=new BroadcastDiscovery();}catch(_e){console.warn('[DH]broadcastDisc',_e.message);}
-  try{App.room=new RoomManager();App.room.init();}catch(_e){console.warn('[DH]room',_e.message);}
+  try{App.room=new RoomManager();}catch(_e){console.warn('[DH]room',_e.message);}
 
   setBootMsg('Building UI…',60);
   try{App.board=new Whiteboard();}catch(_e){console.warn('[DH]board',_e.message);}
-  try{App.code=new CodeEditor();}catch(_e){console.warn('[DH]code',_e.message);}
+  try{App.code=new MemberCodeEditor();}catch(_e){console.warn('[DH]code',_e.message);}
   try{App.groupVideo=new GroupVideoManager();}catch(_e){console.warn('[DH]groupVideo',_e.message);}
   try{App.tasks=new TasksManager();App.tasks.init();}catch(_e){console.warn('[DH]tasks',_e.message);}
-  try{App.group=new GroupChatManager();App.group.init();}catch(_e){console.warn('[DH]group',_e.message);}
+  try{App.group=new MemberGroupChatManager();App.group.init();}catch(_e){console.warn('[DH]group',_e.message);}
   try{App.vault=new VaultManager();App.vault.init();}catch(_e){console.warn('[DH]vault',_e.message);}
   try{App.groupVoice=new GroupVoiceManager();App.groupVoice.init();}catch(_e){console.warn('[DH]groupVoice',_e.message);}
   try{App.files=new MemberFileTransfer();}catch(_e){console.warn('[DH]files',_e.message);}
-  try{App.media=new MediaManager();App.media.init();}catch(_e){console.warn('[DH]media',_e.message);}
+  try{App.media=new MemberMediaManager();App.media.init();App.abr=App.media._abr;App.recorder=App.media._recorder;App.captions=App.media._captions;App.vbg=App.media._vbg;}catch(_e){console.warn('[DH]media',_e.message);}
   try{App.media&&App.media._captions&&App.media._captions.init&&App.media._captions.init();}catch(_e){}
-  try{App.screenShare=new ScreenShareManager();}catch(_e){console.warn('[DH]screenShare',_e.message);}
-  try{App.presentation=new PresentationManager();App.presentation.init();}catch(_e){console.warn('[DH]presentation',_e.message);}
+  try{App.screenShare=new MemberScreenShareManager();}catch(_e){console.warn('[DH]screenShare',_e.message);}
+  try{App.presentation=new MemberPresentationManager();App.presentation.init();}catch(_e){console.warn('[DH]presentation',_e.message);}
   try{App.invite=new MemberInviteManager();App.invite.init();}catch(_e){console.warn('[DH]invite',_e.message);}
   try{App.callState=new CallStateMachine();}catch(_e){console.warn('[DH]callState',_e.message);}
-  try{App.directCall=new DirectCallModule();App.directCall.init();}catch(_e){console.warn('[DH]directCall',_e.message);}
-  try{App.conference=new ConferenceModule();App.conference.init();}catch(_e){console.warn('[DH]conference',_e.message);}
+  try{App.directCall=new MemberDirectCallModule();App.directCall.init();}catch(_e){console.warn('[DH]directCall',_e.message);}
+  try{App.conference=new MemberConferenceModule();App.conference.init();}catch(_e){console.warn('[DH]conference',_e.message);}
   try{App.streamWatchdog=new StreamWatchdog();App.streamWatchdog.init();}catch(_e){console.warn('[DH]streamWatchdog',_e.message);}
   try{App.e2eBadge=new E2EStatusBadge();App.e2eBadge.init();}catch(_e){console.warn('[DH]e2eBadge',_e.message);}
   try{App.callStats=new CallStatsOverlay();App.callStats.init();}catch(_e){console.warn('[DH]callStats',_e.message);}
@@ -9508,6 +9699,7 @@ if(localStorage.getItem('dh-devmode')==='1'){
 })();
 
 })(); // end DevHub IIFE
+
 
 </script>
 </body>
