@@ -1,4 +1,4 @@
-# Member Communication — 61.2
+# Member Communication — 61.2.1
 
 The deployed application remains entirely in **index.html**. No build step or application server is required. The Node package and tests are development tools only.
 
@@ -47,8 +47,9 @@ npm test
 
 The test runner extracts the implementation from **index.html**. It uses LinkeDOM and simulated PeerJS connections, browser media APIs, workers and storage; there is no second application implementation.
 
-The 2026-09-27 verification passed **74 checks**:
+The 2026-09-27 verification passed **82 Node checks**, plus **5 Chromium browser scenarios**:
 
+- **8 onboarding tests:** visible step navigation, duplicate startup callbacks, identity updates, Back/Skip/Close/Escape, returning visits, unavailable storage and keyboard focus.
 - **12 connection architecture tests:** stable-ID reclaim, refresh and channel-loss resume, invalid tokens, expiry/blocking/revocation, three-peer discovery, rendezvous takeover, stale-record suppression, bounded metadata, toggle races and signaling recovery.
 
 - **47 integrated scenarios** across two or three app instances: startup, identity, approval, rejection, timeout, simultaneous requests, discovery, actual receiving DOM updates, voice/video consent and lifecycle, group membership, conference media/host controls, presentations, mobile chat, malformed payloads and permissions.
@@ -59,7 +60,7 @@ All 17 tabs initialize, the final inline JavaScript parses, and HTML IDs are uni
 
 ### Coverage limits
 
-These checks ran in an isolated JavaScript environment using the real application code and a simulated browser document. They do **not** establish exhaustive coverage of every combination, nor verify real-device WebRTC, actual IndexedDB/OPFS, CDN loading, browser layout, native dialogs, sandboxed code execution, camera hardware, autoplay rules, vault cryptography or NAT/TURN behavior.
+These checks ran in an isolated JavaScript environment using the real application code and a simulated browser document. They do **not** establish exhaustive coverage of every combination or verify real-device WebRTC, file storage under real load, CDN availability, camera hardware, autoplay rules, vault cryptography or NAT/TURN behavior. The separate Chromium suite exercises real DOM/CSS, startup storage, navigation and onboarding; its network library is stubbed or deliberately blocked.
 
 Before relying on the deployment, test on two real devices and across two networks: chat, voice/video consent, group membership, conference join/remove, screen/document viewing, file transfer, interrupted resume and page reload. Test your actual TURN credentials where direct connectivity fails. Browser suspension and storage quotas can still interrupt operation.
 
@@ -70,3 +71,19 @@ Reload all participating Member Communication clients after this update. The dis
 Discovery is public, self-declared metadata, not proof of identity. Its in-memory directory is capped at 256 rows and each discovery peer at 24 links. The app caps pending plus accepted Main connections at 32. These are bounds, not measured concurrent-user capacity. Unlike the source application's IndexedDB presence cache, Member Communication keeps discovery rows in memory; session approval credentials alone survive reload in sessionStorage.
 
 A refresh can recover the approved connection, but it cannot keep a WebRTC socket, camera stream or active operation alive while a page is closed. Modules receive disconnection and reconnection events; file recovery keeps its existing checkpoint workflow. Networks that require a relay still need working TURN credentials.
+
+## Startup freeze fix (61.2.1)
+
+The blank welcome dialog was reproduced in Chromium: after Continue, no onboarding page was visible because pages 2 and 3 retained `hidden` while CSS forced `[hidden]` to stay invisible. Navigation now updates both `hidden` and display state. Initialization runs once despite the two boot-completion timers. Back, Skip, Close and Escape provide working exits; focus and the dialog title follow the visible page. Saving a display name also updates the running peer identity.
+
+Two related startup faults are fixed: a direct developer-mode localStorage read no longer aborts boot when storage is blocked, and the PeerJS failure banner can be dismissed to regain navigation. The guide has bounded mobile scrolling and accurate device-code/consent guidance.
+
+Run the browser regression suite with:
+
+```sh
+npm ci
+npx playwright install chromium
+npm run test:browser
+```
+
+Five browser scenarios cover desktop traversal of all 17 tabs and reload, mobile Back/Skip, keyboard navigation/Escape, denied storage, and blocked PeerJS with local notes still usable after the connection timeout. The regression suite previously missed the blank dialog because its DOM simulation did not render the `[hidden]` CSS rule.

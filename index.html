@@ -17,7 +17,7 @@
 <meta name="format-detection" content="telephone=no">
 <link rel="manifest" href="data:application/json,%7B%22name%22%3A%22DevHub%22%2C%22short_name%22%3A%22DevHub%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230f0f17%22%2C%22theme_color%22%3A%22%236366f1%22%7D">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2316161f'/%3E%3Cpath d='M8 16h16M16 8v16' stroke='%236366f1' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
-<title>DevHub v61.2 — Member Communication</title>
+<title>DevHub v61.2.1 — Member Communication</title>
 <style>
 /* ═══════════════════════════════════════════════
    DESIGN TOKENS
@@ -458,7 +458,7 @@ a{color:var(--primary);text-decoration:none;}
 .ob-step{animation:ob-fade-in .25s ease;}
 @keyframes ob-fade-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @media(prefers-reduced-motion:reduce){.ob-step{animation:none;}}
-#ob-box{background:var(--bg2);border-radius:var(--radius);padding:28px;width:90%;max-width:380px;border:1px solid var(--border);}
+#ob-box{max-height:calc(100dvh - 32px);overflow-y:auto;overscroll-behavior:contain;background:var(--bg2);border-radius:var(--radius);padding:28px;width:90%;max-width:380px;border:1px solid var(--border);}
 ::-webkit-scrollbar{width:4px;height:4px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
@@ -832,7 +832,7 @@ html,body{margin:0;min-height:100%;background:#0f0f17;color:#e2e2f0;overflow:hid
 .toast{position:fixed;right:16px;bottom:16px;z-index:999999;background:#16161f;color:#e2e2f0;border:1px solid #2d2d44;border-radius:8px;padding:10px 12px;font:13px system-ui;box-shadow:0 8px 30px rgba(0,0,0,.4)}
 </style>
 <meta name="devhub-fixed-version" content="v31.0.0">
-<meta name="generator" content="61.2.0">
+<meta name="generator" content="61.2.1">
 
 <style id="devhub-v19-extra">
 /* ── RTL support ─────────────────────────────────────────────── */
@@ -1002,7 +1002,8 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
 <div id="sr-announcer" class="sr-announce" aria-live="polite" aria-atomic="true" role="status"></div>
 
 <div id="peerjs-fail-banner" role="alert" style="display:none;position:fixed;top:44px;left:0;right:0;z-index:99996;background:var(--red,#ef4444);color:#fff;font-size:13px;font-weight:600;text-align:center;padding:8px 40px;">
-  ⚠️ P2P library failed to load. <button id="btn-peerjs-retry" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.5);padding:2px 10px;border-radius:4px;margin-left:8px;cursor:pointer;font-weight:700">Retry</button>
+  ⚠️ Connections are unavailable because the P2P library did not load. Local tools still work. <button id="btn-peerjs-retry" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.5);padding:2px 10px;border-radius:4px;margin-left:8px;cursor:pointer;font-weight:700">Retry</button>
+  <button id="btn-peerjs-dismiss" type="button" class="btn btn-s btn-xs" aria-label="Dismiss connection warning">Dismiss</button>
 </div>
 
 <div id="offline-banner" role="alert" aria-live="assertive" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99997;background:var(--amber,#f59e0b);color:#000;font-weight:700;font-size:13px;text-align:center;padding:8px 16px;box-shadow:0 2px 8px rgba(0,0,0,.3);">
@@ -1012,16 +1013,17 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
 
 
 
-<div id="ob-modal" role="dialog" aria-modal="true" aria-labelledby="ob-title">
+<div id="ob-modal" role="dialog" aria-modal="true" aria-labelledby="ob-title-0" aria-hidden="true" tabindex="-1">
   <div id="ob-box">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button id="btn-ob-close" type="button" class="btn btn-s btn-xs" aria-label="Close welcome guide">Skip guide ×</button></div>
     <div id="ob-steps" style="display:flex;justify-content:center;gap:8px;margin-bottom:16px" aria-label="Onboarding progress">
-      <div class="ob-dot ob-dot-active" data-step="0" aria-label="Step 1 of 3"></div>
-      <div class="ob-dot" data-step="1" aria-label="Step 2 of 3"></div>
-      <div class="ob-dot" data-step="2" aria-label="Step 3 of 3"></div>
+      <span class="ob-dot ob-dot-active" data-step="0" aria-label="Step 1 of 3" aria-current="step"></span>
+      <span class="ob-dot" data-step="1" aria-label="Step 2 of 3"></span>
+      <span class="ob-dot" data-step="2" aria-label="Step 3 of 3"></span>
     </div>
     <div id="ob-step-0" class="ob-step">
       <div style="font-size:32px;text-align:center;margin-bottom:10px" aria-hidden="true">👋</div>
-      <h2 id="ob-title" style="text-align:center;margin-bottom:10px">Welcome to DevHub</h2>
+      <h2 id="ob-title-0" style="text-align:center;margin-bottom:10px">Welcome to DevHub</h2>
       <p style="font-size:13px;color:var(--text2);margin-bottom:14px;text-align:center">Choose your display name for peer-to-peer connections.</p>
       <label for="ob-name" class="sr-only">Your display name</label>
       <input id="ob-name" placeholder="Your name…" style="width:100%;margin-bottom:12px" autocomplete="nickname" maxlength="40">
@@ -1029,19 +1031,21 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
     </div>
     <div id="ob-step-1" class="ob-step" hidden>
       <div style="font-size:32px;text-align:center;margin-bottom:10px" aria-hidden="true">🔗</div>
-      <h2 style="text-align:center;margin-bottom:10px">Share Your ID</h2>
-      <p style="font-size:13px;color:var(--text2);margin-bottom:14px;text-align:center">Your unique Peer ID lets others connect to you. Share via QR or invite code — no raw ID needed.</p>
-      <div style="background:var(--bg3);border-radius:8px;padding:10px;font-size:11px;font-family:monospace;text-align:center;margin-bottom:16px;word-break:break-all">Your 6-char invite code appears automatically once connected</div>
+      <h2 id="ob-title-1" tabindex="-1" style="text-align:center;margin-bottom:10px">Connect with a member</h2>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:14px;text-align:center">Share your full device code or invitation link. The other member must accept before you can chat or share content.</p>
+      <div style="background:var(--bg3);border-radius:8px;padding:10px;font-size:12px;text-align:center;margin-bottom:16px;overflow-wrap:break-word">Your device code appears when the connection is ready. You can explore the app while it connects.</div>
       <div style="display:flex;gap:8px">
         <button id="btn-ob-skip" class="btn btn-s" style="flex:1">Skip</button>
+        <button id="btn-ob-back-1" type="button" class="btn btn-s" style="flex:1">Back</button>
         <button id="btn-ob-next" class="btn btn-p" style="flex:1">Next →</button>
       </div>
     </div>
     <div id="ob-step-2" class="ob-step" hidden>
       <div style="font-size:32px;text-align:center;margin-bottom:10px" aria-hidden="true">🔒</div>
-      <h2 style="text-align:center;margin-bottom:10px">Security First</h2>
-      <p style="font-size:13px;color:var(--text2);margin-bottom:14px;text-align:center">Enable end-to-end encryption for secure messaging. All data stays on your device.</p>
+      <h2 id="ob-title-2" tabindex="-1" style="text-align:center;margin-bottom:10px">You control sharing</h2>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:14px;text-align:center">WebRTC encrypts connections in transit. Files and calls need separate approval. Online discovery is optional; enable it only when you want to appear to other members.</p>
       <div style="display:flex;gap:8px">
+        <button id="btn-ob-back-2" type="button" class="btn btn-s" style="flex:1">Back</button>
         <button id="btn-ob-finish" class="btn btn-p" style="flex:1">Get Started 🚀</button>
       </div>
     </div>
@@ -1575,7 +1579,7 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
               </select>
             </div>
           </div>
-          <div class="panel-section"><div class="panel-section-title">Member connections</div><p>One approved connection carries chat and shared content. Discovery only announces available members and is off by default. Both devices must keep this app open.</p><p id="member-main-status" role="status">Starting…</p><p>Your device code: <code id="member-device-code" style="overflow-wrap:anywhere">Starting…</code></p><button id="member-retry" class="btn btn-s">Retry connection</button><p>Internet is needed for signaling and discovery. Configure your own TURN relay below when direct connections cannot cross a network. Use the same signaling settings on every device.</p><small>Connection system <span id="member-version">61.2.0</span></small></div>
+          <div class="panel-section"><div class="panel-section-title">Member connections</div><p>One approved connection carries chat and shared content. Discovery only announces available members and is off by default. Both devices must keep this app open.</p><p id="member-main-status" role="status">Starting…</p><p>Your device code: <code id="member-device-code" style="overflow-wrap:anywhere">Starting…</code></p><button id="member-retry" class="btn btn-s">Retry connection</button><p>Internet is needed for signaling and discovery. Configure your own TURN relay below when direct connections cannot cross a network. Use the same signaling settings on every device.</p><small>Connection system <span id="member-version">61.2.1</span></small></div>
 
           <div class="panel-section">
             <div class="panel-section-title">Privacy &amp; Security</div>
@@ -3377,7 +3381,7 @@ function assertInterface(obj,shape,name){
    CONFIG
 ══════════════════════════════════════════════════════════ */
 const CFG={
-  VERSION:'61.2.0',
+  VERSION:'61.2.1',
   CALL_RING_TIMEOUT:30000,
   MAX_CONF_PARTICIPANTS:12,
   DB_NAME:'devhub-member-v1',DB_VERSION:7,
@@ -7261,6 +7265,7 @@ class UIManager{
     document.getElementById('btn-search-open')?.addEventListener('click',()=>Modal.show('search-modal'));
     document.getElementById('btn-shortcuts-open')?.addEventListener('click',()=>{Modal.show('shortcuts-modal');App.shortcuts?._render?.();});
     document.getElementById('btn-peerjs-retry')?.addEventListener('click',()=>location.reload());
+    document.getElementById('btn-peerjs-dismiss')?.addEventListener('click',()=>{const banner=document.getElementById('peerjs-fail-banner');if(banner)banner.style.display='none';});
   }
   _bindSidebar(){
     document.getElementById('btn-connect')?.addEventListener('click',()=>{const v=document.getElementById('jin')?.value||'';App.peer?.connectTo?.(v);});
@@ -7848,21 +7853,48 @@ class UIManager{
    ONBOARDING
 ══════════════════════════════════════════════════════════ */
 const OB={
+  initialized:false,opened:false,step:0,
   init(){
+    // Boot completion has two fallback timers; bind and open only once per page.
+    if(this.initialized)return;this.initialized=true;
     if(SafeStorage.get('dh-ob-done',''))return;
-    Modal.show('ob-modal');
-    document.getElementById('btn-ob-start')?.addEventListener('click',()=>{
-      const name=(document.getElementById('ob-name')?.value||'').trim();
-      if(name){SafeStorage.set('dh-name',name);setEl('my-name-btn',name);setEl('set-name',null,el=>el.value=name);}
-      this._step(1);
+    const dialog=document.getElementById('ob-modal');if(!dialog)return;
+    this.previousFocus=document.activeElement;this.opened=true;
+    const on=(id,fn)=>document.getElementById(id)?.addEventListener('click',fn);
+    on('btn-ob-start',()=>{this.saveName();this._step(1);});
+    on('btn-ob-next',()=>this._step(2));
+    on('btn-ob-back-1',()=>this._step(0));on('btn-ob-back-2',()=>this._step(1));
+    for(const id of ['btn-ob-close','btn-ob-skip','btn-ob-finish'])on(id,()=>this.finish());
+    const input=document.getElementById('ob-name');
+    if(input){input.value=SafeStorage.get('dh-name','');input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();this.saveName();this._step(1);}});}
+    dialog.addEventListener('keydown',e=>{
+      if(e.key==='Escape'){e.preventDefault();e.stopPropagation();this.finish();return;}
+      if(e.key!=='Tab')return;
+      const nodes=[...dialog.querySelectorAll('button,input,[href],[tabindex="0"]')].filter(el=>!el.disabled&&!el.closest('[hidden]')&&el.getClientRects().length);
+      const first=nodes[0],last=nodes[nodes.length-1];
+      if(!first){e.preventDefault();dialog.focus();return;}
+      if(e.shiftKey&&(document.activeElement===first||!nodes.includes(document.activeElement))){e.preventDefault();last.focus();}
+      else if(!e.shiftKey&&(document.activeElement===last||!nodes.includes(document.activeElement))){e.preventDefault();first.focus();}
     });
-    document.getElementById('btn-ob-skip')?.addEventListener('click',()=>this._step(2));
-    document.getElementById('btn-ob-next')?.addEventListener('click',()=>this._step(2));
-    document.getElementById('btn-ob-finish')?.addEventListener('click',()=>{SafeStorage.set('dh-ob-done','1');Modal.hide('ob-modal');});
+    Modal.show('ob-modal');dialog.setAttribute('aria-hidden','false');this._step(0);
+  },
+  saveName(){
+    const name=(document.getElementById('ob-name')?.value||'').normalize('NFC').replace(/[\u0000-\u001f\u007f]/g,'').trim().slice(0,40);
+    if(!name)return;
+    SafeStorage.set('dh-name',name);setEl('my-name-btn',name);setEl('set-name',null,el=>el.value=name);App.peer?.updateIdentity?.();
+  },
+  finish(){
+    if(!this.opened)return;this.saveName();this.opened=false;
+    SafeStorage.set('dh-ob-done','1');Modal.hide('ob-modal');document.getElementById('ob-modal')?.setAttribute('aria-hidden','true');
+    const previous=this.previousFocus;
+    if(previous&&previous!==document.body&&previous.isConnected)previous.focus?.();else document.getElementById('jin')?.focus();
   },
   _step(n){
-    [0,1,2].forEach(i=>{const el=document.getElementById('ob-step-'+i);if(el)el.style.display=i===n?'':'none';});
-    document.querySelectorAll('.ob-dot').forEach((d,i)=>{d.classList.toggle('ob-dot-active',i===n);});
+    if(!Number.isInteger(n)||n<0||n>2)return;this.step=n;
+    [0,1,2].forEach(i=>{const el=document.getElementById('ob-step-'+i);if(el){el.hidden=i!==n;el.style.display=i===n?'':'none';}});
+    document.querySelectorAll('#ob-steps .ob-dot').forEach((d,i)=>{d.classList.toggle('ob-dot-active',i===n);if(i===n)d.setAttribute('aria-current','step');else d.removeAttribute('aria-current');});
+    document.getElementById('ob-modal')?.setAttribute('aria-labelledby','ob-title-'+n);
+    (document.getElementById(n===0?'ob-name':'ob-title-'+n))?.focus();
   }
 };
 
@@ -8814,7 +8846,7 @@ function configureMemberUI(){
  window.addEventListener('pagehide',()=>{App.files.destroy();App.media._cleanupCall('Page closed');App.groupVideo._stop();App.groupVoice._leave();App.conference._leave();App.presentation.stop();App.qr.stopScan();App.code._runnerCleanup?.();p.destroy();});
  window.addEventListener('beforeunload',e=>{if(App.files.active.size){e.preventDefault();e.returnValue='';}});
  window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
- setEl('member-version','61.2.0');
+ setEl('member-version','61.2.1');
 }
 
 
@@ -9267,7 +9299,7 @@ async function bootApp(){
 /* ══════════════════════════════════════════════════════════
    DEVELOPER TEST HARNESS
 ══════════════════════════════════════════════════════════ */
-if(localStorage.getItem('dh-devmode')==='1'){
+if(SafeStorage.get('dh-devmode','')==='1'){
   window.__devhub_test={
     sendMockMessage(peerId,text){
       if(!App.ui||!App.peer)return console.warn('[DevHub Test] App not ready');
