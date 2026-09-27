@@ -1,10 +1,10 @@
 {
   "name": "member-communication",
   "private": true,
-  "version": "61.1.0",
+  "version": "61.2.0",
   "description": "Single HTML application; Node dependencies are for offline regression tests only",
   "scripts": {
-    "test": "node tests/regression.mjs"
+    "test": "node --test tests/connection-architecture.mjs && node tests/regression.mjs"
   },
   "devDependencies": {
     "linkedom": "0.18.13"

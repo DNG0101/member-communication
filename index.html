@@ -17,7 +17,7 @@
 <meta name="format-detection" content="telephone=no">
 <link rel="manifest" href="data:application/json,%7B%22name%22%3A%22DevHub%22%2C%22short_name%22%3A%22DevHub%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230f0f17%22%2C%22theme_color%22%3A%22%236366f1%22%7D">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2316161f'/%3E%3Cpath d='M8 16h16M16 8v16' stroke='%236366f1' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
-<title>DevHub v61.1 — Member Communication</title>
+<title>DevHub v61.2 — Member Communication</title>
 <style>
 /* ═══════════════════════════════════════════════
    DESIGN TOKENS
@@ -832,7 +832,7 @@ html,body{margin:0;min-height:100%;background:#0f0f17;color:#e2e2f0;overflow:hid
 .toast{position:fixed;right:16px;bottom:16px;z-index:999999;background:#16161f;color:#e2e2f0;border:1px solid #2d2d44;border-radius:8px;padding:10px 12px;font:13px system-ui;box-shadow:0 8px 30px rgba(0,0,0,.4)}
 </style>
 <meta name="devhub-fixed-version" content="v31.0.0">
-<meta name="generator" content="61.1.0">
+<meta name="generator" content="61.2.0">
 
 <style id="devhub-v19-extra">
 /* ── RTL support ─────────────────────────────────────────────── */
@@ -1575,7 +1575,7 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
               </select>
             </div>
           </div>
-          <div class="panel-section"><div class="panel-section-title">Member connections</div><p>One approved connection carries chat and shared content. Discovery only announces available members and is off by default. Both devices must keep this app open.</p><p id="member-main-status" role="status">Starting…</p><p>Your device code: <code id="member-device-code" style="overflow-wrap:anywhere">Starting…</code></p><button id="member-retry" class="btn btn-s">Retry connection</button><p>Internet is needed for signaling and discovery. Configure your own TURN relay below when direct connections cannot cross a network. Use the same signaling settings on every device.</p><small>Connection system <span id="member-version">61.1.0</span></small></div>
+          <div class="panel-section"><div class="panel-section-title">Member connections</div><p>One approved connection carries chat and shared content. Discovery only announces available members and is off by default. Both devices must keep this app open.</p><p id="member-main-status" role="status">Starting…</p><p>Your device code: <code id="member-device-code" style="overflow-wrap:anywhere">Starting…</code></p><button id="member-retry" class="btn btn-s">Retry connection</button><p>Internet is needed for signaling and discovery. Configure your own TURN relay below when direct connections cannot cross a network. Use the same signaling settings on every device.</p><small>Connection system <span id="member-version">61.2.0</span></small></div>
 
           <div class="panel-section">
             <div class="panel-section-title">Privacy &amp; Security</div>
@@ -3377,7 +3377,7 @@ function assertInterface(obj,shape,name){
    CONFIG
 ══════════════════════════════════════════════════════════ */
 const CFG={
-  VERSION:'61.1.0',
+  VERSION:'61.2.0',
   CALL_RING_TIMEOUT:30000,
   MAX_CONF_PARTICIPANTS:12,
   DB_NAME:'devhub-member-v1',DB_VERSION:7,
@@ -3927,7 +3927,7 @@ class TrustStore{
   constructor(){this._trusted=new Map();this._blocked=new Set();}
   async load(){const data=SafeStorage.getJSON('dh-trust-v1',{trusted:{},blocked:[]});Object.entries(data.trusted||{}).forEach(([k,v])=>this._trusted.set(k,v));(data.blocked||[]).forEach(p=>this._blocked.add(p));}
   trust(pid,name){this._trusted.set(pid,{pid,name,ts:Date.now()});this._save();}
-  block(pid){this._blocked.add(pid);this._trusted.delete(pid);this._save();App.peer?.transport?.pending.get(pid)?.fail(Error('Member blocked.'));App.peer?.conn(pid)?.close();}
+  block(pid){this._blocked.add(pid);this._trusted.delete(pid);this._save();App.peer?.transport?.disconnect(pid);}
   unblock(pid){this._blocked.delete(pid);this._save();}
   isTrusted(pid){return this._trusted.has(pid);}
   isBlocked(pid){return this._blocked.has(pid);}
@@ -4610,7 +4610,7 @@ class RoomManager{
     });
   }
   isBlocked(pid){return this._blocked.has(pid);}
-  block(pid){this._blocked.add(pid);}
+  block(pid){this._blocked.add(pid);App.peer?.transport?.disconnect(pid);}
   unblock(pid){this._blocked.delete(pid);}
   copyInvite(){
     if(!App.peer?.myId)return;
@@ -7369,8 +7369,7 @@ class UIManager{
       SafeStorage.setJSON('devhub-turn',turn);App.toast?.show('TURN config saved','success');
     });
     document.getElementById('btn-disc-all')?.addEventListener('click',()=>{
-      for(const[,conn]of(App.peer?.dconns||[])){try{conn.close();}catch(e){}}
-      App.peer?.dconns?.clear?.();App.toast?.show('Disconnected from all peers','info');
+      App.peer?.transport?.disconnectAll(true);App.toast?.show('Disconnected from all peers','info');
     });
     document.getElementById('btn-clr-storage')?.addEventListener('click',()=>{
       if(confirm('Clear all local data? This cannot be undone.')){localStorage.clear();sessionStorage.clear();location.reload();}
@@ -7916,9 +7915,9 @@ function _runBootAssert(){
    BOOT APP
 ══════════════════════════════════════════════════════════ */
 
-/* v61: explicit approval on Main Peer; Peer 2 exchanges presence only. */
+/* Connection architecture adapted from wifi-file-transfer-web @ 1c5ec6410f437bdd283e9492b179cb3142d3a501. */
 function createMemberTransport(deps){
- const PREFIX='dh-main-',PROTOCOL='member-p2p-v1',MAX=32,TTL=65000;
+ const PREFIX='dh-main-',PROTOCOL='member-p2p-v1',MAX=32,TTL=5*60*1000;
  const uuidRE=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
  const now=deps.now||Date.now,later=deps.setTimeout||setTimeout,cancel=deps.clearTimeout||clearTimeout,every=deps.setInterval||setInterval,stopEvery=deps.clearInterval||clearInterval;
  const normalize=v=>String(v||'').normalize('NFC').replace(/[\u0000-\u001f\u007f]/g,'').trim().slice(0,48);
@@ -7931,17 +7930,35 @@ function createMemberTransport(deps){
   return id;
  }
  class Transport{
-  constructor(o){this.options=o;this.identity=profile(o.identity);this.id=PREFIX+this.identity.uuid;this.connections=new Map();this.pending=new Map();this.media=new Set();this.fileChannels=new Set();this.ready=false;this.closed=false;this.epoch=0;this.retry=0;}
+  constructor(o){this.options=o;this.identity=profile(o.identity);this.id=PREFIX+this.identity.uuid;this.connections=new Map();this.pending=new Map();this.media=new Set();this.fileChannels=new Set();this.ready=false;this.closed=false;this.epoch=0;this.retry=0;this.continuity=new Map();this.resumeTimers=new Map();this.resumeAttempts=new Map();this.loadContinuity();}
+  storage(){try{return this.options.continuityStorage===undefined?sessionStorage:this.options.continuityStorage;}catch{return null;}}
+  tokenValid(token){return typeof token==='string'&&/^[a-f0-9]{64}$/.test(token);}
+  loadContinuity(){
+   try{const rows=JSON.parse(this.storage()?.getItem('dh-main-continuity-v1')||'[]');if(Array.isArray(rows))for(const r of rows.slice(0,MAX)){const identity=profile(r.identity);if(identity.uuid!==this.identity.uuid&&r.id===PREFIX+identity.uuid&&this.tokenValid(r.token)&&Number.isFinite(r.savedAt)&&r.savedAt<=now()&&now()-r.savedAt<12*60*60*1000)this.continuity.set(r.id,{...r,identity});}}catch{}
+  }
+  flushContinuity(){try{this.storage()?.setItem('dh-main-continuity-v1',JSON.stringify([...this.continuity.values()]));}catch{}}
+  remember(id,identity,token){if(!this.tokenValid(token))return;this.continuity.set(id,{id,identity:profile(identity),token,savedAt:now()});while(this.continuity.size>MAX)this.forget(this.continuity.keys().next().value);this.flushContinuity();}
+  forget(id){cancel(this.resumeTimers.get(id));this.resumeTimers.delete(id);this.resumeAttempts.delete(id);this.continuity.delete(id);this.flushContinuity();}
+  resumeLink(id){const r=this.continuity.get(id);if(!r)return null;if(this.options.blocked?.(id)||now()-r.savedAt>=12*60*60*1000){this.forget(id);return null;}return r;}
+  scheduleResume(id){
+   if(this.closed||!this.ready||!this.resumeLink(id)||this.connections.has(id)||this.pending.has(id)||this.resumeTimers.has(id))return;
+   const attempt=this.resumeAttempts.get(id)||0;if(attempt>=8)return;
+   this.resumeTimers.set(id,later(()=>{this.resumeTimers.delete(id);if(this.closed||!this.ready||!this.resumeLink(id))return;this.resumeAttempts.set(id,attempt+1);this.connect(id,true).catch(()=>this.scheduleResume(id));},this.id<id?Math.min(8000,250*2**attempt):Math.min(10000,2500+1200*attempt)));
+  }
+  resumeSaved(){for(const id of this.continuity.keys())this.scheduleResume(id);}
+  disconnect(id){this.forget(id);this.pending.get(id)?.fail(Error('Disconnected.'));const c=this.connections.get(id);if(c?.open){try{c.send({p:PROTOCOL,type:'disconnect'});}catch{}later(()=>c.close(),100);}else c?.close();}
   status(state,detail=''){this.state=state;this.options.onState?.(state,detail);}
-  start(){if(this.closed)return Promise.reject(Error('Connection manager closed.'));if(this.ready)return Promise.resolve(this.id);if(this.opening)return this.opening;this.opening=this.openMain().finally(()=>this.opening=null);return this.opening;}
+  start(){if(this.closed)return Promise.reject(Error('Connection manager closed.'));if(this.ready)return Promise.resolve(this.id);if(this.opening)return this.opening;this.opening=this.reclaimMain().finally(()=>this.opening=null);return this.opening;}
+  async reclaimMain(){for(let attempt=0;;attempt++){try{return await this.openMain();}catch(e){if(this.closed||e.type!=='unavailable-id'||attempt>=6)throw e;this.status('reconnecting','Reclaiming this device address after refresh…');await new Promise(r=>later(r,[150,300,600,1200,2400,4000][attempt]));if(this.closed)throw Error('Connection manager closed.');}}}
   openMain(){
    this.status('connecting','Starting communication connection…');const epoch=++this.epoch;
    return new Promise((resolve,reject)=>{
     let settled=false;const p=new deps.Peer(this.id,this.options.peerOptions());this.peer=p;
     const fail=e=>{if(settled)return;settled=true;cancel(timer);p.destroy();if(this.peer===p)this.peer=null;this.ready=false;this.status(e.type==='unavailable-id'?'standby':'failed',e.type==='unavailable-id'?'This device identity is open in another tab. Close it and retry.':e.message);reject(e);};
     const timer=later(()=>fail(Error('Signaling timed out. Check internet access and retry.')),20000);
-    p.on('open',id=>{if(this.closed||epoch!==this.epoch){p.destroy();return;}if(id!==this.id){fail(Error('Unexpected device identity.'));return;}if(!settled){settled=true;cancel(timer);resolve(id);}this.ready=true;this.retry=0;this.status('ready','Ready to connect');this.options.onReady?.(id);if(this.discovery?.enabled)this.discovery.restart();});
+    p.on('open',id=>{if(this.closed||epoch!==this.epoch){p.destroy();return;}if(id!==this.id){fail(Error('Unexpected device identity.'));return;}if(!settled){settled=true;cancel(timer);resolve(id);}this.ready=true;this.retry=0;this.status('ready','Ready to connect');this.options.onReady?.(id);this.resumeSaved();if(this.discovery?.enabled)this.discovery.restart();});
     p.on('connection',c=>{
+     if(this.closed||epoch!==this.epoch||this.peer!==p){c.on('open',()=>c.close());if(c.open)c.close();return;}
      if(c.metadata?.kind==='file-v3'){if(c.metadata.deviceId!==c.peer.slice(PREFIX.length)||!this.connections.get(c.peer)?.open){c.on('open',()=>c.close());return;}this.fileChannels.add(c);c.on('close',()=>this.fileChannels.delete(c));this.options.onFileChannel?.(c);return;}
      this.attach(c,false);
     });
@@ -7955,11 +7972,13 @@ function createMemberTransport(deps){
   reconnect(){if(this.closed||this.ready||this.retryTimer)return;if(this.retry>=4){this.status('failed','Automatic retries stopped. Use Retry connection.');return;}
    this.retryTimer=later(()=>{this.retryTimer=null;this.retry++;try{if(this.peer&&!this.peer.destroyed){this.peer.reconnect();if(!this.ready)this.reconnect();}else this.start().catch(e=>this.options.onError?.(e.message));}catch{this.reconnect();}},[1000,3000,8000,15000][this.retry]);
   }
-  connect(value){
+  connect(value,resuming=false){
    let id;try{id=parseInvite(value,this.options.baseUrl);if(id===this.id)throw Error('This is your device. Use another browser profile or device.');if(!this.ready||this.peer?.disconnected)throw Error('Your connection is not ready. Retry first.');if(this.options.blocked?.(id))throw Error('This member is blocked.');}catch(e){return Promise.reject(e);}
    if(this.connections.get(id)?.open)return Promise.resolve(this.connections.get(id));if(this.pending.has(id))return this.pending.get(id).promise;
    if(this.connections.size+this.pending.size>=MAX)return Promise.reject(Error('Too many connections.'));
-   return this.attach(this.peer.connect(id,{reliable:true,serialization:'json',metadata:{kind:PROTOCOL,identity:this.identity}}),true);
+   const link=resuming?this.resumeLink(id):null;if(resuming&&!link)return Promise.reject(Error('Approved session expired. Connect again.'));
+   const bytes=new Uint8Array(32);(deps.crypto||crypto).getRandomValues(bytes);const token=link?.token||Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+   return this.attach(this.peer.connect(id,{reliable:true,serialization:'json',metadata:{kind:PROTOCOL,identity:this.identity,resuming,token}}),true);
   }
   attach(c,outgoing){
    let remote;
@@ -7971,18 +7990,20 @@ function createMemberTransport(deps){
     if(this.pending.size+this.connections.size>=MAX)throw Error('Too many requests.');
    }catch(e){c.on('open',()=>c.close());if(c.open)c.close();return Promise.resolve(null);}
    let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});promise.catch(()=>{});
-   const entry={conn:c,promise,phase:outgoing?'request':'incoming',remote,done:false};this.pending.set(c.peer,entry);
+   const entry={conn:c,promise,token:c.metadata?.token,resuming:c.metadata?.resuming===true,phase:outgoing?'request':'incoming',remote,done:false};this.pending.set(c.peer,entry);
    const fail=e=>{if(entry.done)return;entry.done=true;cancel(entry.timer);if(this.pending.get(c.peer)===entry)this.pending.delete(c.peer);this.options.onRequestClosed?.(c);reject(e);c.close();};entry.fail=fail;
-   entry.timer=later(()=>fail(Error('Connection approval timed out.')),90000);
-   const wire=(type,rest={})=>c.send({p:PROTOCOL,type,...rest});
-   const approve=()=>{if(entry.done||!c.open||this.closed||this.pending.get(c.peer)!==entry)return;entry.done=true;cancel(entry.timer);this.pending.delete(c.peer);this.connections.set(c.peer,c);c.metadata={...c.metadata,...entry.remote};this.options.onConnected?.(c,entry.remote,outgoing?'outgoing':'incoming');resolve(c);};
-   c.on('open',()=>{if(this.closed){fail(Error('Application closed.'));return;}if(outgoing)wire('request',{identity:this.identity});});
+   entry.timer=later(()=>fail(Error(entry.resuming?'Approved session reconnect timed out.':'Connection approval timed out.')),entry.resuming?6000:90000);
+   const wire=(type,rest={})=>{try{if(!c.open||entry.done)return;c.send({p:PROTOCOL,type,...rest});}catch(e){fail(e);}};
+   const approve=()=>{if(entry.done||!c.open||this.closed||this.pending.get(c.peer)!==entry)return;entry.done=true;cancel(entry.timer);this.pending.delete(c.peer);this.connections.set(c.peer,c);cancel(this.resumeTimers.get(c.peer));this.resumeTimers.delete(c.peer);this.resumeAttempts.delete(c.peer);this.remember(c.peer,entry.remote,entry.token);c.metadata={...c.metadata,...entry.remote};this.options.onConnected?.(c,entry.remote,outgoing?'outgoing':'incoming');resolve(c);};
+   c.on('open',()=>{if(entry.done||!c.open)return;if(this.closed){fail(Error('Application closed.'));return;}if(outgoing)wire('request',{identity:this.identity});});
    c.on('data',raw=>{
-    if(this.connections.get(c.peer)===c){if(raw&&typeof raw==='object'&&raw.p===PROTOCOL)return;if(typeof raw==='string'&&raw.length>512*1024){c.close();return;}this.options.onData?.(c.peer,raw);return;}
+    if(this.connections.get(c.peer)===c){if(raw&&typeof raw==='object'&&raw.p===PROTOCOL){if(raw.type==='disconnect'){this.forget(c.peer);c.close();}return;}if(typeof raw==='string'&&raw.length>512*1024){c.close();return;}this.options.onData?.(c.peer,raw);return;}
     if(entry.done||!raw||raw.p!==PROTOCOL||JSON.stringify(raw).length>2048){fail(Error('Data arrived before approval.'));return;}
     if(!outgoing&&raw.type==='request'&&entry.phase==='incoming'){
      try{const r=profile(raw.identity);if(r.uuid!==remote.uuid)throw Error('Identity changed.');entry.remote=r;entry.phase='deciding';}catch(e){fail(e);return;}
-     Promise.resolve(this.options.onRequest?.(entry.remote,c)??false).then(ok=>{if(entry.done||!c.open)return;if(ok!==true){wire('response',{accepted:false});fail(Error('Connection declined.'));return;}entry.phase='confirmed';wire('response',{accepted:true,identity:this.identity});}).catch(fail);
+     const link=entry.resuming?this.resumeLink(c.peer):null;
+     if(entry.resuming&&(!link||!this.tokenValid(entry.token)||entry.token!==link.token)){fail(Error('Approved session could not be verified. Connect again.'));return;}
+     Promise.resolve(entry.resuming?true:(this.options.onRequest?.(entry.remote,c)??false)).then(ok=>{if(entry.done||!c.open)return;if(ok!==true||this.options.blocked?.(c.peer)){wire('response',{accepted:false});fail(Error('Connection declined.'));return;}entry.phase='confirmed';wire('response',{accepted:true,identity:this.identity});}).catch(fail);
     }else if(outgoing&&raw.type==='response'&&entry.phase==='request'){
      if(raw.accepted!==true){fail(Error('The member declined your connection.'));return;}
      try{entry.remote=profile(raw.identity);if(c.peer!==PREFIX+entry.remote.uuid)throw Error('Destination identity changed.');}catch(e){fail(e);return;}
@@ -7996,58 +8017,82 @@ function createMemberTransport(deps){
     if(this.connections.get(c.peer)!==c)return;this.connections.delete(c.peer);
     for(const f of [...this.fileChannels])if(f.peer===c.peer)f.close();
     for(const call of [...this.media])if(call.peer===c.peer){call.close();this.media.delete(call);}
-    this.options.onDisconnected?.(c.peer);
+    this.options.onDisconnected?.(c.peer);this.scheduleResume(c.peer);
    });
    c.on('error',e=>{if(!entry.done)fail(e);else c.close();});return promise;
   }
   fileConnect(id,transferId){if(!this.ready||!this.connections.get(id)?.open)throw Error('Reconnect and accept the member connection first.');const c=this.peer.connect(id,{reliable:true,serialization:'raw',metadata:{kind:'file-v3',transferId,deviceId:this.identity.uuid,name:this.identity.name}});this.fileChannels.add(c);c.on('close',()=>this.fileChannels.delete(c));return c;}
   send(id,data){const c=this.connections.get(id);if(!c?.open)return false;try{c.send(data);return true;}catch{return false;}}
-  disconnectAll(){for(const e of [...this.pending.values()])e.fail(Error('Disconnected.'));for(const c of [...this.connections.values()])c.close();}
+  disconnectAll(forget=false){if(forget){for(const id of new Set([...this.continuity.keys(),...this.connections.keys(),...this.pending.keys()]))this.disconnect(id);return;}for(const e of [...this.pending.values()])e.fail(Error('Disconnected.'));for(const c of [...this.connections.values()])c.close();}
   setDiscovery(on){if(!this.discovery)this.discovery=new Discovery(this);return on?this.discovery.start():this.discovery.stop();}
-  destroy(){this.closed=true;this.epoch++;this.ready=false;cancel(this.retryTimer);this.discovery?.stop();this.disconnectAll();for(const c of this.media)c.close();this.media.clear();this.peer?.destroy();this.peer=null;this.status('offline','Disconnected');}
+  destroy(){this.closed=true;this.epoch++;this.ready=false;cancel(this.retryTimer);for(const timer of this.resumeTimers.values())cancel(timer);this.resumeTimers.clear();this.discovery?.stop();this.discovery?.suspend();this.disconnectAll();for(const c of this.media)c.close();this.media.clear();this.peer?.destroy();this.peer=null;this.status('offline','Disconnected');}
  }
  class Discovery{
-  constructor(main){this.main=main;this.rows=new Map();this.clients=new Map();this.enabled=false;this.generation=0;this.revision=now();const u=new URL(main.options.baseUrl);this.hub='dh-presence-'+[...u.origin+u.pathname.replace(/index\.html$/,'').replace(/\/$/,'')].reduce((n,c)=>(Math.imul(n,31)+c.charCodeAt(0))>>>0,7).toString(36);}
+  constructor(main){
+   this.main=main;this.rows=new Map();this.clients=new Map();this.pending=new Map();this.seen=new Map();this.enabled=false;this.generation=0;this.revision=now();this.sequence=0;
+   const u=new URL(main.options.baseUrl);this.hub='dh-presence-'+[...u.origin+u.pathname.replace(/index\.html$/,'').replace(/\/$/,'')].reduce((n,c)=>(Math.imul(n,31)+c.charCodeAt(0))>>>0,7).toString(36);
+  }
   status(s){this.state=s;this.main.options.onDiscoveryState?.(s);}
-  self(status='online'){return {...this.main.identity,peerId:this.main.id,peer2Id:this.peer?.id||'',status,revision:++this.revision,lastSeen:now()};}
-  valid(r){return r&&uuidRE.test(r.uuid||'')&&typeof r.name==='string'&&r.name.length<=48&&r.peerId===PREFIX+r.uuid&&typeof r.peer2Id==='string'&&r.peer2Id.length<=128&&['online','offline'].includes(r.status)&&Number.isSafeInteger(r.revision)&&r.revision>=0&&Number.isFinite(r.lastSeen)&&r.lastSeen<=now()+60000&&now()-r.lastSeen<TTL;}
+  self(status='online'){const time=now();return {...this.main.identity,peerId:this.main.id,peer2Id:this.peer?.id||'',status,revision:++this.revision,heartbeatSeq:++this.sequence,updatedAt:time,lastSeen:time};}
+  valid(r){return r&&uuidRE.test(r.uuid||'')&&typeof r.name==='string'&&r.name.length<=48&&r.peerId===PREFIX+r.uuid&&typeof r.peer2Id==='string'&&r.peer2Id.length>0&&r.peer2Id.length<=128&&['online','offline'].includes(r.status)&&['revision','heartbeatSeq','updatedAt','lastSeen'].every(k=>Number.isSafeInteger(r[k])&&r[k]>=0)&&r.lastSeen<=now()+60000&&r.updatedAt<=now()+60000&&now()-r.lastSeen<TTL;}
+  compare(a,b){return a.revision-b.revision||a.heartbeatSeq-b.heartbeatSeq||a.updatedAt-b.updatedAt||JSON.stringify([a.status,a.peerId,a.peer2Id,a.name,a.uuid]).localeCompare(JSON.stringify([b.status,b.peerId,b.peer2Id,b.name,b.uuid]));}
+  clean(r){return {uuid:r.uuid,name:normalize(r.name),av:normalize(r.av),peerId:r.peerId,peer2Id:r.peer2Id,status:r.status,revision:r.revision,heartbeatSeq:r.heartbeatSeq,updatedAt:r.updatedAt,lastSeen:r.lastSeen};}
+  merge(rows){let changed=false;for(const r of rows){if(!this.valid(r)||r.uuid===this.main.identity.uuid)continue;const old=this.rows.get(r.uuid);if(!old||this.compare(r,old)>0){this.rows.set(r.uuid,this.clean(r));changed=true;}}
+   this.rows=new Map([...this.rows.values()].filter(r=>this.valid(r)).sort((a,b)=>b.lastSeen-a.lastSeen||a.uuid.localeCompare(b.uuid)).slice(0,256).map(r=>[r.uuid,r]));return changed;
+  }
   users(){return [...this.rows.values()].filter(r=>this.valid(r)&&r.status==='online'&&r.uuid!==this.main.identity.uuid).sort((a,b)=>a.name.localeCompare(b.name));}
-  publish(){for(const [id,r]of this.rows)if(!this.valid(r))this.rows.delete(id);this.main.options.onUsers?.(this.enabled?this.users():[]);}
-  start(){this.enabled=true;if(!this.main.ready){this.status('waiting');return;}if(!this.peer)this.open();}
+  publish(){for(const [id,r]of this.rows)if(!this.valid(r))this.rows.delete(id);this.main.options.onUsers?.(this.enabled&&this.main.ready?this.users():[]);cancel(this.expiryTimer);if(this.enabled&&this.rows.size)this.expiryTimer=later(()=>this.publish(),Math.max(1,Math.min(...[...this.rows.values()].map(r=>r.lastSeen+TTL-now()))));}
+  start(){this.enabled=true;if(!this.main.ready){this.status('waiting');return;}if(!this.peer)this.open();else this.tick();}
   open(){
    if(!this.enabled||!this.main.ready||this.opening)return;this.opening=true;this.status('connecting');const gen=++this.generation;
    const create=host=>{
     const p=new deps.Peer(host?this.hub:undefined,this.main.options.peerOptions());this.peer=p;this.host=host;
-    const timer=later(()=>{if(gen===this.generation){this.peer=null;p.destroy();this.opening=false;this.schedule();}},20000);
-    p.on('open',()=>{cancel(timer);if(gen!==this.generation||!this.enabled){p.destroy();return;}this.opening=false;
-     if(host){this.status('ready');this.tick();}else{this.link=p.connect(this.hub,{reliable:true,serialization:'json',metadata:{kind:'member-presence-v1',uuid:this.main.identity.uuid}});this.listen(this.link,false,gen);}
-     stopEvery(this.heartbeat);this.heartbeat=every(()=>this.tick(),20000);
-    });
-    p.on('connection',c=>{if(!host||c.metadata?.kind!=='member-presence-v1'||!uuidRE.test(c.metadata.uuid||'')||this.clients.size>=MAX){c.on('open',()=>c.close());return;}this.listen(c,true,gen);});
-    p.on('error',e=>{cancel(timer);if(gen!==this.generation)return;if(host&&e.type==='unavailable-id'){this.peer=null;p.destroy();create(false);}else{this.opening=false;this.schedule();}});
-    p.on('disconnected',()=>{if(gen===this.generation)this.schedule();});
-    p.on('close',()=>{if(gen===this.generation&&this.enabled&&this.peer===p)this.schedule();});
+    const timer=later(()=>{if(gen===this.generation&&this.peer===p){this.opening=false;this.schedule();}},20000);
+    p.on('open',()=>{cancel(timer);if(gen!==this.generation||!this.enabled||this.peer!==p){p.destroy();return;}this.opening=false;this.tick();});
+    p.on('connection',c=>{if(c.metadata?.kind!=='member-presence-v2'||!uuidRE.test(c.metadata.uuid||'')||this.clients.size+this.pending.size>=24){c.on('open',()=>c.close());if(c.open)c.close();return;}this.listen(c,gen);});
+    p.on('error',e=>{cancel(timer);if(gen!==this.generation||this.peer!==p)return;if(host&&e.type==='unavailable-id'){this.peer=null;p.destroy();create(false);}else{this.opening=false;this.schedule();}});
+    p.on('disconnected',()=>{if(gen===this.generation&&this.peer===p)this.schedule();});
+    p.on('close',()=>{cancel(timer);if(gen===this.generation&&this.enabled&&this.peer===p)this.schedule();});
    };create(true);
   }
-  listen(c,host,gen){
-   const timer=later(()=>{if(!c.open)c.close();},20000);let count=0,windowAt=now();
-   c.on('open',()=>{cancel(timer);if(gen!==this.generation){c.close();return;}if(host){this.clients.set(c.peer,c);this.broadcast();}else{this.status('ready');this.tick();}});
+  connect(id){
+   if(!this.peer||id===this.peer.id||this.clients.has(id)||this.pending.has(id)||this.clients.size+this.pending.size>=24)return;
+   try{const c=this.peer.connect(id,{reliable:true,serialization:'json',metadata:{kind:'member-presence-v2',uuid:this.main.identity.uuid}});c.memberOutgoing=true;this.listen(c,this.generation);}catch{}
+  }
+  topology(){if(!this.enabled||!this.peer||this.opening)return;if(!this.host)this.connect(this.hub);for(const r of this.users())this.connect(r.peer2Id);}
+  send(c,type,payload){if(!c.open)return;const m={type,messageId:(deps.crypto||crypto).randomUUID(),originUuid:this.main.identity.uuid,sentAt:now(),payload};try{if(JSON.stringify(m).length<=128*1024)c.send(m);}catch{c.close();}}
+  summary(c){this.send(c,'SYNC_SUMMARY',{records:[...this.rows.values()].filter(r=>this.valid(r)).map(({uuid,revision,heartbeatSeq,updatedAt})=>({uuid,revision,heartbeatSeq,updatedAt}))});}
+  listen(c,gen){
+   const prior=this.pending.get(c.peer)||this.clients.get(c.peer);if(prior){if(c.memberOutgoing||this.peer.id<c.peer){c.on('open',()=>c.close());if(c.open)c.close();return;}this.pending.delete(c.peer);this.clients.delete(c.peer);prior.close();}
+   this.pending.set(c.peer,c);const timer=later(()=>{if(!c.open)c.close();},20000);let count=0,windowAt=now();
+   c.on('open',()=>{cancel(timer);if(gen!==this.generation||!this.enabled){c.close();return;}this.pending.delete(c.peer);this.clients.set(c.peer,c);if(c.peer===this.hub)this.link=c;this.status('ready');this.summary(c);});
    c.on('data',m=>{
-    if(gen!==this.generation)return;if(now()-windowAt>20000){count=0;windowAt=now();}if(++count>(host?20:128)){c.close();return;}
-    if(!m||JSON.stringify(m).length>128*1024){c.close();return;}
-    if(host){const r=m.row;if(m.type!=='presence'||!this.valid(r)||r.uuid!==c.metadata.uuid||r.peer2Id!==c.peer){c.close();return;}const old=this.rows.get(r.uuid);if(!old||old.revision<r.revision)this.rows.set(r.uuid,{uuid:r.uuid,name:normalize(r.name),av:normalize(r.av),peerId:r.peerId,peer2Id:r.peer2Id,status:r.status,revision:r.revision,lastSeen:now()});this.broadcast();}
-    else if(m.type==='directory'&&Array.isArray(m.rows)&&m.rows.length<=256&&m.rows.every(r=>this.valid(r))){this.rows=new Map(m.rows.map(r=>[r.uuid,{uuid:r.uuid,name:normalize(r.name),av:normalize(r.av),peerId:r.peerId,peer2Id:r.peer2Id,status:r.status,revision:r.revision,lastSeen:r.lastSeen}]));this.publish();}
-    else c.close();
+    if(gen!==this.generation)return;if(now()-windowAt>20000){count=0;windowAt=now();}if(++count>256){c.close();return;}
+    if(!m||typeof m!=='object'||!uuidRE.test(m.messageId||'')||!uuidRE.test(m.originUuid||'')||!Number.isFinite(m.sentAt)||Math.abs(now()-m.sentAt)>10*60*1000){c.close();return;}
+    try{if(JSON.stringify(m).length>128*1024){c.close();return;}}catch{c.close();return;}
+    if(this.seen.has(m.messageId))return;this.seen.set(m.messageId,now());while(this.seen.size>1024)this.seen.delete(this.seen.keys().next().value);
+    const rows=m.payload?.records;
+    if(m.type==='SYNC_SUMMARY'){
+     if(!Array.isArray(rows)||rows.length>256||rows.some(h=>!uuidRE.test(h?.uuid||'')||!['revision','heartbeatSeq','updatedAt'].every(k=>Number.isSafeInteger(h[k])&&h[k]>=0))){c.close();return;}
+     const remote=new Map(rows.map(r=>[r.uuid,r])),send=[],request=[];
+     for(const r of this.rows.values()){if(!this.valid(r))continue;const head=remote.get(r.uuid);if(!head||this.compare(r,{...r,...head})>0)send.push(r);}
+     for(const [id,head]of remote){const row=this.rows.get(id);if(id!==this.main.identity.uuid&&(!row||this.compare({...row,...head},row)>0))request.push(id);}
+     if(send.length)this.send(c,'SYNC_RECORDS',{records:send});if(request.length)this.send(c,'SYNC_REQUEST',{uuids:request});
+    }else if(m.type==='SYNC_REQUEST'){
+     const ids=m.payload?.uuids;if(!Array.isArray(ids)||ids.length>256||ids.some(id=>!uuidRE.test(id))){c.close();return;}const wanted=new Set(ids),records=[...this.rows.values()].filter(r=>wanted.has(r.uuid)&&this.valid(r));if(records.length)this.send(c,'SYNC_RECORDS',{records});
+    }else if(m.type==='SYNC_RECORDS'){
+     if(!Array.isArray(rows)||rows.length>256||rows.some(r=>!this.valid(r))){c.close();return;}
+     if(this.merge(rows)){this.publish();this.topology();for(const other of this.clients.values())if(other!==c)this.summary(other);}
+    }else c.close();
    });
-   c.on('close',()=>{cancel(timer);if(gen!==this.generation)return;if(host){this.clients.delete(c.peer);const id=c.metadata.uuid;if(this.rows.get(id)?.peer2Id===c.peer)this.rows.delete(id);this.broadcast();}else this.schedule();});
+   c.on('close',()=>{cancel(timer);if(gen!==this.generation)return;if(this.clients.get(c.peer)===c)this.clients.delete(c.peer);if(this.pending.get(c.peer)===c)this.pending.delete(c.peer);if(c.peer===this.hub&&!this.host)this.schedule();this.publish();});
    c.on('error',()=>c.close());
   }
-  tick(){if(!this.enabled||!this.main.ready){this.suspend();return;}if(!this.peer){this.open();return;}if(this.host){this.rows.set(this.main.identity.uuid,this.self());this.broadcast();}else if(this.link?.open){this.link.send({type:'presence',row:this.self()});this.publish();}else this.schedule();}
-  broadcast(){this.publish();const rows=[...this.rows.values()].filter(r=>this.valid(r)).slice(0,256);for(const c of this.clients.values())if(c.open)try{c.send({type:'directory',rows});}catch{c.close();}}
+  tick(){if(!this.enabled||!this.main.ready){this.suspend();return;}if(!this.peer){this.open();return;}if(this.opening)return;this.rows.set(this.main.identity.uuid,this.self());this.publish();this.topology();for(const c of this.clients.values())this.summary(c);this.status(this.host||this.clients.size?'ready':'connecting');}
   schedule(){if(!this.enabled||this.retryTimer)return;this.status('reconnecting');this.retryTimer=later(()=>{this.retryTimer=null;this.restart();},1500+Math.floor((deps.random||Math.random)()*2000));}
-  suspend(){this.generation++;cancel(this.retryTimer);this.retryTimer=null;stopEvery(this.heartbeat);this.opening=false;this.link?.close();this.link=null;for(const c of this.clients.values())c.close();this.clients.clear();this.peer?.destroy();this.peer=null;this.rows.clear();this.publish();}
-  restart(){this.suspend();if(this.enabled)this.open();}
-  stop(){if(this.link?.open)try{this.link.send({type:'presence',row:this.self('offline')});}catch{}this.enabled=false;this.suspend();this.status('off');}
+  suspend(){this.generation++;cancel(this.retryTimer);this.retryTimer=null;cancel(this.expiryTimer);this.opening=false;this.link=null;for(const c of [...this.clients.values(),...this.pending.values()])c.close();this.clients.clear();this.pending.clear();this.peer?.destroy();this.peer=null;this.main.options.onUsers?.([]);}
+  restart(){this.suspend();if(this.enabled&&this.main.ready)this.open();}
+  stop(){if(this.peer){const row=this.self('offline');this.rows.set(row.uuid,row);for(const c of this.clients.values())this.send(c,'SYNC_RECORDS',{records:[row]});}this.enabled=false;const gen=this.generation;this.main.options.onUsers?.([]);this.status('off');later(()=>{if(!this.enabled&&gen===this.generation){this.suspend();this.rows.clear();}},100);}
  }
  return {Transport,Discovery,parseInvite,profile,normalize,PREFIX,TTL};
 }
@@ -8152,7 +8197,7 @@ class MemberPeerManager extends PeerManager {
  getPeerCount(){return this.dconns.size;}
  send(pid,data){return this.transport?.send(pid,typeof data==='string'?data:JSON.stringify(data))||false;}
  broadcast(data){this.updateIdentity();for(const pid of this.dconns.keys())this.send(pid,data);}
- async tryReconnect(){if(this.transport?.ready)return;if(this.transport?.peer&&!this.transport.peer.destroyed){this.transport.retry=0;this.transport.reconnect();return;}this._release?.();this._release=null;this.transport?.destroy();this.transport=null;try{await this.init();}catch{}}
+ async tryReconnect(){if(this.transport?.ready){this.transport.resumeAttempts.clear();this.transport.resumeSaved();return;}if(this.transport?.peer&&!this.transport.peer.destroyed){this.transport.retry=0;this.transport.reconnect();return;}this._release?.();this._release=null;this.transport?.destroy();this.transport=null;try{await this.init();}catch{}}
  reconnectWithNewIce(){App.toast?.show('Connection settings saved. Reload this page to apply them to all modules.','info');}
  updateInvite(){const id=this.myId||'';setEl('my-id-display',id?id.slice(0,16)+'…':'Starting…');const display=document.getElementById('my-id-display');if(display){display.title=id;display.onclick=()=>id&&copyToClipboard(id);}for(const el of ['inv-personal-code','inv-group-code','online-invite-code','member-device-code'])setEl(el,id||'Starting…');if(App.invite){App.invite._personalCode=id;App.invite._groupCode=id;}window.__dhInviteCode=id;}
  renderOnline(){
@@ -8163,7 +8208,7 @@ class MemberPeerManager extends PeerManager {
   const search=(document.getElementById('online-search-inp')?.value||'').toLowerCase();
   const rows=this._users.filter(r=>r.name.toLowerCase().includes(search));
   for(const r of rows){const row=document.createElement('div');row.className='online-user';row.style.cssText='display:flex;align-items:center;gap:12px;padding:12px';const label=document.createElement('span');label.textContent=r.name;label.dir='auto';label.style.flex='1';const button=document.createElement('button');button.className='btn btn-s btn-xs';const accepted=this.dconns.get(r.peerId)?.open;button.textContent=accepted?'Open chat':this.transport?.pending.has(r.peerId)?'Waiting for approval…':'Connect';button.disabled=this.transport?.pending.has(r.peerId);button.onclick=async()=>{button.disabled=true;button.textContent='Waiting for approval…';await this.connectTo(r.peerId);this.renderOnline();};row.append(label,button);list.append(row);}
-  if(!rows.length){const empty=document.createElement('p');empty.style.padding='20px';empty.textContent=toggle?.checked?'No available members. Open the same app on the other device and enable discovery.':'Enable discovery to find members, or connect with a device code.';list.append(empty);}
+  if(!rows.length){const empty=document.createElement('p');empty.style.padding='20px';empty.textContent=toggle?.checked?'No available members. Enable discovery on both devices, then select Refresh to check again.':'Enable discovery to find members, or connect with a device code.';list.append(empty);}
  }
  diagnostics(){return {version:CFG.VERSION,transport:'PeerJS / WebRTC',mainPeer:this.myId,mainState:this.transport?.state||'starting',approvedConnections:this.dconns.size,pendingRequests:this.transport?.pending.size||0,discovery:this.discoveryState,discoveryRole:this.transport?.discovery?.host?'rendezvous':'client',discoveredMembers:this._users.length,turnConfigured:!!SafeStorage.getJSON('devhub-turn',{}).url,modules:Object.keys(App).filter(k=>App[k]!=null)};}
  destroy(){this._destroyed=true;Timers.clearInterval('ping');this.transport?.destroy();this._release?.();this._release=null;this.peer=null;this.myId=null;}
@@ -8769,7 +8814,7 @@ function configureMemberUI(){
  window.addEventListener('pagehide',()=>{App.files.destroy();App.media._cleanupCall('Page closed');App.groupVideo._stop();App.groupVoice._leave();App.conference._leave();App.presentation.stop();App.qr.stopScan();App.code._runnerCleanup?.();p.destroy();});
  window.addEventListener('beforeunload',e=>{if(App.files.active.size){e.preventDefault();e.returnValue='';}});
  window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
- setEl('member-version','61.1.0');
+ setEl('member-version','61.2.0');
 }
 
 
