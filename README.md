@@ -55,12 +55,13 @@ The 2026-09-27 verification passed **82 Node checks**, plus **5 Chromium browser
 - **47 integrated scenarios** across two or three app instances: startup, identity, approval, rejection, timeout, simultaneous requests, discovery, actual receiving DOM updates, voice/video consent and lifecycle, group membership, conference media/host controls, presentations, mobile chat, malformed payloads and permissions.
 - **11 file-protocol scenarios:** checkpoint hashing, large metadata, empty/binary files, corruption retry, interrupted resume, consent, pause, storage failure, changed source files and backpressure.
 - **4 file-UI scenarios:** approval dialog, no storage before consent, completed binary transfer/download/saved record, and decline cleanup.
+- **Control matrix:** Chromium activates every visible button in each of the 17 tabs, including pickers, dialogs, fullscreen, file-selection and call-related controls, while failing on page errors.
 
 All 17 tabs initialize, the final inline JavaScript parses, and HTML IDs are unique.
 
 ### Coverage limits
 
-These checks ran in an isolated JavaScript environment using the real application code and a simulated browser document. They do **not** establish exhaustive coverage of every combination or verify real-device WebRTC, file storage under real load, CDN availability, camera hardware, autoplay rules, vault cryptography or NAT/TURN behavior. The separate Chromium suite exercises real DOM/CSS, startup storage, navigation and onboarding; its network library is stubbed or deliberately blocked.
+These checks ran in an isolated JavaScript environment using the real application code and a simulated browser document. The control matrix adds real Chromium activation coverage for every visible button, but it does **not** establish exhaustive state combinations or verify real-device WebRTC, file storage under real load, CDN availability, camera hardware, autoplay rules, vault cryptography or NAT/TURN behavior. The separate Chromium suite exercises real DOM/CSS, startup storage, navigation and onboarding; its network library is stubbed or deliberately blocked.
 
 Before relying on the deployment, test on two real devices and across two networks: chat, voice/video consent, group membership, conference join/remove, screen/document viewing, file transfer, interrupted resume and page reload. Test your actual TURN credentials where direct connectivity fails. Browser suspension and storage quotas can still interrupt operation.
 

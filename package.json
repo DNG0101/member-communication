@@ -4,7 +4,7 @@
   "version": "61.2.1",
   "description": "Single HTML application; Node dependencies are for offline regression tests only",
   "scripts": {
-    "test": "node --test tests/connection-architecture.mjs tests/onboarding.mjs tests/media-contract.mjs && node tests/regression.mjs",
+    "test": "node --test tests/connection-architecture.mjs tests/onboarding.mjs tests/media-contract.mjs tests/control-matrix.mjs && node tests/regression.mjs",
     "test:browser": "node --test tests/browser-startup.mjs"
   },
   "devDependencies": {
