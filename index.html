@@ -6342,13 +6342,16 @@ class PresentationManager{
       /* Image presentation */
       const url=URL.createObjectURL(file);
       const canvas=document.getElementById('doc-canvas');if(!canvas)return;
-      const img=new Image();img.onload=()=>{
-        canvas.width=img.width;canvas.height=img.height;
-        const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0);
-        canvas.style.display='block';
-        document.getElementById('presentation-wrap')?.classList.add('on');
-        URL.revokeObjectURL(url);this.publishCanvas?.();
-      };img.onerror=()=>{URL.revokeObjectURL(url);App.toast.show('Image could not be loaded.','warning');};img.src=url;
+      await new Promise((resolve,reject)=>{
+        const img=new Image();img.onload=()=>{
+          canvas.width=img.width;canvas.height=img.height;
+          const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0);
+          canvas.style.display='block';
+          document.getElementById('presentation-wrap')?.classList.add('on');
+          URL.revokeObjectURL(url);resolve();
+          this.publishCanvas?.(file);
+        };img.onerror=()=>{URL.revokeObjectURL(url);reject(Error('Image could not be loaded.'));};img.src=url;
+      }).catch(e=>App.toast.show(e.message,'warning'));
     }
   }
   async _renderPage(n){
@@ -6422,9 +6425,13 @@ class Whiteboard extends LazyModule{
   }
   _drawStroke(s){
     const ctx=this._ctx;if(!ctx||s.pts.length<2)return;
-    ctx.save();ctx.strokeStyle=s.tool==='eraser'?'#1a1a2e':s.color;ctx.lineWidth=s.size;ctx.lineCap='round';ctx.lineJoin='round';
-    ctx.beginPath();ctx.moveTo(s.pts[0].x,s.pts[0].y);
-    s.pts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));ctx.stroke();ctx.restore();
+    ctx.save();ctx.globalCompositeOperation=s.tool==='eraser'?'destination-out':'source-over';ctx.strokeStyle=s.color;ctx.lineWidth=s.size;ctx.lineCap='round';ctx.lineJoin='round';
+    const first=s.pts[0],last=s.pts.at(-1);ctx.beginPath();ctx.moveTo(first.x,first.y);
+    if(s.tool==='line')ctx.lineTo(last.x,last.y);
+    else if(s.tool==='rect')ctx.rect(first.x,first.y,last.x-first.x,last.y-first.y);
+    else if(s.tool==='circle'){const rx=Math.abs(last.x-first.x)/2,ry=Math.abs(last.y-first.y)/2;ctx.ellipse((first.x+last.x)/2,(first.y+last.y)/2,Math.max(1,rx),Math.max(1,ry),0,0,Math.PI*2);}
+    else s.pts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
+    ctx.stroke();ctx.restore();
   }
   _drawLaserCursor(x,y){const ctx=this._ctx;if(!ctx)return;this._redraw();ctx.save();ctx.beginPath();ctx.arc(x,y,8,0,Math.PI*2);ctx.fillStyle='rgba(255,0,0,.6)';ctx.fill();ctx.restore();}
   _undo(){if(this._strokes.length){this._redo.push(this._strokes.pop());this._redraw();}}
@@ -6435,10 +6442,10 @@ class Whiteboard extends LazyModule{
     const url=c.toDataURL('image/png');const a=document.createElement('a');a.href=url;a.download='whiteboard-'+Date.now()+'.png';document.body.appendChild(a);a.click();document.body.removeChild(a);
   }
   _syncAll(){App.peer?.broadcast?.({type:'whiteboard',action:'sync',strokes:this._strokes});App.toast?.show('Whiteboard synced','success');}
-  _onRemoteStroke(pid,msg){if(msg.stroke){this._strokes.push(msg.stroke);this._redraw();}}
+  _onRemoteStroke(pid,msg){const s=msg.stroke;if(!s||!Array.isArray(s.pts)||s.pts.length<2||s.pts.length>2000||!s.pts.every(p=>Number.isFinite(p?.x)&&Number.isFinite(p?.y)))return;this._strokes.push(s);this._redraw();}
   _onRemote(msg){
     if(msg.action==='clear'){this._strokes=[];this._redraw();}
-    else if(msg.action==='sync'&&msg.strokes){this._strokes=[...msg.strokes];this._redraw();}
+    else if(msg.action==='sync'&&Array.isArray(msg.strokes)){this._strokes=msg.strokes.filter(s=>s&&Array.isArray(s.pts)&&s.pts.length>=2&&s.pts.length<=2000&&s.pts.every(p=>Number.isFinite(p?.x)&&Number.isFinite(p?.y))).slice(-1000);this._redraw();}
   }
   _onRemoteCursor(pid,msg){
     const c=this._canvas();if(!c)return;
@@ -8916,23 +8923,37 @@ const MemberQuestion={
  }
 };
 class MemberGroupChatManager extends GroupChatManager {
- constructor(){super();this._inviting=new Set();}
- init(){super.init();document.getElementById('btn-gc-pin')?.addEventListener('click',()=>{const m=this._msgs.at(-1);if(m)this._pinMessage(m.id);else App.toast.show('No group message to pin.','info');});Bus.on('peer:connected',({pid})=>this.invite(pid));Bus.on('peer:disconnected',({pid})=>{if(!this._room)return;if(pid===this._room.host){this._leave(false);App.toast.show('The group host disconnected.','warning');}else if(this._room.host===App.peer.myId){this._room.members=this._room.members.filter(x=>x!==pid);this.roster();}});}
- _create(){if(this._room){App.toast.show('Leave the current room before creating another.','warning');return;}super._create();this._room.host=App.peer.myId;this._room.members=[App.peer.myId];for(const pid of App.peer.dconns.keys())this.invite(pid);this._render();}
- invite(pid){if(this._room?.host===App.peer.myId)App.peer.send(pid,{type:'group-room',action:'invite',room:this._room.id,name:this._room.name,host:App.peer.myId});}
+ constructor(){super();this._rooms=new Map();this._inviting=new Set();}
+ _rememberRoom(room){this._rooms.set(room.id,room);this._room=room;return room;}
+ selectRoom(id){const room=this._rooms.get(id);if(!room)return false;this._room=room;this._msgs=room.messages||[];room.messages=this._msgs;this._render();return true;}
+ init(){
+  super.init();
+  document.getElementById('btn-gc-pin')?.addEventListener('click',()=>{const m=this._msgs.at(-1);if(m)this._pinMessage(m.id);else App.toast.show('No group message to pin.','info');});
+  document.getElementById('gc-members')?.addEventListener('click',e=>{const button=e.target.closest('[data-room-select]');if(button)this.selectRoom(button.dataset.roomSelect);});
+  Bus.on('peer:connected',({pid})=>this.invite(pid));
+  Bus.on('peer:disconnected',({pid})=>{
+   for(const room of this._rooms.values()){
+    if(!room.members.includes(pid))continue;
+    if(pid===room.host){if(this._room?.id===room.id)this._leave(false);else this._rooms.delete(room.id);}
+    else if(room.host===App.peer.myId){room.members=room.members.filter(x=>x!==pid);if(this._room?.id===room.id)this.roster();}
+   }
+  });
+ }
+ _create(){super._create();const room=this._room;room.host=App.peer.myId;room.members=[App.peer.myId];room.messages=this._msgs;this._rememberRoom(room);for(const pid of App.peer.dconns.keys())this.invite(pid);this._render();}
+ invite(pid){for(const room of this._rooms.values())if(room.host===App.peer.myId&&!room.members.includes(pid))App.peer.send(pid,{type:'group-room',action:'invite',room:room.id,name:room.name,host:App.peer.myId});}
  async onRoom(pid,m){
   if(typeof m.room!=='string'||m.room.length>64)return;
   if(m.action==='invite'){
-   if(m.host!==pid||typeof m.name!=='string'||m.name.length>100||this._room||this._inviting.has(pid))return;
-   this._inviting.add(pid);const yes=await MemberQuestion.ask('Join group room?',App.peer.peerName(pid)+' invited you to '+m.name+'.','Join room');this._inviting.delete(pid);
-   if(!yes||this._room||!App.peer.conn(pid)?.open)return;
-   this._room={id:m.room,name:m.name,host:pid,members:[pid,App.peer.myId]};this._msgs=[];this._reactions.clear();this._render();App.peer.send(pid,{type:'group-room',action:'join',room:m.room});App.ui.setTab('group');return;
+   if(m.host!==pid||typeof m.name!=='string'||m.name.length>100||this._rooms.has(m.room)||this._inviting.has(m.room))return;
+   this._inviting.add(m.room);const yes=await MemberQuestion.ask('Join group room?',App.peer.peerName(pid)+' invited you to '+m.name+'.','Join room');this._inviting.delete(m.room);
+   if(!yes||!App.peer.conn(pid)?.open)return;
+   const room={id:m.room,name:m.name,host:pid,members:[pid,App.peer.myId],messages:[]};this._rememberRoom(room);this._msgs=room.messages;this._reactions.clear();this._render();App.peer.send(pid,{type:'group-room',action:'join',room:m.room});App.ui.setTab('group');return;
   }
-  if(!this._room||m.room!==this._room.id)return;
-  if(m.action==='join'&&this._room.host===App.peer.myId){if(!this._room.members.includes(pid)&&this._room.members.length<32)this._room.members.push(pid);this.roster();}
-  else if(m.action==='members'&&pid===this._room.host&&Array.isArray(m.members)&&m.members.length<=32&&m.members.every(x=>typeof x==='string'&&CFG.PEER_ID_RE.test(x))){this._room.members=[...new Set(m.members)];this._render();}
-  else if(m.action==='leave'&&this._room.host===App.peer.myId){this._room.members=this._room.members.filter(x=>x!==pid);this.roster();}
-  else if(m.action==='closed'&&pid===this._room.host)this._leave(false);
+  const room=this._rooms.get(m.room);if(!room)return;
+  if(m.action==='join'&&room.host===App.peer.myId){if(!room.members.includes(pid)&&room.members.length<32)room.members.push(pid);if(this._room?.id===room.id)this.roster();}
+  else if(m.action==='members'&&pid===room.host&&Array.isArray(m.members)&&m.members.length<=32&&m.members.every(x=>typeof x==='string'&&CFG.PEER_ID_RE.test(x))){room.members=[...new Set(m.members)];if(this._room?.id===room.id)this._render();}
+  else if(m.action==='leave'&&room.host===App.peer.myId){room.members=room.members.filter(x=>x!==pid);if(this._room?.id===room.id)this.roster();}
+  else if(m.action==='closed'&&pid===room.host){this._rooms.delete(room.id);if(this._room?.id===room.id)this._leave(false);}
  }
  roster(){if(!this._room)return;this.fanout({type:'group-room',action:'members',room:this._room.id,members:this._room.members});this._render();}
  fanout(m,except){for(const pid of this._room?.members||[])if(pid!==App.peer.myId&&pid!==except)App.peer.send(pid,m);}
@@ -8944,14 +8965,29 @@ class MemberGroupChatManager extends GroupChatManager {
  _onTyping(pid,typing){/* Room typing uses onGroupEvent to retain its room and sender. */}
  onGroupEvent(pid,m){if(m.type==='gc-reaction'){if(typeof m.emoji!=='string'||m.emoji.length>16||!this._msgs.some(x=>x.id===m.msgId)||!this.route(pid,m))return;super._onReaction(m.from,m);}else if(this.route(pid,m))super._onTyping(m.from,!!m.typing);}
  _addReaction(emoji,msgId){if(!this._room||!this._msgs.some(x=>x.id===msgId))return;const m={type:'gc-reaction',emoji,msgId,room:this._room.id,from:App.peer.myId};super._onReaction(App.peer.myId,m);this.sendRoom(m);}
- _leave(notify=true){if(this._room&&notify){const m={type:'group-room',action:this._room.host===App.peer.myId?'closed':'leave',room:this._room.id};this.sendRoom(m);}clearTimeout(this._typingTimer);super._leave();document.getElementById('gc-msgs')?.replaceChildren();}
- _render(){super._render();const box=document.getElementById('gc-members');if(box&&this._room)box.textContent=this._room.name+' · '+this._room.members.length+' member(s)';}
+ _leave(notify=true){if(this._room&&notify){const m={type:'group-room',action:this._room.host===App.peer.myId?'closed':'leave',room:this._room.id};this.sendRoom(m);}if(this._room)this._rooms.delete(this._room.id);clearTimeout(this._typingTimer);super._leave();document.getElementById('gc-msgs')?.replaceChildren();}
+ _render(){super._render();const box=document.getElementById('gc-members');if(!box)return;if(!this._rooms.size){box.textContent='';return;}box.innerHTML=[...this._rooms.values()].map(room=>`<button class="gc-pill" data-room-select="${esc(room.id)}" aria-pressed="${room.id===this._room?.id}">#${esc(room.name)} · ${room.members.length}</button>`).join('');}
 }
 class MemberPresentationManager extends PresentationManager {
  constructor(){super();this._outgoing=new Map();this._incoming=null;this._published=null;}
- async _loadDoc(file){if(!file)return;if(file.type!=='application/pdf'&&!file.type.startsWith('image/')){App.toast.show('Choose a PDF or image.','warning');return;}if(file.type==='application/pdf')this._pdf=null;await super._loadDoc(file);if(file.type==='application/pdf'&&this._pdf)this.publishCanvas();}
+ async _loadDoc(file){
+  if(!file)return;
+  if(file.type!=='application/pdf'&&!file.type.startsWith('image/')){App.toast.show('Choose a PDF or image.','warning');return;}
+  if(!App.peer.dconns.size){App.toast.show('Connect to a member before sharing a document.','warning');return;}
+  if(file.type==='application/pdf')this._pdf=null;
+  try{await super._loadDoc(file);}catch(e){App.toast.show('Document could not be opened: '+e.message,'error');return;}
+  if(file.type==='application/pdf'&&this._pdf)this.publishCanvas(file);
+ }
  async _renderPage(n){await super._renderPage(n);}
- publishCanvas(){const canvas=document.getElementById('doc-canvas');if(!canvas?.captureStream){App.toast.show('Live document sharing is unavailable in this browser. Send the file instead.','warning');return;}this.publishStream(canvas.captureStream(5),'document');}
+ publishCanvas(file){
+  const canvas=document.getElementById('doc-canvas');
+  if(!canvas?.captureStream){
+   if(file&&App.ui?.activePeer)App.files?.sendFiles?.([file],App.ui.activePeer);
+   App.toast.show('Live document sharing is unavailable; sent the document in chat instead.','info');
+   return false;
+  }
+  return this.publishStream(canvas.captureStream(5),'document');
+ }
  publishStream(stream,kind){
   if(!App.peer.dconns.size){stream.getTracks().forEach(t=>t.stop());App.toast.show('Connect to a member before presenting.','warning');return false;}
   this.stopPublishing();this._published=stream;
