@@ -5122,7 +5122,7 @@ class CallStateMachine{
    DIRECT CALL MODULE
 ══════════════════════════════════════════════════════════ */
 class DirectCallModule{
-  constructor(){this._ringTimer=null;this._outgoing=null;}
+  constructor(){this._ringTimer=null;this._outgoing=null;this._incomingModes=new Map();}
   init(){
     document.getElementById('btn-conf-inv-accept')?.addEventListener('click',()=>{
       if(window._pendingConfInvite){const{confId,hostPid}=window._pendingConfInvite;window._pendingConfInvite=null;Modal.hide('conf-invite-modal');App.conference?.joinConference?.(confId,hostPid);}
@@ -5142,6 +5142,7 @@ class DirectCallModule{
     Bus.emit('direct-call:incoming',{pid,video,direction:'out'});
     this._ringTimer=setTimeout(()=>{this.cancel('timeout');},CFG.CALL_RING_TIMEOUT);
   }
+  wantsVideo(pid){return this._incomingModes.get(pid)===true;}
   cancel(reason='cancelled'){
     clearTimeout(this._ringTimer);this._ringTimer=null;
     Modal.hide('outgoing-call-modal');
@@ -5160,11 +5161,13 @@ class DirectCallModule{
   onRemoteSignal(pid,msg){
     const{action,video,reason}=msg;
     if(action==='ring'){
+      this._incomingModes.set(pid,video===true);
       setEl('icall-name',App.peer?.peerName?.(pid)||pid);
       Modal.show('incoming-call-modal');
       App.sounds?.callIncoming?.();
       Bus.emit('direct-call:incoming',{pid,video:video||false,direction:'in'});
     }else if(action==='cancel'){
+      this._incomingModes.delete(pid);
       Modal.hide('incoming-call-modal');
       App.toast?.show('Call cancelled by peer','info');
       App.callState?.reset?.();
@@ -6006,7 +6009,7 @@ class MediaManager{
     this._callStartTs=Date.now();
     document.getElementById('callbar')?.classList.add('on');
     const nm=document.getElementById('call-peer-nm');if(nm){nm.textContent=App.peer?.peerName?.(pid)||pid;}
-    const vwrap=document.getElementById('vwrap');if(vwrap)vwrap.style.display='block';
+    const vwrap=document.getElementById('vwrap');if(vwrap){vwrap.style.display='block';vwrap.classList.add('v29-call-layout','v32-call');}
     this._startCallTimer();
     /* Phase 1: PeerJS stream event (fires on most browsers) */
     call.on('stream',stream=>this._attachRemoteStream(stream));
@@ -6025,10 +6028,10 @@ class MediaManager{
           this._attachRemoteStream(stream);
         }else{
           /* New track added to existing stream (e.g. video added after audio) */
-          if(!this._remoteStream.getTrackById(e.track.id)){
+          if(!this._remoteStream.getTrackById?.(e.track.id)){
             this._remoteStream.addTrack(e.track);
             const rvid=document.getElementById('rvid');
-            if(rvid){rvid.srcObject=this._remoteStream;rvid.play().catch(()=>{});}
+            if(rvid){rvid.srcObject=this._remoteStream;rvid.dispatchEvent(new Event('loadedmetadata'));rvid.play().catch(()=>{});}
           }
         }
       });
@@ -6164,10 +6167,10 @@ class MediaManager{
     const rvid=document.getElementById('rvid');if(rvid){rvid.srcObject=null;rvid.load&&rvid.load();}
     const lvid=document.getElementById('lvid');if(lvid){lvid.srcObject=null;}
     document.getElementById('callbar')?.classList.remove('on');
-    const vwrap=document.getElementById('vwrap');if(vwrap)vwrap.style.display='none';
+    const vwrap=document.getElementById('vwrap');if(vwrap){vwrap.style.display='none';vwrap.classList.remove('v29-call-layout','v32-call');}
     document.getElementById('captions-bar')?.classList.remove('on');
     const dur=this._callStartTs?Date.now()-this._callStartTs:0;
-    if(this._call){const pid=this._call.peer||this._pendingCallPid;App.callHist?.add?.(pid,App.peer?.peerName?.(pid)||pid,'in',dur);App.streamWatchdog?.unwatch?.(pid);}
+    if(this._call){const pid=this._call.peer||this._pendingCallPid;App.directCall?._incomingModes?.delete?.(pid);App.callHist?.add?.(pid,App.peer?.peerName?.(pid)||pid,'in',dur);App.streamWatchdog?.unwatch?.(pid);}
     try{this._call?.close?.();}catch(e){}
     this._call=null;this._videoEnabled=false;this._callStartTs=null;this._pendingCallPid=null;
     App.callStats?.hide?.();
@@ -8897,7 +8900,7 @@ class MemberMediaManager extends MediaManager {
  constructor(){super();this._mediaEpoch=0;this._acquiring=false;}
  async acquire(video){
   const audio={echoCancellation:true,autoGainControl:true,noiseSuppression:!!document.getElementById('call-noise-suppress')?.checked};
-  try{return await navigator.mediaDevices.getUserMedia({audio,video:video?{width:{ideal:1280},height:{ideal:720}}:false});}
+  try{return await navigator.mediaDevices.getUserMedia({audio,video:video?{facingMode:{ideal:'user'},width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30}}:false});}
   catch(e){if(video&&['NotFoundError','NotReadableError','OverconstrainedError'].includes(e.name))return navigator.mediaDevices.getUserMedia({audio,video:false});throw e;}
  }
  async _startCall(video){
@@ -8909,13 +8912,14 @@ class MemberMediaManager extends MediaManager {
    const stream=await this.acquire(video);
    if(epoch!==this._mediaEpoch||!App.peer.conn(pid)?.open){stream.getTracks().forEach(t=>t.stop());return;}
    this._localStream=stream;App.streamReg.register('local-call',stream);
+   App.directCall.ring(pid,stream.getVideoTracks().length>0);
    const call=App.peer.peer.call(pid,stream,{metadata:{type:'direct',video:stream.getVideoTracks().length>0}});
    if(!call)throw Error('Could not start the call.');
    this._call=call;this._pendingCallPid=pid;this._videoEnabled=stream.getVideoTracks().length>0;
    const local=document.getElementById('lvid');if(local){local.srcObject=stream;local.muted=true;local.play().catch(()=>{});}
-   App.ui.setTab('call');App.directCall.ring(pid,this._videoEnabled);App.callState.transition('CONNECTING');this._onCallSetup(call,pid);
+   App.ui.setTab('call');App.callState.transition('CONNECTING');this._onCallSetup(call,pid);
    call.on('stream',()=>App.directCall.notifyAccepted(pid));this._abr.start(call);WakeLock.acquire();
-  }catch(e){this._cleanupCall('Could not start call: '+e.message);}finally{this._acquiring=false;}
+  }catch(e){App.directCall?.cancel?.('Call failed');this._cleanupCall('Could not start call: '+e.message);}finally{this._acquiring=false;}
  }
  handleIncoming(call){
   if(this._call||this._pendingCall||this._acquiring||this._isCleaningUp){call.close();return;}
@@ -8927,7 +8931,8 @@ class MemberMediaManager extends MediaManager {
   const call=this._pendingCall;if(!call||this._acquiring)return;
   Modal.hide('incoming-call-modal');const epoch=++this._mediaEpoch;this._acquiring=true;
   try{
-   const stream=await this.acquire(call.metadata?.video===true);
+   const wantsVideo=call.metadata?.video===true||App.directCall.wantsVideo(call.peer);
+   const stream=await this.acquire(wantsVideo);
    if(epoch!==this._mediaEpoch||this._pendingCall!==call||!App.peer.conn(call.peer)?.open){stream.getTracks().forEach(t=>t.stop());return;}
    this._pendingCall=null;this._localStream=stream;this._call=call;this._pendingCallPid=call.peer;this._videoEnabled=stream.getVideoTracks().length>0;
    App.streamReg.register('local-call',stream);
