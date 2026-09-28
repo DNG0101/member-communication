@@ -25,6 +25,8 @@ test('media recovery uses the PeerJS connection and handles missing senders', ()
 
 test('remote audio and video tracks share a visible responsive call layout', () => {
   assert.match(html, /vwrap\.classList\.add\('v29-call-layout','v32-call'\)/);
-  assert.match(html, /if\(!this\._remoteStream\.getTrackById\?\.\(e\.track\.id\)\)/);
-  assert.match(html, /rvid\.srcObject=this\._remoteStream;rvid\.dispatchEvent\(new Event\('loadedmetadata'\)\)/);
+  assert.match(html, /_bindRemotePeerConnection\(call,pid\)/);
+  assert.match(html, /const pc=call\.peerConnection\|\|call\.pc/);
+  assert.match(html, /for\(const source of e\.streams\|\|\[\]\)/);
+  assert.match(html, /setTimeout\(retry,100\)/);
 });

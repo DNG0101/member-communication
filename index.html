@@ -6015,26 +6015,9 @@ class MediaManager{
     call.on('stream',stream=>this._attachRemoteStream(stream));
     call.on('close',()=>this._cleanupCall('Call ended'));
     call.on('error',err=>this._cleanupCall('Call error: '+err.message));
-    const pc=call.peerConnection;
+    const pc=this._bindRemotePeerConnection(call,pid);
     if(pc){
       /* Phase 1/4: ontrack fallback — catches Safari which doesn't fire PeerJS stream event */
-      pc.addEventListener('track',e=>{
-        /* Prefer streams array (all browsers), fall back to building one from the track */
-        const stream=e.streams&&e.streams[0]
-          ?e.streams[0]
-          :(()=>{const s=new MediaStream();s.addTrack(e.track);return s;})();
-        /* Only attach if we haven't already attached this stream (avoid double-fire) */
-        if(!this._remoteStream||this._remoteStream.id!==stream.id){
-          this._attachRemoteStream(stream);
-        }else{
-          /* New track added to existing stream (e.g. video added after audio) */
-          if(!this._remoteStream.getTrackById?.(e.track.id)){
-            this._remoteStream.addTrack(e.track);
-            const rvid=document.getElementById('rvid');
-            if(rvid){rvid.srcObject=this._remoteStream;rvid.dispatchEvent(new Event('loadedmetadata'));rvid.play().catch(()=>{});}
-          }
-        }
-      });
       /* Phase 1: attach ICERetryEngine for automatic exponential-backoff restarts */
       this._iceRetry.destroy();
       this._iceRetry=new ICERetryEngine();
@@ -6083,6 +6066,38 @@ class MediaManager{
         if(stillFrozen&&this._call)this._reacquireMedia();
       },6000);
     });
+  }
+  _bindRemotePeerConnection(call,pid){
+    const bind=()=>{
+      const pc=call.peerConnection||call.pc;
+      if(!pc)return false;
+      if(!pc.__memberRemoteTrackBound){
+        pc.__memberRemoteTrackBound=true;
+        pc.addEventListener('track',e=>{
+          if(!e.track)return;
+          const current=this._remoteStream||new MediaStream();
+          const tracks=current.getTracks?.()||[];
+          if(!tracks.some(t=>t.id===e.track.id))current.addTrack(e.track);
+          for(const source of e.streams||[]){
+            for(const track of source.getTracks?.()||[]){
+              if(!(current.getTracks?.()||[]).some(t=>t.id===track.id))current.addTrack(track);
+            }
+          }
+          this._attachRemoteStream(current);
+        });
+      }
+      return pc;
+    };
+    const pc=bind();
+    if(!pc){
+      let attempts=0;
+      const retry=()=>{
+        if(this._call!==call||++attempts>40)return;
+        if(!bind())setTimeout(retry,100);
+      };
+      setTimeout(retry,0);
+    }
+    return pc;
   }
   _attachRemoteStream(stream){
     this._remoteStream=stream;
