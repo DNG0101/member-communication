@@ -5863,7 +5863,7 @@ class MediaManager{
     document.addEventListener('visibilitychange',()=>{
       if(document.visibilityState==='visible'&&this._call){
         Timers.timeout('visibility-recover',()=>{
-          const pc=this._call?.pc;if(!pc)return;
+          const pc=this._call?.peerConnection;if(!pc)return;
           const st=pc.connectionState||pc.iceConnectionState;
           if(st==='failed'||st==='disconnected'){
             try{pc.restartIce();}catch(e){}
@@ -5888,14 +5888,20 @@ class MediaManager{
       const ns=this._noiseEnabled||(document.getElementById('call-noise-suppress')?.checked===true);
       const newStream=await navigator.mediaDevices.getUserMedia({
         audio:{noiseSuppression:ns,echoCancellation:true,autoGainControl:true},
-        video:this._videoEnabled?{width:{ideal:prof.w},height:{ideal:prof.h}}:false
+        video:this._videoEnabled?{facingMode:{ideal:'user'},width:{ideal:prof.w},height:{ideal:prof.h}}:false
       });
       const pc=this._call.peerConnection;
-      if(pc){for(const track of newStream.getTracks()){const sender=pc.getSenders().find(s=>s.track?.kind===track.kind);if(sender)await sender.replaceTrack(track).catch(()=>{});}}
+      if(pc){
+        for(const track of newStream.getTracks()){
+          const sender=pc.getSenders().find(s=>s.track?.kind===track.kind);
+          if(sender)await sender.replaceTrack(track);
+          else if(pc.addTrack)pc.addTrack(track,newStream);
+        }
+      }
       try{this._localStream?.getTracks().forEach(t=>t.stop());}catch(e){}
       this._localStream=newStream;
       App.streamReg?.register?.('local-call',newStream);
-      const lvid=document.getElementById('lvid');if(lvid){lvid.srcObject=newStream;lvid.play().catch(()=>{});}
+      this._attachLocalStream(newStream);
       App.toast?.show('Media reacquired — no reload needed','success');
     }catch(e){App.toast?.show('Could not reacquire media: '+e.message,'warning');}
   }
@@ -5910,7 +5916,7 @@ class MediaManager{
       /* A8: noise suppression uses CFG.DEFAULT_NOISE_SUPPRESSION as checkbox default */
       const ns=document.getElementById('call-noise-suppress')?.checked===true||CFG.DEFAULT_NOISE_SUPPRESSION;
       const constraints={audio:{noiseSuppression:ns,echoCancellation:document.getElementById('call-echo-cancel')?.checked!==false,autoGainControl:true}};
-      if(video)constraints.video={width:{ideal:prof.w},height:{ideal:prof.h},frameRate:{ideal:prof.fps}};
+      if(video)constraints.video={facingMode:{ideal:'user'},width:{ideal:prof.w},height:{ideal:prof.h},frameRate:{ideal:prof.fps}};
       /* Phase 1/3: audio-first fallback — if video getUserMedia fails, retry audio-only */
       try{
         this._localStream=await navigator.mediaDevices.getUserMedia(constraints);
@@ -5925,9 +5931,8 @@ class MediaManager{
         }
       }
       App.streamReg?.register?.('local-call',this._localStream);
-      const lvid=document.getElementById('lvid');
-      if(lvid){lvid.srcObject=this._localStream;lvid.setAttribute('playsinline','');lvid.muted=true;lvid.play().catch(()=>{});}
-      const call=App.peer?.peer?.call(pid,this._localStream);
+      this._attachLocalStream(this._localStream);
+      const call=App.peer?.peer?.call(pid,this._localStream,{metadata:{type:'direct',video:video===true}});
       if(!call){
         this._localStream.getTracks().forEach(t=>t.stop());this._localStream=null;
         App.toast?.show('Failed to initiate call','error');return;
@@ -5958,14 +5963,15 @@ class MediaManager{
       const ns=document.getElementById('call-noise-suppress')?.checked===true||CFG.DEFAULT_NOISE_SUPPRESSION;
       const audioConstraints={noiseSuppression:ns,echoCancellation:true,autoGainControl:true};
       /* Phase 1/3: audio-first fallback — try video, degrade to audio-only */
-      let videoEnabled=true;
+      const wantsVideo=call.metadata?.video===true;
+      let videoEnabled=wantsVideo;
       try{
         this._localStream=await navigator.mediaDevices.getUserMedia({
           audio:audioConstraints,
-          video:{width:{ideal:prof.w},height:{ideal:prof.h}}
+          video:wantsVideo?{facingMode:{ideal:'user'},width:{ideal:prof.w},height:{ideal:prof.h}}:false
         });
       }catch(e){
-        if(e.name==='NotFoundError'||e.name==='NotReadableError'||e.name==='OverconstrainedError'){
+        if(wantsVideo&&(e.name==='NotFoundError'||e.name==='NotReadableError'||e.name==='OverconstrainedError')){
           App.toast?.show('Camera unavailable — answering audio-only','warning');
           try{this._localStream=await navigator.mediaDevices.getUserMedia({audio:audioConstraints});}
           catch(e2){App.toast?.show('Could not access microphone: '+e2.message,'error');try{call.close();}catch(ex){}return;}
@@ -5976,9 +5982,7 @@ class MediaManager{
         }
       }
       App.streamReg?.register?.('local-call',this._localStream);
-      const lvid=document.getElementById('lvid');
-      if(lvid){lvid.srcObject=this._localStream;lvid.setAttribute('playsinline','');lvid.muted=true;lvid.play().catch(()=>{});}
-      call.answer(this._localStream);
+      this._attachLocalStream(this._localStream);
       this._call=call;this._videoEnabled=videoEnabled;this._pendingCallPid=call.peer;
       App.ui?.setTab?.('call');
       App.callState?.transition('CONNECTING');
@@ -5986,6 +5990,7 @@ class MediaManager{
       WakeLock.acquire();
       this._onCallSetup(call,call.peer);
       this._abr.start(call);
+      call.answer(this._localStream);
     }catch(e){
       App.toast?.show('Could not accept call: '+e.message,'error');
       try{call.close();}catch(ex){}
@@ -6101,6 +6106,15 @@ class MediaManager{
     App.callState?.transition('CONNECTED');
     this._startAudioVis();
   }
+  _attachLocalStream(stream){
+    const lvid=document.getElementById('lvid');if(!lvid)return;
+    lvid.srcObject=stream;lvid.setAttribute('playsinline','');lvid.setAttribute('webkit-playsinline','');lvid.muted=true;
+    lvid.play().catch(e=>{
+      App.log?.warn('lvid play: '+e.message);
+      const retry=()=>{lvid.play().catch(()=>{});document.removeEventListener('click',retry);document.removeEventListener('touchstart',retry);};
+      document.addEventListener('click',retry,{once:true});document.addEventListener('touchstart',retry,{once:true,passive:true});
+    });
+  }
   _startAudioVis(){
     cancelAnimationFrame(this._rafId);
     try{
@@ -6178,12 +6192,33 @@ class MediaManager{
     setEl('btn-mute',this._muted?'🔇 Unmute':'🎤 Mute');
     App.toast?.show(this._muted?'Muted':'Unmuted','info');
   }
-  toggleVideo(){
+  async toggleVideo(){
     if(!this._call){App.toast?.show('Not in a call','warning');return;}
-    this._videoEnabled=!this._videoEnabled;
-    this._localStream?.getVideoTracks().forEach(t=>{t.enabled=this._videoEnabled;});
-    setEl('btn-vid-toggle',this._videoEnabled?'📹 Stop Camera':'📹 Camera');
-    if(!this._videoEnabled)App.streamReg?.stop?.('local-video');
+    const tracks=this._localStream?.getVideoTracks?.()||[];
+    if(tracks.length){
+      this._videoEnabled=!this._videoEnabled;
+      tracks.forEach(t=>{t.enabled=this._videoEnabled;});
+      setEl('btn-vid-toggle',this._videoEnabled?'📹 Stop Camera':'📹 Camera');
+      return;
+    }
+    const epoch=++this._mediaEpoch;
+    try{
+      const stream=await this.acquire(true);
+      if(epoch!==this._mediaEpoch||!this._call){stream.getTracks().forEach(t=>t.stop());return;}
+      const pc=this._call.peerConnection;
+      const video=stream.getVideoTracks()[0];
+      if(!video)throw Error('Camera did not provide a video track.');
+      const sender=pc?.getSenders?.().find(s=>s.track?.kind==='video');
+      if(sender)await sender.replaceTrack(video);
+      else if(pc?.addTrack)pc.addTrack(video,stream);
+      else throw Error('This call cannot add a camera track.');
+      const audio=this._localStream?.getAudioTracks?.()||[];
+      const combined=new MediaStream([...audio,video]);
+      this._localStream=combined;this._videoEnabled=true;this._attachLocalStream(combined);
+      App.streamReg?.register?.('local-call',combined);
+      setEl('btn-vid-toggle','📹 Stop Camera');
+      App.toast?.show('Camera enabled','success');
+    }catch(e){App.toast?.show('Could not enable camera: '+e.message,'error');}
   }
   /* A1: Picture-in-Picture */
   async _togglePiP(){
