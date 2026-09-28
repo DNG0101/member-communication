@@ -27,9 +27,9 @@ One tab owns an installation identity when Web Locks is available. Old six-chara
 | Files | Separate consent dialog, verified transfer, downloads, saved progress and sender-led resume. OPFS is preferred; browser-storage fallback batches are limited to 256 MiB. Reconnect to the original member before resuming; expired sessions need approval again. |
 | Voice / video calls | Incoming media consent, audio-only calls keep cameras off, one acquisition at a time, timeout/cancel/decline cleanup and permission checks. |
 | Group voice / video | Join voice or start the camera before receiving a group stream. Calls route to their own module; leaving stops streams. |
-| Group chat | Host invites connected members to join a common room. Only joined members receive room messages. The host forwards member messages to the other participants. Host departure closes the room. |
+| Group chat | Host invites connected members to join one or more rooms. A member can belong to multiple rooms simultaneously; only joined members receive each room's messages. The host forwards member messages to the other participants. Host departure closes that room. |
 | Conference | Create/join acquires media, host-authorized rosters establish media channels between approved participants, and mute/remove/leave clean up streams. Additional member connections may require approval. |
-| Presentation | PDF/image canvas or screen streams travel over dedicated, separately accepted media calls. Page-number notifications alone are no longer treated as document delivery. |
+| Presentation | PDF/image canvas or screen streams travel over dedicated, separately accepted media calls. Page-number notifications alone are no longer treated as document delivery. If live canvas capture is unavailable, the selected document is sent through the existing chat file-transfer path instead. |
 | Whiteboard / code / tasks / notes / clipboard | Share through accepted connections. Payload checks reject malformed input. Per-member controls restrict incoming collaboration. |
 | Code runner | JavaScript runs in a sandboxed frame instead of the application's own scope. |
 | Vault / history / notifications / settings | Existing modules and storage remain. Module aliases, settings controls and installation guidance are wired into the consolidated runtime. |
