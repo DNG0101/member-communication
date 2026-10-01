@@ -9030,7 +9030,7 @@ class MemberDirectCallModule extends DirectCallModule {
 /* Meetings: scheduling, consent and role state orchestrate existing peer/media modules. */
 class MemberMeetingsModule{
  constructor(){
-  this.meetings=new Map();this.history=[];this.current=null;this.editing=null;this.reminders=new Map();this._bound=false;
+  this.meetings=new Map();this.history=[];this.current=null;this.editing=null;this.reminders=new Map();this.seenMessages=new Set();this._bound=false;
   this._load();
  }
  _load(){
@@ -9073,11 +9073,12 @@ class MemberMeetingsModule{
  invite(id,pid){const m=this.meetings.get(id);if(!m||m.status==='cancelled'||!pid||m.hostId!==App.peer?.myId)return false;if(!m.attendees.includes(pid))m.attendees.push(pid);m.roles[pid]='participant';this._broadcast(m,'invite',{to:pid});this._save();this._render();return true;}
  respond(id,answer,pid=App.peer?.myId){const m=this.meetings.get(id);if(!m||!['accept','decline','tentative'].includes(answer))return false;m.responses=m.responses||{};m.responses[pid]=answer;const host=m.hostId;if(answer==='decline')m.attendees=m.attendees.filter(x=>x!==pid);else{if(!m.attendees.includes(pid))m.attendees.push(pid);m.roles[pid]=m.roles[pid]||'participant';}if(host!==pid)App.peer?.send?.(host,{type:'meeting',action:'response',meeting:m,to:host,from:pid,response:answer});this._save();this._render();return true;}
  join(id,pid=App.peer?.myId||'local'){
-  const m=this.meetings.get(id);if(!m||m.status==='cancelled')return {ok:false,reason:'meeting unavailable'};if(m.locked&&m.roles[pid]!=='host'&&m.roles[pid]!=='cohost')return {ok:false,reason:'meeting locked'};if(!m.attendees.includes(pid)){if(!m.lobby.includes(pid))m.lobby.push(pid);if(m.hostId!==pid)App.peer?.send?.(m.hostId,{type:'meeting',action:'lobby',meeting:m,to:m.hostId,from:pid});}else{this.current={id,role:m.roles[pid]||'participant',state:'joined',joinedAt:Date.now()};this._attendance(id,'joined',pid);}
+  const m=this.meetings.get(id);if(!m||m.status==='cancelled')return {ok:false,reason:'meeting unavailable'};if(m.locked&&m.roles[pid]!=='host'&&m.roles[pid]!=='cohost')return {ok:false,reason:'meeting locked'};if(!m.attendees.includes(pid)){if(!m.lobby.includes(pid))m.lobby.push(pid);if(m.hostId!==pid)App.peer?.send?.(m.hostId,{type:'meeting',action:'lobby',meeting:m,to:m.hostId,from:pid});}else{this.current={id,pid,role:m.roles[pid]||'participant',state:'joined',joinedAt:Date.now()};this._attendance(id,'joined',pid);}
   if(m.lobby.includes(pid))this.current={id,role:'lobby',state:'lobby',joinedAt:Date.now()};this._render();return {ok:true,state:this.current.state};
  }
  admit(id,pid){const m=this.meetings.get(id);if(!this._canManage(id))return false;m.lobby=m.lobby.filter(x=>x!==pid);if(!m.attendees.includes(pid))m.attendees.push(pid);m.roles[pid]=m.roles[pid]||'participant';this._broadcast(m,'admit',{to:pid});this._save();this._render();return true;}
  remove(id,pid){const m=this.meetings.get(id);if(!this._canManage(id)||pid===m.hostId)return false;m.attendees=m.attendees.filter(x=>x!==pid);m.lobby=m.lobby.filter(x=>x!==pid);this._broadcast(m,'remove',{to:pid});if(this.current?.id===id&&this.current?.pid===pid)this.leave();this._save();this._render();return true;}
+ setRole(id,pid,role){const m=this.meetings.get(id);if(!m||!this._canManage(id)||pid===m.hostId||!['cohost','participant'].includes(role))return false;if(!m.attendees.includes(pid))return false;m.roles[pid]=role;this._broadcast(m,'role',{to:pid});this._save();this._render();return true;}
  toggleLock(id){const m=this.meetings.get(id);if(!m||!this._canManage(id))return false;m.locked=!m.locked;this._broadcast(m,'lock');this._save();this._render();return m.locked;}
  leave(){if(!this.current)return false;this._attendance(this.current.id,'left',App.peer?.myId||'local');this.current=null;this._render();return true;}
  rejoin(){return this.current?this.join(this.current.id):{ok:false,reason:'no active meeting'};}
@@ -9092,7 +9093,7 @@ class MemberMeetingsModule{
  toggleCamera(){if(App.media?._call)return App.media.toggleVideo?.();return App.groupVideo?._stream?App.groupVideo._toggleMute?.():false;}
  shareScreen(){return App.screenShare?.toggleShare?.();}
  recordConsent(){if(!this.current)return false;const m=this.meetings.get(this.current.id),pid=App.peer?.myId||'local';if(!m.recordingConsent.includes(pid))m.recordingConsent.push(pid);this._broadcast(m,'record-consent',{to:m.hostId,from:pid});this._save();this._render();return true;}
- sendChat(text){if(!this.current||!text?.trim())return false;const m=this.meetings.get(this.current.id),msg={type:'meeting-chat',meetingId:m.id,from:App.peer?.myId||'local',text:text.trim().slice(0,2000),at:Date.now()};this._broadcast(m,'chat',{payload:msg});this._renderChat(msg);return true;}
+ sendChat(text){if(!this.current||!text?.trim())return false;const m=this.meetings.get(this.current.id),msg={type:'meeting-chat',id:uid(12),meetingId:m.id,from:App.peer?.myId||'local',text:text.trim().slice(0,2000),at:Date.now()};this.seenMessages.add(msg.id);this._broadcast(m,'chat',{payload:msg});this._renderChat(msg);return true;}
  sendInteraction(action,payload={}){if(!this.current)return false;const m=this.meetings.get(this.current.id);this._broadcast(m,action,{payload:{...payload,from:App.peer?.myId||'local'}});return true;}
  onMessage(pid,msg){
   if(!msg||msg.type!=='meeting'||typeof msg.action!=='string'||!msg.meeting?.id)return false;
@@ -9102,7 +9103,8 @@ class MemberMeetingsModule{
   else if(msg.action==='lock'&&existing)existing.locked=incoming.locked;
   else if(msg.action==='lobby'&&existing&&msg.from&&existing.roles[App.peer?.myId||'local']==='host'){if(!existing.lobby.includes(msg.from))existing.lobby.push(msg.from);}
   else if(msg.action==='remove'&&msg.to===App.peer?.myId)this.leave();
-  else if(msg.action==='chat'&&msg.payload?.meetingId===this.current?.id)this._renderChat(msg.payload);
+  else if(msg.action==='role'&&existing&&msg.to===App.peer?.myId&&['cohost','participant'].includes(msg.meeting.roles[msg.to])){existing.roles[msg.to]=msg.meeting.roles[msg.to];if(this.current?.id===existing.id)this.current.role=existing.roles[msg.to];}
+  else if(msg.action==='chat'&&msg.payload?.meetingId===this.current?.id&&typeof msg.payload.id==='string'&&!this.seenMessages.has(msg.payload.id)){this.seenMessages.add(msg.payload.id);this._renderChat(msg.payload);}
   else if(msg.action==='response'&&existing&&this._canManage(existing.id)){existing.responses=existing.responses||{};existing.responses[msg.from]=msg.response;this._render();}
   this._save();this._render();return true;
  }
@@ -9140,7 +9142,7 @@ class MemberMeetingsModule{
   window.addEventListener('online',()=>{if(this.current)this.rejoin();});
   this._render();
  }
- destroy(){for(const t of this.reminders.values())clearTimeout(t);this.reminders.clear();this.current=null;}
+ destroy(){for(const t of this.reminders.values())clearTimeout(t);this.reminders.clear();this.seenMessages.clear();this.current=null;}
 }
 
 
@@ -9315,7 +9317,10 @@ class MemberConferenceModule extends ConferenceModule {
 function memberMessageAllowed(pid,m){
  if(!m||typeof m!=='object'||typeof m.type!=='string'||m.type.length>64)return false;
  const t=m.type;
- if(t==='meeting')return typeof m.action==='string'&&m.action.length<=32&&m.meeting&&typeof m.meeting==='object'&&typeof m.meeting.id==='string'&&/^mtg-[a-f0-9-]{8,80}$/i.test(m.meeting.id)&&typeof m.meeting.title==='string'&&m.meeting.title.length<=120&&Number.isFinite(m.meeting.startMs)&&Array.isArray(m.meeting.attendees)&&m.meeting.attendees.length<=32;
+ if(t==='meeting'){
+  const actions=['invite','update','cancel','response','admit','lock','lobby','remove','role','chat','record-consent','hand','reaction','poll'];
+  return actions.includes(m.action)&&m.meeting&&typeof m.meeting==='object'&&typeof m.meeting.id==='string'&&/^mtg-[a-f0-9-]{8,80}$/i.test(m.meeting.id)&&typeof m.meeting.title==='string'&&m.meeting.title.length<=120&&Number.isFinite(m.meeting.startMs)&&Array.isArray(m.meeting.attendees)&&m.meeting.attendees.length<=32&&(!m.payload||typeof m.payload==='object'&&JSON.stringify(m.payload).length<=8192);
+ }
  if(t==='meeting-chat')return typeof m.meetingId==='string'&&/^mtg-[a-f0-9-]{8,80}$/i.test(m.meetingId)&&typeof m.text==='string'&&m.text.length<=2000;
  if(['msg','typing','reaction'].includes(t)&&!App.perms.check(pid,'canChat'))return false;
  if(['wb-stroke','whiteboard','cursor'].includes(t)&&!App.perms.check(pid,'canWhiteboard'))return false;
