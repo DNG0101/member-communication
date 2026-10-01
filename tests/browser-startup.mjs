@@ -32,12 +32,12 @@ async function open({viewport={width:1440,height:900},storageBlocked=false,netwo
 }
 async function visibleStep(page,n){assert.equal(await page.locator('.ob-step:visible').count(),1);assert.equal(await page.locator(`#ob-step-${n}`).isVisible(),true);assert.equal(await page.locator('#ob-modal').getAttribute('aria-labelledby'),`ob-title-${n}`);}
 
-test('desktop: complete onboarding, visit all 17 tabs and retain completion after reload',async()=>{
+test('desktop: complete onboarding, visit all 18 tabs and retain completion after reload',async()=>{
  const {page,errors}=await open();await visibleStep(page,0);await page.locator('#ob-name').fill('Nithish');await page.locator('#btn-ob-start').click();await visibleStep(page,1);
  // The second boot-complete timer must not reset or rebind this page.
  await page.waitForTimeout(700);await visibleStep(page,1);assert.equal(await page.locator('#ob-title-1').textContent(),'Connect with a member');
  await page.locator('#btn-ob-next').click();await visibleStep(page,2);await page.screenshot({path:join(tmpdir(),'member-onboarding-desktop.png'),animations:'disabled'});await page.locator('#btn-ob-finish').click();assert.equal(await page.locator('#ob-modal').isVisible(),false);
- const tabs=await page.locator('.tn[data-tab]').evaluateAll(nodes=>nodes.map(n=>n.dataset.tab));assert.equal(tabs.length,17);
+ const tabs=await page.locator('.tn[data-tab]').evaluateAll(nodes=>nodes.map(n=>n.dataset.tab));assert.equal(tabs.length,18);
  for(const tab of tabs){await page.locator(`.tn[data-tab="${tab}"]`).click();assert.equal(await page.locator(`#tab-${tab}`).isVisible(),true,tab);}
  assert.equal(await page.evaluate(()=>localStorage.getItem('dh-name')),'Nithish');await page.reload();await page.waitForTimeout(800);assert.equal(await page.locator('#ob-modal').isVisible(),false);assert.deepEqual(errors,[]);
 });

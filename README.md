@@ -34,7 +34,13 @@ One tab owns an installation identity when Web Locks is available. Old six-chara
 | Code runner | JavaScript runs in a sandboxed frame instead of the application's own scope. |
 | Vault / history / notifications / settings | Existing modules and storage remain. Module aliases, settings controls and installation guidance are wired into the consolidated runtime. |
 
-The app has 17 tabs. The earlier overlapping boot/Supabase scripts were consolidated into one runtime. Unused legacy dashboard buttons were removed. A single HTML deployment does not provide an offline service-worker cache.
+The app has 18 tabs. The earlier overlapping boot/Supabase scripts were consolidated into one runtime. Unused legacy dashboard buttons were removed. A single HTML deployment does not provide an offline service-worker cache.
+
+### Meetings module
+
+Meetings is a stateful scheduling and coordination layer over the existing approved-member transport and media modules. It supports UTC-backed scheduling with an explicit display timezone, edit/cancel/reschedule, daily/weekly/monthly recurrence metadata, meeting codes, named local guests, invite/accept/decline/tentative responses, host/co-host/participant roles, lobby/admit, lock/remove, join/leave/rejoin, pre-join network/signaling/device checks, reminders, attendance history, meeting chat, hand raise, reactions, and consent tracking for recording. Mute, camera and screen-share controls delegate to the existing media modules; no second WebRTC or fake recording implementation is introduced.
+
+Meetings intentionally do **not** claim unauthenticated guest browser access, server-side calendar sync, server-side reminders, or media recording. Named guests are roster metadata only, and recording consent is state tracking until a supported recorder is explicitly connected. Meeting state is exchanged only with already approved Member Communication peers.
 
 ## Reproducible regression checks
 
