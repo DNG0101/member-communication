@@ -7009,12 +7009,24 @@ class GroupVoiceManager{
   _setupRemote(call,pid){
     call.on('stream',stream=>{
       App.streamReg?.register?.('gvoice-remote-'+pid,stream);
-      const audio=document.createElement('audio');audio.srcObject=stream;audio.autoplay=true;
+      const audio=document.createElement('audio');
+      audio.srcObject=stream;audio.autoplay=true;audio.playsInline=true;
       document.body.appendChild(audio);call._audio=audio;
+      const play=()=>audio.play().catch(()=>{
+        const retry=()=>{audio.play().catch(()=>{});};
+        document.addEventListener('click',retry,{once:true});
+        document.addEventListener('touchstart',retry,{once:true,passive:true});
+      });
+      if(audio.readyState>=1)play();else audio.addEventListener('loadedmetadata',play,{once:true});
       this._render();
     });
-    call.on('close',()=>{try{call._audio?.remove?.();}catch(e){}this._calls.delete(pid);this._render();});
-    call.on('error',()=>{this._calls.delete(pid);this._render();});
+    const cleanup=()=>{
+      try{call._audio?.pause?.();call._audio?.remove?.();}catch(e){}
+      App.streamReg?.stop?.('gvoice-remote-'+pid);
+      this._calls.delete(pid);this._render();
+    };
+    call.on('close',cleanup);
+    call.on('error',cleanup);
   }
   _render(){
     const grid=document.getElementById('gvoice-grid');if(!grid)return;

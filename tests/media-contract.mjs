@@ -30,3 +30,10 @@ test('remote audio and video tracks share a visible responsive call layout', () 
   assert.match(html, /for\(const source of e\.streams\|\|\[\]\)/);
   assert.match(html, /setTimeout\(retry,100\)/);
 });
+
+test('group voice explicitly retries mobile autoplay and releases remote audio', () => {
+  assert.match(html, /audio\.srcObject=stream;audio\.autoplay=true;audio\.playsInline=true/);
+  assert.match(html, /audio\.addEventListener\('loadedmetadata',play,\{once:true\}\)/);
+  assert.match(html, /document\.addEventListener\('touchstart',retry,\{once:true,passive:true\}\)/);
+  assert.match(html, /App\.streamReg\?\.\s*stop\?\.\('gvoice-remote-'\+pid\)/);
+});
