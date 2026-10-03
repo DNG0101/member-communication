@@ -1,4 +1,4 @@
-# Member Communication — 61.3.0
+# Member Communication — 61.4.0
 
 The deployed application remains entirely in **index.html**. No build step or application server is required. The Node package and tests are development tools only.
 
@@ -108,3 +108,11 @@ All application HTML, styles, JavaScript, media routing and transfer logic remai
 - Lazy modules: concurrent initializations share one promise and complete only after initialization succeeds.
 
 Verification: `npm test` passed 31 checks (including the Chromium control matrix) plus 62 integration/file scenarios; `npm run test:browser` passed 12 browser scenarios. These cover application startup, all 18 tabs, simulated multi-member transport/media/file flows, and real Chromium collaboration controls. Hardware cameras, public signaling/CDN availability and real-device NAT/TURN behavior require device testing and are not proven by this suite.
+
+## 61.4.0 browser and workflow repairs (2026-10-03)
+
+All runtime markup, styles and scripts remain in `index.html`. This update repairs per-member chat histories and replies, background group routing, notification persistence, encrypted vault backup restoration, narrow-screen scrolling and keyboard layouts, optional browser API fallbacks, document drawing and file-picker handling. Recording now mixes both sides’ audio and selects one video track with a supported recording format. Meetings have an explicit video-session action, authenticated management messages, working reactions and recording-consent events.
+
+The browser suite includes Chromium and Firefox, desktop and 360-pixel touch viewports, across all 18 tabs. These tests use simulated signaling and local workflows. Safari, physical Android/iOS devices, real camera hardware, external library availability and public NAT/TURN connections still require device testing. Document tint and soft-edge effects do not claim person segmentation. Recording captures the remote video (or local video when no remote track exists), with both audio sources where Web Audio is available.
+
+Audio recording is additionally exercised with real Chromium Web Audio and MediaRecorder tracks. The headless Firefox environment cannot resume an audio output context, so Firefox recording and physical microphone output are not verified.

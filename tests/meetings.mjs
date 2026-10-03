@@ -62,7 +62,7 @@ test('removed participant clears active session and duplicate or malformed chat 
   h.meetings.meetings.set(id,{id,title:'Controls',description:'',startMs:Date.now()+60000,durationMin:30,timeZone:'UTC',repeat:'none',repeatUntil:null,hostId:'peer-host',attendees:['peer-host','peer-guest'],guests:[],roles:{'peer-host':'host','peer-guest':'participant'},lobby:[],locked:false,recordingConsent:[],status:'scheduled'});
   h.meetings.join(id,'peer-guest');assert.equal(h.meetings.current.pid,'peer-guest');
   h.App.peer.myId='peer-host';assert.equal(h.meetings.remove(id,'peer-guest'),true);assert.equal(h.meetings.current,null);
-  h.meetings.current={id,pid:'peer-host',role:'host',state:'joined'};const meeting={id,title:'Controls',startMs:Date.now(),durationMin:30,timeZone:'UTC',repeat:'none',attendees:['peer-host'],guests:[],roles:{'peer-host':'host'},lobby:[],locked:false,recordingConsent:[],status:'scheduled',hostId:'peer-host'};
+  h.meetings.meetings.get(id).attendees.push('peer-guest');h.meetings.current={id,pid:'peer-host',role:'host',state:'joined'};const meeting={id,title:'Controls',startMs:Date.now(),durationMin:30,timeZone:'UTC',repeat:'none',attendees:['peer-host'],guests:[],roles:{'peer-host':'host'},lobby:[],locked:false,recordingConsent:[],status:'scheduled',hostId:'peer-host'};
   h.meetings.onMessage('peer-guest',{type:'meeting',action:'chat',meeting,payload:{id:'x',meetingId:id,text:'ok'}});
   h.meetings.onMessage('peer-guest',{type:'meeting',action:'chat',meeting,payload:{id:'x',meetingId:id,text:'ok'}});
   assert.equal(h.meetings.seenMessages.has('x'),true);assert.equal(h.meetings.onMessage('peer-guest',{type:'meeting',action:'chat',meeting:{id:'bad',title:'x'},payload:{id:'bad'}}),false);h.restore();
