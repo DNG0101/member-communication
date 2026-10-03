@@ -1,4 +1,4 @@
-# Member Communication — 61.2.1
+# Member Communication — 61.3.0
 
 The deployed application remains entirely in **index.html**. No build step or application server is required. The Node package and tests are development tools only.
 
@@ -31,7 +31,7 @@ One tab owns an installation identity when Web Locks is available. Old six-chara
 | Conference | Create/join acquires media, host-authorized rosters establish media channels between approved participants, and mute/remove/leave clean up streams. Additional member connections may require approval. |
 | Presentation | PDF/image canvas or screen streams travel over dedicated, separately accepted media calls. Page-number notifications alone are no longer treated as document delivery. If live canvas capture is unavailable, the selected document is sent through the existing chat file-transfer path instead. |
 | Whiteboard / code / tasks / notes / clipboard | Share through accepted connections. Payload checks reject malformed input. Per-member controls restrict incoming collaboration. |
-| Code runner | JavaScript runs in a sandboxed frame instead of the application's own scope. |
+| Code runner | JavaScript runs in a terminable worker inside a sandboxed frame. Infinite loops time out without blocking the app. |
 | Vault / history / notifications / settings | Existing modules and storage remain. Module aliases, settings controls and installation guidance are wired into the consolidated runtime. |
 
 The app has 18 tabs. The earlier overlapping boot/Supabase scripts were consolidated into one runtime. Unused legacy dashboard buttons were removed. A single HTML deployment does not provide an offline service-worker cache.
@@ -94,3 +94,17 @@ npm run test:browser
 ```
 
 Five browser scenarios cover desktop traversal of all 17 tabs and reload, mobile Back/Skip, keyboard navigation/Escape, denied storage, and blocked PeerJS with local notes still usable after the connection timeout. The regression suite previously missed the blank dialog because its DOM simulation did not render the `[hidden]` CSS rule.
+
+
+## 61.3.0 audit fixes (2026-10-03)
+
+All application HTML, styles, JavaScript, media routing and transfer logic remain in `index.html`. CDN libraries and the PDF worker still require network access; test files are development-only.
+
+- Whiteboard: fixed coordinate space across desktop/mobile, pointer capture, single-tap dots, bounded long strokes, duplicate suppression, and peer-synchronized undo/redo. Remote clear resets pending drawing and redo history.
+- Calls: camera acquisition is serialized, unused microphone tracks are stopped, failed acquisitions release tracks, and stream replacement preserves tracks shared with the replacement stream.
+- Meetings: camera toggles video rather than muting audio; microphone controls also support conference and group streams.
+- Presentations: configured the PDF worker, bound zoom, cancelled obsolete rendering, reset old PDF state when switching documents, and cleared playback on stop.
+- Code editor: restores saved snippets and runs JavaScript in an isolated worker with a three-second execution limit, syntax-error reporting and bounded log collection.
+- Lazy modules: concurrent initializations share one promise and complete only after initialization succeeds.
+
+Verification: `npm test` passed 31 checks (including the Chromium control matrix) plus 62 integration/file scenarios; `npm run test:browser` passed 12 browser scenarios. These cover application startup, all 18 tabs, simulated multi-member transport/media/file flows, and real Chromium collaboration controls. Hardware cameras, public signaling/CDN availability and real-device NAT/TURN behavior require device testing and are not proven by this suite.
