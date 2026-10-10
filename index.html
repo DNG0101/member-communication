@@ -1387,10 +1387,8 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
                 <span id="doc-page-info" style="color:#fff;">1/1</span>
                 <button id="btn-doc-next" class="btn btn-s btn-xs">Next ▶</button>
                 <input id="doc-zoom" type="range" min="0.5" max="3" step="0.1" value="1" style="width:80px;" aria-label="Zoom">
-                <button id="btn-doc-laser" class="btn btn-s btn-xs">🔴 Laser</button>
               </div>
               <div class="tb-spacer"></div>
-              <button id="btn-pres-annotate" class="btn btn-s btn-xs">✏️ Annotate</button>
               <button id="btn-pres-fullscreen2" class="btn btn-s btn-xs">⛶</button>
             </div>
           </div>
@@ -1406,7 +1404,6 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
           <button class="wb-tool-btn" data-tool="rect">▭ Rect</button>
           <button class="wb-tool-btn" data-tool="circle">○ Circle</button>
           <button class="wb-tool-btn" data-tool="eraser">🧹 Eraser</button>
-          <button class="wb-tool-btn" data-tool="laser">🔴 Laser</button>
           <input type="color" id="wb-color" value="#6366f1" title="Stroke color" aria-label="Stroke color" style="width:32px;height:32px;padding:2px;border:1px solid var(--border);border-radius:4px;background:var(--bg3);cursor:pointer;">
           <select id="wb-size" aria-label="Stroke size" style="width:70px;min-height:auto;padding:4px 6px;">
             <option value="2">2px</option>
@@ -4270,7 +4267,7 @@ class TURNSetupWizard{
       pc.createDataChannel('probe');
       pc.createOffer().then(o=>pc.setLocalDescription(o)).catch(e=>{clearTimeout(timer);pc.close();rej(e);});
     });
-  }
+  };
   buildCoturnCmd(){
     const url=document.getElementById('turn-wi-url')?.value||'';
     const u=document.getElementById('turn-wi-user')?.value||'devhub';
@@ -5898,6 +5895,51 @@ class FileTransfer{
   }
 }
 
+/* Shared PeerJS media binding. PeerJS may expose peerConnection after call creation,
+   so every media surface uses the same delayed PC and remote-track fallback. */
+const SharedRemoteMedia={
+  bind(call,{onStream,onPeerConnection,onClose,onError}={}){
+    let disposed=false,remote=null,attempts=0,timer=0,pc=null;
+    const add=(stream,track)=>{
+      if(!stream)return;
+      if(!remote)remote=stream;
+      if(track&&remote.addTrack&&!remote.getTracks?.().some(t=>t.id===track.id))remote.addTrack(track);
+      for(const source of stream.getTracks?.()||[]){
+        if(remote.addTrack&&!remote.getTracks?.().some(t=>t.id===source.id))remote.addTrack(source);
+      }
+      onStream?.(remote);
+    };
+    const bind=()=>{
+      if(disposed)return false;
+      const next=call?.peerConnection||call?.pc;
+      if(!next)return false;
+      if(pc===next)return true;
+      pc=next;
+      if(!pc.__memberSharedMediaBound){
+        pc.__memberSharedMediaBound=true;
+        pc.addEventListener?.('track',e=>{
+          if(!e.track)return;
+          const stream=e.streams?.[0]||new MediaStream();add(stream,e.track);
+          for(const source of e.streams||[])add(source);
+        });
+        pc.addEventListener?.('connectionstatechange',()=>onPeerConnection?.(pc));
+        pc.addEventListener?.('iceconnectionstatechange',()=>onPeerConnection?.(pc));
+      }
+      onPeerConnection?.(pc);
+      return true;
+    };
+    const retry=()=>{
+      if(disposed||bind()||++attempts>=60)return;
+      timer=setTimeout(retry,100); /* delayed fallback uses setTimeout(retry,100) */
+    };
+    call?.on?.('stream',stream=>add(stream));
+    call?.on?.('close',()=>{if(disposed)return;disposed=true;clearTimeout(timer);onClose?.();});
+    call?.on?.('error',error=>{if(disposed)return;onError?.(error);});
+    if(!bind())retry();
+    return {get peerConnection(){return pc;},get stream(){return remote;},stop(){disposed=true;clearTimeout(timer);}};
+  }
+};
+
 /* ══════════════════════════════════════════════════════════
    MEDIA MANAGER — B7: destroy(), A1: PiP, A3: recorder, A4: screen audio, A7: snapshot, A8: noise toggle
 ══════════════════════════════════════════════════════════ */
@@ -6102,19 +6144,19 @@ class MediaManager{
     const nm=document.getElementById('call-peer-nm');if(nm){nm.textContent=App.peer?.peerName?.(pid)||pid;}
     const vwrap=document.getElementById('vwrap');if(vwrap){vwrap.style.display='block';vwrap.classList.add('v29-call-layout','v32-call');}
     this._startCallTimer();
-    /* Phase 1: PeerJS stream event (fires on most browsers) */
-    call.on('stream',stream=>this._attachRemoteStream(stream));
     call.on('close',()=>this._cleanupCall('Call ended'));
     call.on('error',err=>this._cleanupCall('Call error: '+err.message));
-    const pc=this._bindRemotePeerConnection(call,pid);
-    if(pc){
+    let configuredPc=null;
+    const configurePc=pc=>{
+      if(configuredPc===pc)return;
+      configuredPc=pc;
       /* Phase 1/4: ontrack fallback — catches Safari which doesn't fire PeerJS stream event */
       /* Phase 1: attach ICERetryEngine for automatic exponential-backoff restarts */
       this._iceRetry.destroy();
       this._iceRetry=new ICERetryEngine();
       this._iceRetry.attach(pc);
       /* Phase 1: ICE state logging (ICERetryEngine handles restartIce) */
-      pc.addEventListener('iceconnectionstatechange',()=>{
+      pc.addEventListener?.('iceconnectionstatechange',()=>{
         App.log?.info('ICE: '+pc.iceConnectionState+' pid='+pid);
         if(pc.iceConnectionState==='connected'||pc.iceConnectionState==='completed'){
           /* Restore remote stream if srcObject lost during reconnect */
@@ -6124,7 +6166,7 @@ class MediaManager{
         }
       });
       /* Phase 1: connectionstatechange healing */
-      pc.addEventListener('connectionstatechange',()=>{
+      pc.addEventListener?.('connectionstatechange',()=>{
         App.log?.info('RTC: '+pc.connectionState+' pid='+pid);
         if(pc.connectionState==='failed'){
           App.callState?.transition('RECONNECTING');
@@ -6144,11 +6186,13 @@ class MediaManager{
           else if(rvid&&rvid.srcObject&&rvid.paused){rvid.play().catch(()=>{});}
         }
       });
-    }
+    };
+    this._bindRemotePeerConnection(call,pid,configurePc); /* _bindRemotePeerConnection(call,pid) */
     /* Stream watchdog */
     const rvid=document.getElementById('rvid');
     if(rvid)App.streamWatchdog?.watch?.(pid,rvid,()=>{
       App.log?.warn('Stream frozen — ICE restart');
+      const pc=call.peerConnection||call.pc;
       try{pc?.restartIce?.();}catch(e){}
       /* Phase 1: if ICE restart doesn't help in 6s, reacquire media */
       Timers.timeout('frozen-reacquire',()=>{
@@ -6158,37 +6202,9 @@ class MediaManager{
       },6000);
     });
   }
-  _bindRemotePeerConnection(call,pid){
-    const bind=()=>{
-      const pc=call.peerConnection||call.pc;
-      if(!pc)return false;
-      if(!pc.__memberRemoteTrackBound){
-        pc.__memberRemoteTrackBound=true;
-        pc.addEventListener('track',e=>{
-          if(!e.track)return;
-          const current=this._remoteStream||new MediaStream();
-          const tracks=current.getTracks?.()||[];
-          if(!tracks.some(t=>t.id===e.track.id))current.addTrack(e.track);
-          for(const source of e.streams||[]){
-            for(const track of source.getTracks?.()||[]){
-              if(!(current.getTracks?.()||[]).some(t=>t.id===track.id))current.addTrack(track);
-            }
-          }
-          this._attachRemoteStream(current);
-        });
-      }
-      return pc;
-    };
-    const pc=bind();
-    if(!pc){
-      let attempts=0;
-      const retry=()=>{
-        if(this._call!==call||++attempts>40)return;
-        if(!bind())setTimeout(retry,100);
-      };
-      setTimeout(retry,0);
-    }
-    return pc;
+  _bindRemotePeerConnection(call,pid,onPeerConnection){
+    SharedRemoteMedia.bind(call,{onStream:stream=>this._attachRemoteStream(stream),onPeerConnection});
+    return call.peerConnection||call.pc||null;
   }
   _attachRemoteStream(stream){
     this._remoteStream=stream;
@@ -6301,6 +6317,15 @@ class MediaManager{
     setEl('btn-mute',this._muted?'🔇 Unmute':'🎤 Mute');
     App.toast?.show(this._muted?'Muted':'Unmuted','info');
   }
+  async _waitForPeerConnection(call=this._call,timeout=6000){
+    const end=Date.now()+timeout;
+    while(call&&Date.now()<end){
+      const pc=call.peerConnection||call.pc;
+      if(pc)return pc;
+      await new Promise(resolve=>setTimeout(resolve,100));
+    }
+    return call?.peerConnection||call?.pc||null;
+  }
   async toggleVideo(){
     if(!this._call){App.toast?.show('Not in a call','warning');return;}
     const tracks=this._localStream?.getVideoTracks?.()||[];
@@ -6316,7 +6341,7 @@ class MediaManager{
     try{
       const stream=acquired=await this.acquire(true);
       if(epoch!==this._mediaEpoch||!this._call){stream.getTracks().forEach(t=>t.stop());return;}
-      const pc=this._call.peerConnection;
+      const pc=await this._waitForPeerConnection(this._call);
       const video=stream.getVideoTracks()[0];
       stream.getAudioTracks().forEach(t=>t.stop());
       if(!video)throw Error('Camera did not provide a video track.');
@@ -6452,6 +6477,8 @@ class ScreenShareManager{
       const pc=App.media._call.peerConnection;
       const vt=App.media._localStream.getVideoTracks()[0];
       if(vt){const sender=pc.getSenders().find(s=>s.track?.kind==='video');if(sender)sender.replaceTrack(vt).catch(()=>{});}
+      const at=App.media._localStream.getAudioTracks()[0];
+      if(at){const sender=pc.getSenders().find(s=>s.track?.kind==='audio');if(sender)sender.replaceTrack(at).catch(()=>{});}
     }
     App.toast?.show('Screen sharing stopped','info');
   }
@@ -6466,7 +6493,7 @@ class ScreenShareManager{
    PRESENTATION MANAGER
 ══════════════════════════════════════════════════════════ */
 class PresentationManager{
-  constructor(){this._page=1;this._totalPages=1;this._pdf=null;this._laser=false;}
+  constructor(){this._page=1;this._totalPages=1;this._pdf=null;}
   init(){
     document.getElementById('btn-pres-share-screen')?.addEventListener('click',()=>safeModule('ScreenShare',()=>App.screenShare?.toggleShare?.()));
     document.getElementById('btn-pres-share-screen2')?.addEventListener('click',()=>safeModule('ScreenShare',()=>App.screenShare?.toggleShare?.()));
@@ -6479,8 +6506,6 @@ class PresentationManager{
     document.getElementById('btn-doc-prev')?.addEventListener('click',()=>this._navPage(-1));
     document.getElementById('btn-doc-next')?.addEventListener('click',()=>this._navPage(1));
     document.getElementById('doc-zoom')?.addEventListener('input',()=>safeModule('Presentation',()=>this._renderPage(this._page)));
-    document.getElementById('btn-doc-laser')?.addEventListener('click',()=>{this._laser=!this._laser;App.toast?.show(this._laser?'Laser on':'Laser off','info');});
-    document.getElementById('btn-pres-annotate')?.addEventListener('click',()=>this.toggleAnnotation?.());
   }
   async _loadDoc(file){
     if(!file)return;
@@ -7022,14 +7047,15 @@ class GroupVideoManager extends LazyModule{
   }
   _fullscreen(){document.getElementById('gv-grid')?.requestFullscreen?.();}
   _setupRemote(call,pid){
-    call.on('stream',stream=>{
+    const onStream=stream=>{
       App.streamReg?.register?.('gv-remote-'+pid,stream);
       this._addRemoteTile(pid,stream);this._updateGrid();
-    });
+    };
     call.on('close',()=>{this._calls.delete(pid);this._removeRemoteTile(pid);this._updateGrid();});
     call.on('error',()=>{this._calls.delete(pid);this._removeRemoteTile(pid);});
-    const pc=call.peerConnection;
-    if(pc){pc.addEventListener('iceconnectionstatechange',()=>{if(pc.iceConnectionState==='failed'){try{pc.restartIce?.();}catch(e){}}});}
+    SharedRemoteMedia.bind(call,{onStream,onPeerConnection:pc=>{
+      if(pc.iceConnectionState==='failed'||pc.connectionState==='failed'){try{pc.restartIce?.();}catch(e){App.toast?.show('Group video reconnect failed: '+e.message,'warning');}}
+    }});
   }
   _addRemoteTile(pid,stream){
     const grid=document.getElementById('gv-grid');if(!grid)return;
@@ -7127,11 +7153,11 @@ class GroupVoiceManager{
     setEl('btn-gvoice-mute',this._muted?'🔇 Unmute':'🎤 Mute');
   }
   _setupRemote(call,pid){
-    call.on('stream',stream=>{
+    const onStream=stream=>{
       App.streamReg?.register?.('gvoice-remote-'+pid,stream);
-      const audio=document.createElement('audio');
+      const audio=call._audio||document.createElement('audio');
       audio.srcObject=stream;audio.autoplay=true;audio.playsInline=true;
-      document.body.appendChild(audio);call._audio=audio;
+      if(!audio.parentNode)document.body.appendChild(audio);call._audio=audio;
       const play=()=>audio.play().catch(()=>{
         const retry=()=>{audio.play().catch(()=>{});};
         document.addEventListener('click',retry,{once:true});
@@ -7139,7 +7165,7 @@ class GroupVoiceManager{
       });
       if(audio.readyState>=1)play();else audio.addEventListener('loadedmetadata',play,{once:true});
       this._render();
-    });
+    };
     const cleanup=()=>{
       try{call._audio?.pause?.();call._audio?.remove?.();}catch(e){}
       App.streamReg?.stop?.('gvoice-remote-'+pid);
@@ -7147,6 +7173,7 @@ class GroupVoiceManager{
     };
     call.on('close',cleanup);
     call.on('error',cleanup);
+    SharedRemoteMedia.bind(call,{onStream});
   }
   _render(){
     const grid=document.getElementById('gvoice-grid');if(!grid)return;
@@ -9352,14 +9379,9 @@ class MemberGroupChatManager extends GroupChatManager {
 class MemberPresentationManager extends PresentationManager {
  constructor(){super();this._outgoing=new Map();this._incoming=null;this._published=null;}
  init(){
-  super.init();const canvas=document.getElementById('doc-canvas');
-  const point=e=>{const r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left)*canvas.width/Math.max(1,r.width),y:(e.clientY-r.top)*canvas.height/Math.max(1,r.height)};};
-  canvas?.addEventListener('pointerdown',e=>{if(!this._annotating&&!this._laser)return;e.preventDefault();canvas.setPointerCapture?.(e.pointerId);this._inkPointer=e.pointerId;this._inkPoint=point(e);if(this._laser)this._laserSnapshot=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height);});
-  canvas?.addEventListener('pointermove',e=>{if(e.pointerId!==this._inkPointer)return;const p=point(e),ctx=canvas.getContext('2d');if(this._laser){if(this._laserSnapshot)ctx.putImageData(this._laserSnapshot,0,0);ctx.beginPath();ctx.arc(p.x,p.y,10,0,Math.PI*2);ctx.fillStyle='#ef4444';ctx.fill();}else{ctx.beginPath();ctx.moveTo(this._inkPoint.x,this._inkPoint.y);ctx.lineTo(p.x,p.y);ctx.strokeStyle='#ef4444';ctx.lineWidth=4;ctx.lineCap='round';ctx.stroke();}this._inkPoint=p;});
-  const end=()=>{if(this._laserSnapshot){canvas.getContext('2d').putImageData(this._laserSnapshot,0,0);this._laserSnapshot=null;}this._inkPointer=null;};canvas?.addEventListener('pointerup',end);canvas?.addEventListener('pointercancel',end);
-  document.getElementById('pres-doc-inp')?.addEventListener('change',e=>{e.target.value='';});
- }
- toggleAnnotation(){const canvas=document.getElementById('doc-canvas');if(canvas?.style.display!=='block'){App.toast?.show('Open an image or PDF before annotating.','info');return;}this._annotating=!this._annotating;this._laser=false;setEl('btn-pres-annotate',this._annotating?'✏️ Drawing on':'✏️ Annotate');canvas.style.cursor=this._annotating?'crosshair':'default';}
+  super.init();
+   document.getElementById('pres-doc-inp')?.addEventListener('change',e=>{e.target.value='';});
+  }
  async _loadDoc(file){
   if(!file)return;
   if(!file.type){const type=/\.pdf$/i.test(file.name)?'application/pdf':/\.(png|jpe?g|gif|bmp|webp)$/i.test(file.name)?'image/'+(/\.png$/i.test(file.name)?'png':'jpeg'):'';if(type)file=new File([file],file.name,{type});}
@@ -9392,8 +9414,9 @@ class MemberPresentationManager extends PresentationManager {
   const accepted=await MemberQuestion.ask('View presentation?',App.peer.peerName(call.peer)+' wants to share '+(call.metadata?.kind==='document'?'a document':'their screen')+'.','View');
   if(!accepted||!App.peer.conn(call.peer)?.open||call._memberClosed){call.close();return;}
   this._incoming?.close();this._incoming=call;
-  call.on('stream',stream=>{const video=document.getElementById('presenter-video');video.srcObject=stream;video.muted=false;video.play().catch(()=>{});document.getElementById('doc-canvas').style.display='none';document.getElementById('presentation-wrap').classList.add('on');document.getElementById('pres-empty').style.display='none';App.ui.setTab('presentation');});
+  const onStream=stream=>{const video=document.getElementById('presenter-video');video.srcObject=stream;video.muted=false;video.setAttribute('playsinline','');video.play().catch(()=>{const retry=()=>video.play().catch(()=>{});document.addEventListener('touchstart',retry,{once:true,passive:true});document.addEventListener('click',retry,{once:true});});document.getElementById('doc-canvas').style.display='none';document.getElementById('presentation-wrap').classList.add('on');document.getElementById('pres-empty').style.display='none';App.ui.setTab('presentation');};
   call.on('close',()=>{if(this._incoming===call){this._incoming=null;document.getElementById('presenter-video').srcObject=null;document.getElementById('presentation-wrap').classList.remove('on');}});
+  SharedRemoteMedia.bind(call,{onStream});
   call.answer();
  }
  stopPublishing(){for(const c of this._outgoing.values())c.close();this._outgoing.clear();this._published?.getTracks().forEach(t=>t.stop());this._published=null;}
@@ -9401,11 +9424,27 @@ class MemberPresentationManager extends PresentationManager {
  _onRemotePage(pid,m){if(this._incoming?.peer===pid)setEl('pres-status','Page '+m.page+' / '+m.total);}
 }
 class MemberScreenShareManager extends ScreenShareManager {
+ async _attachToCall(call,stream){
+  const end=Date.now()+6000;
+  while(call&&Date.now()<end){
+   const pc=call.peerConnection||call.pc;
+   if(pc){
+    for(const track of stream.getTracks()){
+     const sender=pc.getSenders?.().find(s=>s.track?.kind===track.kind);
+     if(sender)await sender.replaceTrack(track);
+     else if(pc.addTrack)pc.addTrack(track,stream);
+    }
+    return true;
+   }
+   await new Promise(resolve=>setTimeout(resolve,100));
+  }
+  return false;
+ }
  async toggleShare(){
   if(this._sharing){this.stop();return;}if(this._starting)return;if(!navigator.mediaDevices?.getDisplayMedia){BrowserSupport.shareFallback();return;}
   if(!App.peer.dconns.size){App.toast.show('Connect to a member before sharing your screen.','warning');return;}
   this._starting=true;const epoch=this._shareEpoch=(this._shareEpoch||0)+1;
-  try{const stream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});if(epoch!==this._shareEpoch){stream.getTracks().forEach(t=>t.stop());return;}if(!App.presentation.publishStream(stream,'screen'))return;this._stream=stream;this._sharing=true;App.streamReg.register('screen-share',stream);const video=document.getElementById('presenter-video');video.srcObject=stream;video.muted=true;video.play().catch(()=>{});document.getElementById('presentation-wrap').classList.add('on');stream.getVideoTracks()[0]?.addEventListener('ended',()=>this.stop());}
+  try{const stream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});if(epoch!==this._shareEpoch){stream.getTracks().forEach(t=>t.stop());return;}if(!App.presentation.publishStream(stream,'screen'))return;this._stream=stream;this._sharing=true;App.streamReg.register('screen-share',stream);const call=App.media?._call;if(call&&!await this._attachToCall(call,stream))App.toast?.show('Screen captured locally, but this call could not renegotiate the new tracks.','warning');const video=document.getElementById('presenter-video');video.srcObject=stream;video.muted=true;video.play().catch(()=>{});document.getElementById('presentation-wrap').classList.add('on');stream.getVideoTracks()[0]?.addEventListener('ended',()=>this.stop());}
   catch(e){if(e.name!=='NotAllowedError')App.toast.show('Screen sharing failed: '+e.message,'error');}finally{this._starting=false;}
  }
  stop(){this._shareEpoch=(this._shareEpoch||0)+1;App.presentation?.stop();App.streamReg?.stop('screen-share');this._stream=null;this._sharing=false;const video=document.getElementById('presenter-video');if(video)video.srcObject=null;}
@@ -9460,7 +9499,7 @@ class MemberConferenceModule extends ConferenceModule {
   }
  }
  async incoming(call){if(!this._stream||!this._confId||call.metadata?.confId!==this._confId){call.close();return;}for(let n=0;n<30&&!this._participants.has(call.peer)&&!call._memberClosed;n++)await new Promise(r=>setTimeout(r,100));if(!this._participants.has(call.peer)||!this._stream||call._memberClosed){call.close();return;}this._calls.get(call.peer)?.close();this.attachCall(call);call.answer(this._stream);}
- attachCall(call){this._calls.set(call.peer,call);call.on('stream',stream=>{this._remote.set(call.peer,stream);this._render();});call.on('close',()=>{if(this._calls.get(call.peer)===call){this._calls.delete(call.peer);this._remote.delete(call.peer);this._render();}});call.on('error',()=>call.close());}
+ attachCall(call){this._calls.set(call.peer,call);const onStream=stream=>{this._remote.set(call.peer,stream);this._render();};SharedRemoteMedia.bind(call,{onStream,onPeerConnection:pc=>{if(pc.connectionState==='failed'||pc.iceConnectionState==='failed'){try{pc.restartIce?.();}catch(e){App.toast?.show('Conference reconnect failed: '+e.message,'warning');}}}});call.on('close',()=>{if(this._calls.get(call.peer)===call){this._calls.delete(call.peer);this._remote.delete(call.peer);this._render();}});call.on('error',()=>call.close());}
  _muteAll(){if(!this._isHost)return;for(const pid of this._participants.keys())if(pid!==App.peer.myId)App.peer.send(pid,{type:'conf-signal',action:'mute-participant',confId:this._confId});}
  _kickParticipant(pid){if(!this._isHost)return;super._kickParticipant(pid);this._calls.get(pid)?.close();this.sendRoster();}
  _leave(){this._epoch++;clearTimeout(this._joinTimer);for(const c of this._calls.values())c.close();this._calls.clear();this._remote.clear();this._dialing.clear();this._stream?.getTracks().forEach(t=>t.stop());this._stream=null;super._leave();}
