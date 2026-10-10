@@ -5761,6 +5761,7 @@ class PeerManager{
     }else if(type==='gvoice-signal'){App.groupVoice?._onSignal?.(pid,msg);
     }else if(type==='screen-share-start'){App.screenShare?._onRemoteStart?.(pid,msg);
     }else if(type==='screen-share-stop'){App.screenShare?._onRemoteStop?.(pid,msg);
+    }else if(type==='presentation-file'){App.presentation?.expectFile?.(pid,msg);
     }else if(type==='doc-page'){App.presentation?._onRemotePage?.(pid,msg);
     }else if(type==='msg-delivered'){
       const tick=document.getElementById('tick-'+msg.id);
@@ -6521,7 +6522,7 @@ class PresentationManager{
         document.getElementById('presentation-wrap')?.classList.add('on');
         document.getElementById('doc-controls').style.display='flex';
         setEl('pres-status',file.name+' ('+this._totalPages+' pages)');
-        App.peer?.broadcast?.({type:'doc-page',page:1,total:this._totalPages});
+        if(!this._receivingFallback)App.peer?.broadcast?.({type:'doc-page',page:1,total:this._totalPages});
       }catch(e){App.toast?.show('PDF load error: '+e.message,'error');}
     }else{
       /* Image presentation */
@@ -6534,7 +6535,7 @@ class PresentationManager{
           canvas.style.display='block';
           document.getElementById('presentation-wrap')?.classList.add('on');
           URL.revokeObjectURL(url);resolve();
-          this.publishCanvas?.(file);
+          if(!this._receivingFallback)this.publishCanvas?.(file);
         };img.onerror=()=>{URL.revokeObjectURL(url);reject(Error('Image could not be loaded.'));};img.src=url;
       }).catch(e=>App.toast.show(e.message,'warning'));
     }
@@ -8967,9 +8968,16 @@ class MemberFileTransfer extends FileTransfer {
   }catch(e){App.toast?.show(e.message,'error');}
  }
  next(pid){if([...this.active.values()].some(e=>e.pid===pid&&e.t.direction==='send'&&!e.t.terminal()))return;const queue=this.queues.get(pid);if(!queue?.length)return;const files=queue.shift();if(!queue.length)this.queues.delete(pid);this.start(files,pid);}
- start(files,pid,record){
-  try{const id=record?.transferId||crypto.randomUUID(),c=App.peer.transport.fileConnect(pid,id);this.track(c,pid,files,record);}
+ start(files,pid,record,meta=null){
+ try{const id=record?.transferId||meta?.transferId||crypto.randomUUID();if(meta?.purpose)App.peer?.send?.(pid,{type:'presentation-file',transferId:id,name:meta.name||files?.[0]?.name||'document',mime:meta.mime||files?.[0]?.type||'application/octet-stream',size:meta.size||files?.[0]?.size||0});const c=App.peer.transport.fileConnect(pid,id);this.track(c,pid,files,record);}
   catch(e){App.toast?.show(e.message,'error');}
+ }
+ sendPresentationFile(file,pid){
+ if(!file||!pid)return false;
+ if(!App.peer?.conn(pid)?.open||!App.perms?.check(pid,'canCall')){App.toast?.show('Connect and allow presentations for this member first.','warning');return false;}
+ const transferId=crypto.randomUUID();
+ this.start([file],pid,null,{purpose:'presentation',transferId,name:file.name,mime:file.type,size:file.size});
+ return transferId;
  }
  incoming(c){
   const id=c.metadata?.transferId;
@@ -8983,7 +8991,7 @@ class MemberFileTransfer extends FileTransfer {
   let t;
   t=new FileProtocol.BlockTransfer(conn,{id,files,record,reselected:!!record,senderId:files?App.peer.uuid:pid.slice(8),receiverId:files?pid.slice(8):App.peer.uuid,requireDirectory:false,
    onOffer:()=>{this.offers.push(t);this.showOffer();},
-   onFile:file=>this.download(file,id),
+   onFile:file=>{this.download(file,id);App.presentation?.receiveFile?.(pid,file,id);},
    onCancel:transferId=>{App.peer.send(pid,{type:'member-transfer-cancel',id:transferId});return false;},
    onCleanupError:e=>App.toast?.show('Temporary file cleanup failed: '+e.message,'warning'),
    onInterrupted:transfer=>{this._updateTransferUI(id,transfer.total?transfer.bytes/transfer.total*100:0,'Interrupted — reconnect, then Resume',false);},
@@ -9377,7 +9385,7 @@ class MemberGroupChatManager extends GroupChatManager {
  _render(){super._render();const box=document.getElementById('gc-members');if(!box)return;if(!this._rooms.size){box.textContent='';return;}box.innerHTML=[...this._rooms.values()].map(room=>`<button class="gc-pill" data-room-select="${esc(room.id)}" aria-pressed="${room.id===this._room?.id}">#${esc(room.name)} · ${room.members.length}${room.unread?' · '+room.unread+' new':''}</button>`).join('');}
 }
 class MemberPresentationManager extends PresentationManager {
- constructor(){super();this._outgoing=new Map();this._incoming=null;this._published=null;}
+ constructor(){super();this._outgoing=new Map();this._incoming=null;this._published=null;this._fallbackFiles=new Map();this._fallbackSource=null;}
  init(){
   super.init();
    document.getElementById('pres-doc-inp')?.addEventListener('change',e=>{e.target.value='';});
@@ -9390,19 +9398,41 @@ class MemberPresentationManager extends PresentationManager {
   this._pdf?.destroy?.();this._pdf=null;this._page=1;this._totalPages=1;
   document.getElementById('presenter-video').srcObject=null;document.getElementById('pres-empty').style.display='none';
   document.getElementById('doc-controls').style.display=file.type==='application/pdf'?'flex':'none';
-  try{await super._loadDoc(file);}catch(e){App.toast.show('Document could not be opened: '+e.message,'error');return;}
-  if(file.type==='application/pdf'&&this._pdf)this.publishCanvas(file);
+  this._receivingFallback=!!this._fallbackSource;
+  try{await super._loadDoc(file);}catch(e){this._receivingFallback=false;App.toast.show('Document could not be opened: '+e.message,'error');return;}
+  this._receivingFallback=false;
+  if(file.type==='application/pdf'&&this._pdf&&!this._fallbackSource)this.publishCanvas(file);
  }
  async _renderPage(n){await super._renderPage(n);}
  publishCanvas(file){
   const canvas=document.getElementById('doc-canvas');
   if(!App.peer.dconns.size){App.toast?.show('Document opened. Connect a member to share it.','info');return false;}
   if(!canvas?.captureStream){
-   if(file)for(const pid of App.peer.dconns.keys())App.files?.sendFiles?.([file],pid);
+   if(file)for(const pid of App.peer.dconns.keys())App.files?.sendPresentationFile?.(file,pid);
    App.toast.show('Live document sharing is unavailable; sent the document in chat instead.','info');
    return false;
   }
   return this.publishStream(canvas.captureStream(5),'document');
+ }
+ expectFile(pid,msg){
+  if(!msg||msg.transferId==null||typeof msg.transferId!=='string'||typeof msg.name!=='string')return false;
+  if(!App.peer?.conn(pid)?.open)return false;
+  this._fallbackFiles.set(msg.transferId,{pid,name:msg.name,mime:msg.mime||'application/octet-stream',size:Number(msg.size)||0});
+  App.toast?.show('Document transfer started from '+(App.peer.peerName(pid)||pid)+'. Accept the file to open it here.','info');
+  return true;
+ }
+ async receiveFile(pid,file,id){
+  const pending=this._fallbackFiles.get(id);
+  if(!pending||pending.pid!==pid||!file?.blob){return false;}
+  this._fallbackFiles.delete(id);
+  if(!/^application\/pdf$|^image\/(png|jpe?g|gif|bmp|webp)$/i.test(file.type||pending.mime)){App.toast?.show('Received presentation format is not supported.','warning');return false;}
+  try{
+   this._fallbackSource=pid;
+   await this._loadDoc(new File([file.blob],file.name,{type:file.type||pending.mime}));
+   this._fallbackSource=pid;
+   setEl('pres-status','Shared document: '+file.name);
+   return true;
+  }catch(e){this._fallbackSource=null;App.toast?.show('Could not render received document: '+e.message,'error');return false;}
  }
  publishStream(stream,kind){
   if(!App.peer.dconns.size){stream.getTracks().forEach(t=>t.stop());App.toast.show('Connect to a member before presenting.','warning');return false;}
@@ -9421,7 +9451,11 @@ class MemberPresentationManager extends PresentationManager {
  }
  stopPublishing(){for(const c of this._outgoing.values())c.close();this._outgoing.clear();this._published?.getTracks().forEach(t=>t.stop());this._published=null;}
  stop(){this.stopPublishing();this._incoming?.close();this._incoming=null;const video=document.getElementById('presenter-video');if(video)video.srcObject=null;document.getElementById('presentation-wrap')?.classList.remove('on');const empty=document.getElementById('pres-empty');if(empty)empty.style.display='';}
- _onRemotePage(pid,m){if(this._incoming?.peer===pid)setEl('pres-status','Page '+m.page+' / '+m.total);}
+ async _onRemotePage(pid,m){
+  if(this._incoming?.peer===pid){setEl('pres-status','Page '+m.page+' / '+m.total);return;}
+  if(this._fallbackSource!==pid||!Number.isInteger(m.page)||m.page<1)return;
+  if(this._pdf&&m.page<=this._totalPages){this._page=m.page;try{await this._renderPage(this._page);}catch(e){App.toast?.show('Could not render page '+m.page+': '+e.message,'warning');}}
+ }
 }
 class MemberScreenShareManager extends ScreenShareManager {
  async _attachToCall(call,stream){
