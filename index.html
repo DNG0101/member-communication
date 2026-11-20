@@ -14665,6 +14665,7 @@ class OfflineQueue{
       busy.add(item.pid);
       const key=this.key(item.pid,item.id);
       if(Date.now()-(this.attempts.get(key)||0)<5000)continue;
+      if(item.type==='change'&&Number.parseInt(App.peer.peerMap.get(item.pid)?.fp?.version,10)<62){if(!item.incompatible){App.toast.show('Both members need version 62 for message edits and reactions.','warning');item.incompatible=true;this.push(item);}busy.delete(item.pid);continue;}
       const data=item.type==='change'?{type:'chat-change',id:item.target,eventId:item.id,action:item.action,value:item.value}:{type:'msg',id:item.id,ts:item.ts,text:item.text,replyTo:item.replyTo||null,expiresAt:item.expiresAt||0};
       if(App.peer.send(item.pid,data))this.attempts.set(key,Date.now());
     }
@@ -18206,7 +18207,7 @@ class ExportBackupManager{
     if(!Array.isArray(data.tasks))throw new Error('tasks must be array');
     if(!Array.isArray(data.peers))throw new Error('peers must be array');
     if(!data.chat||typeof data.chat!=='object'||Array.isArray(data.chat))throw Error('Invalid chat histories');
-    for(const [pid,messages]of Object.entries(data.chat))if(!/^[a-zA-Z0-9_-]{1,160}$/.test(pid)||!Array.isArray(messages)||messages.some(m=>!m||typeof m.id!=='string'||typeof m.text!=='string'||m.text.length>CFG.MSG_SIZE_LIMIT))throw Error('Invalid chat history');
+    for(const [pid,messages]of Object.entries(data.chat))if(!/^[a-zA-Z0-9_-]{1,160}$/.test(pid)||!Array.isArray(messages)||messages.some(m=>!m||typeof m.id!=='string'||!/^[a-zA-Z0-9_-]{1,128}$/.test(m.id)||typeof m.text!=='string'||m.text.length>CFG.MSG_SIZE_LIMIT))throw Error('Invalid chat history');
     if(data.tasks.length>1000||data.tasks.some(t=>!t||typeof t.id!=='string'||typeof t.title!=='string'||typeof t.done!=='boolean'))throw Error('Invalid tasks');
     if(data.meetings&&(!Array.isArray(data.meetings)||data.meetings.some(m=>!App.meetings?._validate(m))))throw Error('Invalid meetings');
     return true;
@@ -18726,6 +18727,7 @@ class UIManager{
       if(!Conversations.option(pid).unread)SafeStorage.set('member-first-unread-'+pid,msgObj.id);Conversations.set(pid,{unread:true});
       const cur=(this._unread.get(pid)||0)+1;this._unread.set(pid,cur);this._updateUnreadBadge(pid,cur);
     }
+    if(msg.replyTo&&Conversations.option(pid).threads?.includes(msg.replyTo)){const unread={...Conversations.option(pid).threadUnread};unread[msg.replyTo]=(unread[msg.replyTo]||0)+1;Conversations.set(pid,{threadUnread:unread});}
     setEl('msg-live',App.peer?.peerName?.(pid)+': '+msg.text.substring(0,80));return true;
   }
   _buildMsgNode(msgObj){
@@ -18733,7 +18735,7 @@ class UIManager{
     const isSelf=msgObj.self;
     const div=document.createElement('div');div.className='mr'+(isSelf?' me':'');div.dataset.msgId=msgObj.id;
     let replyHtml='';
-    if(msgObj.replyTo){const ref=this._msgMap.get(msgObj.replyTo);if(ref)replyHtml=`<div class="msg-reply-ref">↩ ${esc(ref.text?.substring(0,50)||'...')}</div>`;}
+    if(msgObj.replyTo){const ref=this._msgMap.get(msgObj.replyTo);replyHtml=`<div class="msg-reply-ref">↩ ${esc(ref?.text?.substring(0,50)||'Earlier message unavailable')}</div>`;}
     const tickHtml=isSelf?`<span class="msg-ticks" id="tick-${msgObj.id}" aria-label="${esc(msgObj.status||'Queued')}">${esc(msgObj.status||'Queued')}</span>`:'';
     div.innerHTML=`<div class="mb${isSelf?' me':''}" role="article"><button class="mcopy" aria-label="Copy message">📋</button><button class="msg-more btn btn-xs btn-s" aria-label="Message actions">⋯</button>${replyHtml}<div class="msg-text">${sanitizeMsgText(msgObj.text)}${msgObj.edited?' (edited)':''}${msgObj.star?' ★':''}</div><div class="mtime">${fmtTs(msgObj.ts)}${tickHtml}</div><div class="msg-reactions">${esc([msgObj.myReaction,msgObj.theirReaction].filter(Boolean).join(' '))}</div></div>`;
     div.querySelector('.mcopy')?.addEventListener('click',e=>{e.stopPropagation();copyToClipboard(msgObj.text);});
@@ -18770,16 +18772,19 @@ class UIManager{
     menu.appendChild(reactions);
     const change=(action,value)=>{
       if(!App.offlineQ.push({type:'change',pid,id:crypto.randomUUID(),target:msgObj.id,action,value}))return;void App.offlineQ.flush();
-      Conversations.update(pid,msgObj.id,row=>{row.text=action==='delete'?'Message deleted':value;row.deleted=action==='delete';row.edited=action==='edit';});menu.remove();
+      Conversations.update(pid,msgObj.id,row=>{if(action==='edit')row.versions=[...(row.versions||[]),row.text].slice(-10);else row.versions=[];row.text=action==='delete'?'Message deleted':value;row.deleted=action==='delete';row.edited=action==='edit';});menu.remove();
     };
     if(msgObj.self&&!msgObj.deleted&&!msgObj.copied){
       memberButton(menu,'Edit',()=>{const v=prompt('Edit message',msgObj.text);if(v?.trim()&&v.length<=CFG.MSG_SIZE_LIMIT)change('edit',v.trim());});
       memberButton(menu,'Delete for everyone',()=>change('delete',''));
     }
     memberButton(menu,'Forward',()=>{const recipient=prompt('Recipient device code');if(recipient&&App.hist.getAll().some(p=>p.id===recipient)){App.ui.selectPeer(recipient);document.getElementById('mi').value=('Forwarded: '+msgObj.text).slice(0,CFG.MSG_SIZE_LIMIT);document.getElementById('mi').dispatchEvent(new Event('input'));menu.remove();}});
+    if(msgObj.versions?.length)memberButton(menu,'Edit history',()=>{const d=document.getElementById('member-gallery'),box=d.querySelector('section');d.querySelector('h2').textContent='Message edit history';box.replaceChildren();for(const text of [...msgObj.versions,msgObj.text]){const p=document.createElement('p');p.textContent=text;box.append(p);}d.querySelector('button').onclick=()=>d.close();BrowserSupport.dialog(d);d.showModal();menu.remove();});
     memberButton(menu,'View thread',()=>{
       const root=msgObj.replyTo||msgObj.id,rows=Conversations.rows(pid).filter(m=>m.id===root||m.replyTo===root);
       const d=document.getElementById('member-thread'),box=d.querySelector('section');box.replaceChildren();
+      const followed=new Set(Conversations.option(pid).threads||[]);const unread={...Conversations.option(pid).threadUnread};delete unread[root];Conversations.set(pid,{threadUnread:unread});
+      memberButton(box,followed.has(root)?'Unfollow thread':'Follow thread',()=>{if(followed.has(root))followed.delete(root);else followed.add(root);Conversations.set(pid,{threads:[...followed]});d.close();});
       for(const row of rows){const p=document.createElement('p');p.textContent=(row.self?'You':Conversations.label(pid))+': '+row.text;box.append(p);}
       d.querySelector('[data-close]').onclick=()=>d.close();d.querySelector('[data-reply]').onclick=()=>{d.close();this._setReply(rows.find(r=>r.id===root)||msgObj);};
       BrowserSupport.dialog(d);d.showModal();menu.remove();
@@ -19260,13 +19265,14 @@ class MemberPeerManager extends PeerManager {
     onData:(pid,raw)=>{
      let m=raw;try{if(typeof m==='string')m=JSON.parse(m);}catch{return;}
      if(Conversations.option(pid).blocked||!memberMessageAllowed(pid,m))return;
+     if(m.type==='presentation-taken'){if(App.presentation._handoverTo===pid){App.presentation._handoverTo=null;if(App.screenShare._sharing)App.screenShare.stop();else App.presentation.stopPublishing();App.toast.show(Conversations.label(pid)+' took over presenting.','info');}return;}
      if(m.type==='presentation-handover'){
-      if(App.perms.check(pid,'canCall')&&App.presentation._incoming?.peer===pid)void MemberQuestion.ask('Take over presentation?',Conversations.label(pid)+' invited you to share your screen.','Take over').then(ok=>{if(ok){App.ui.setTab('presentation');App.toast.show('Select Share screen to choose what to present.','info');}});
+      if(App.perms.check(pid,'canCall')&&App.presentation._incoming?.peer===pid)void MemberQuestion.ask('Take over presentation?',Conversations.label(pid)+' invited you to share your screen.','Take over').then(ok=>{if(ok){App.presentation._takingOverFrom=pid;App.ui.setTab('presentation');App.toast.show('Select Share screen to choose what to present.','info');}});
       return;
      }
      if(m.type==='member-device'){void MemberDevices.receive(pid,m).catch(e=>App.toast.show(e.message,'warning'));return;}
-     if(m.type==='change-ack'){const item=SafeStorage.getJSON(App.offlineQ.key(pid,m.id));if(item?.type==='change')App.offlineQ.ack(pid,m.id);return;}
-     if(m.type==='chat-change'){if(Conversations.change(pid,m)&&typeof m.eventId==='string')this.send(pid,{type:'change-ack',id:m.eventId});return;}
+     if(m.type==='change-ack'){if(typeof m.id!=='string'||m.id.length>128)return;const item=SafeStorage.getJSON(App.offlineQ.key(pid,m.id));if(item?.type==='change')App.offlineQ.ack(pid,m.id);return;}
+     if(m.type==='chat-change'){if((Conversations.change(pid,m)||!Conversations.rows(pid).some(row=>row.id===m.id))&&typeof m.eventId==='string'&&m.eventId.length<=128)void MemberArchive.saved('dh-msgs-'+pid).then(saved=>{if(saved)this.send(pid,{type:'change-ack',id:m.eventId});});return;}
      if(m?.type==='meeting'){App.meetings?.onMessage(pid,m);return;}if(m?.type==='group-room'){void App.group.onRoom(pid,m);return;}if(m?.type==='gc-reaction'||m?.type==='gc-typing'){App.group.onGroupEvent(pid,m);return;}
      if(m?.type==='member-transfer-cancel'){App.files?.cancelRemote(m.id,pid);return;}
      if(m?.type?.startsWith('file-'))return; // File payload uses separately approved version-3 channels.
@@ -20035,6 +20041,7 @@ const MemberDevices={
    const item=this.pending.get(pid);if(!item||item.until<Date.now()||item.code!==m.code)return;
    this.pending.delete(pid);this.mark(pid);App.toast.show('Device linked.','success');return;
   }
+  if(m.action==='position'&&this.linked(pid)&&CFG.PEER_ID_RE.test(m.contact||'')&&Number.isFinite(m.offset)&&m.offset>=0){SafeStorage.set('member-scroll-'+m.contact,Math.min(m.offset,100000000));return;}
   if(!this.linked(pid)||m.action!=='copy'||!CFG.PEER_ID_RE.test(m.contact||'')||!Array.isArray(m.rows)||m.rows.length>5)return;
   if(!m.rows.every(r=>r&&typeof r.id==='string'&&/^[a-zA-Z0-9_-]{1,128}$/.test(r.id)&&typeof r.text==='string'&&r.text.length<=CFG.MSG_SIZE_LIMIT&&typeof r.self==='boolean'&&Number.isFinite(r.ts)))return;
   const key='dh-msgs-'+m.contact,rows=Conversations.rows(m.contact),ids=new Set(rows.map(r=>r.id));
@@ -20053,7 +20060,7 @@ const MemberDevices={
    if(!this.linked(target)||!App.peer.send(target,{type:'member-device',action:'copy',contact,rows:rows.slice(i,i+2)}))throw Error('Copy interrupted. Reconnect and repeat to fill missing messages.');
    await new Promise(resolve=>setTimeout(resolve,60));
   }
-  App.toast.show('Conversation copy sent to linked device.','success');
+  App.peer.send(target,{type:'member-device',action:'position',contact,offset:Number(SafeStorage.get('member-scroll-'+contact,0))});App.toast.show('Conversation copy sent to linked device.','success');
  }
 };
 
@@ -20083,8 +20090,8 @@ const Conversations={
   return this.update(pid,m.id,row=>{
    if(m.action==='react'){if(!['👍','👎','❤️','😂','🔥','🎉',''].includes(m.value))return false;row.theirReaction=m.value;}
    else if(row.self)return false;
-   else if(m.action==='delete'){row.text='Message deleted';row.deleted=true;}
-   else if(!row.deleted){row.text=m.value;row.edited=true;}
+   else if(m.action==='delete'){row.text='Message deleted';row.deleted=true;row.versions=[];}
+   else if(!row.deleted&&row.text!==m.value){row.versions=[...(row.versions||[]),row.text].slice(-10);row.text=m.value;row.edited=true;}
   });
  },
  read(pid){
@@ -20119,7 +20126,7 @@ const Conversations={
    if(mode==='unread'&&!o.unread&&!App.ui._unread.get(pid))continue;
    if(q&&!matches.length&&!this.label(pid).toLowerCase().includes(q))continue;
    const section=document.createElement('section'),head=document.createElement('strong'),preview=document.createElement('p');
-   head.textContent=(o.favorite?'★ ':'')+this.label(pid)+(App.peer.conn(pid)?.open?' · online':' · offline');
+   head.textContent=(Object.keys(o.threadUnread||{}).length?'New thread replies · ':'')+(o.favorite?'★ ':'')+this.label(pid)+(App.peer.conn(pid)?.open?' · online':' · offline');
    preview.textContent=(SafeStorage.get('member-draft-'+pid)?'Draft: '+SafeStorage.get('member-draft-'+pid):rows.at(-1)?.text||'').slice(0,160);
    section.append(head,preview);box.append(section);
    memberButton(section,'Open',()=>{d.close();App.ui.selectPeer(pid);this.set(pid,{unread:false});});
@@ -20155,7 +20162,7 @@ const Conversations={
   list.querySelector('[data-msg-id="'+CSS.escape(id)+'"]')?.scrollIntoView({block:'center'});
  },
  async gallery(pid){
-  const d=document.getElementById('member-gallery'),box=d.querySelector('section');box.replaceChildren();
+  const d=document.getElementById('member-gallery'),box=d.querySelector('section');d.querySelector('h2').textContent='Files and links';box.replaceChildren();
   const records=await FileProtocol.records.list();
   for(const record of records.filter(r=>'dh-main-'+(r.direction==='receive'?r.senderId:r.receiverId)===pid)){
    const line=document.createElement('p');line.textContent=record.manifest.map(f=>f.name+' ('+fmtSize(f.size)+')').join(', ')+' · '+record.state;box.append(line);
@@ -20182,7 +20189,7 @@ const Conversations={
 
 function configureMemberUI(){
  Conversations.init();
- document.getElementById('member-present-handover').onclick=()=>{const pid=App.ui.activePeer;if(!App.presentation._published||!App.peer.send(pid,{type:'presentation-handover'})){App.toast.show('Choose a connected viewer while presenting.','info');return;}App.toast.show('Presentation invitation sent.','info');};
+ document.getElementById('member-present-handover').onclick=()=>{const pid=App.ui.activePeer;if(!App.presentation._published||!App.peer.send(pid,{type:'presentation-handover'})){App.toast.show('Choose a connected viewer while presenting.','info');return;}App.presentation._handoverTo=pid;App.toast.show('Presentation invitation sent.','info');};
  document.getElementById('member-secure-export').onclick=()=>App.exportMgr.protectedBackup().catch(e=>App.toast.show(e.message,'warning'));
  document.getElementById('member-offline-copy').onclick=async()=>{try{const response=await fetch(location.pathname);if(!response.ok)throw Error('Cannot download the application');downloadMemberFile('member-communication.html',await response.blob(),'text/html');}catch(e){App.toast.show(e.message,'warning');}};
  document.getElementById('member-quiet').onclick=()=>{const v=prompt('Quiet hours in local time, for example 22-7. Leave empty to turn off.');if(v===null)return;if(!v.trim()){SafeStorage.del('member-quiet-hours');return;}const a=v.split('-').map(Number);if(a.length===2&&a.every(n=>Number.isInteger(n)&&n>=0&&n<=23)&&a[0]!==a[1])SafeStorage.setJSON('member-quiet-hours',{start:a[0],end:a[1]});else App.toast.show('Enter two different hours from 0 to 23.','warning');};
@@ -20824,6 +20831,7 @@ class MemberPresentationManager extends PresentationManager {
   if(!App.peer.dconns.size){stream.getTracks().forEach(t=>t.stop());App.toast.show('Connect to a member before presenting.','warning');return false;}
   this.stopPublishing();this._published=stream;
   for(const pid of App.peer.dconns.keys()){if(!App.perms.check(pid,'canCall'))continue;try{const call=App.peer.peer.call(pid,stream,{metadata:{type:'presentation',kind}});if(call){this._outgoing.set(pid,call);call.on('close',()=>{if(this._outgoing.get(pid)===call)this._outgoing.delete(pid);});}}catch(e){App.toast.show('Presentation connection failed: '+e.message,'warning');}}
+  if(this._takingOverFrom&&this._outgoing.has(this._takingOverFrom)){App.peer.send(this._takingOverFrom,{type:'presentation-taken'});this._takingOverFrom=null;}
   return true;
  }
  async incoming(call){
