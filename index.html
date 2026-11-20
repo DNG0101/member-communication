@@ -17,7 +17,7 @@
 <meta name="format-detection" content="telephone=no">
 <link rel="manifest" href="data:application/json,%7B%22name%22%3A%22DevHub%22%2C%22short_name%22%3A%22DevHub%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230f0f17%22%2C%22theme_color%22%3A%22%236366f1%22%7D">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2316161f'/%3E%3Cpath d='M8 16h16M16 8v16' stroke='%236366f1' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
-<title>DevHub v61.4.0 — Member Communication</title>
+<title>DevHub v62.0.0 — Member Communication</title>
 <style>
 /* ═══════════════════════════════════════════════
    DESIGN TOKENS
@@ -951,6 +951,7 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
 
 
 
+<style>.member-dialog{max-height:85dvh;overflow:auto}.member-dialog section{margin:12px 0}.member-dialog button,#gc-tools button{margin:3px;min-height:36px}.member-dialog output{display:block}.member-dialog textarea{width:100%;min-height:10em}</style>
 </head>
 <body>
 
@@ -1116,9 +1117,9 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
 
       
       <div id="tab-chat" class="tabview on" style="flex-direction:column;" role="tabpanel" aria-labelledby="tabn-chat">
-        <div><button id="member-inbox-open" class="btn btn-s btn-xs">Conversations and outbox</button><button id="member-voice-note" class="btn btn-s btn-xs">Voice note</button></div>
+        <div><button id="member-inbox-open" class="btn btn-s btn-xs">Conversations and outbox</button><button id="member-unread-jump" class="btn btn-s btn-xs">First unread</button><button id="member-voice-note" class="btn btn-s btn-xs">Voice note</button></div>
         <dialog class="member-dialog" id="member-inbox"><h2>Conversations</h2><input aria-label="Search conversations and messages" placeholder="Search contacts and messages"><select aria-label="Conversation filter"><option value="inbox">Inbox</option><option value="bookmarks">Bookmarked messages</option><option value="archived">Archived</option><option value="unread">Unread</option></select><button data-close>Close</button><div data-list></div></dialog>
-        <dialog class="member-dialog" id="member-thread"><h2>Thread</h2><section></section><button data-reply>Reply in thread</button><button data-close>Close</button></dialog><dialog class="member-dialog" id="member-recording"><h2>Voice note</h2><audio controls hidden></audio><div data-actions></div></dialog><div id="chat-hdr">
+        <dialog class="member-dialog" id="member-gallery"><h2>Files and links</h2><button>Close</button><section></section></dialog><dialog class="member-dialog" id="member-thread"><h2>Thread</h2><section></section><button data-reply>Reply in thread</button><button data-close>Close</button></dialog><dialog class="member-dialog" id="member-recording"><h2>Voice note</h2><audio controls hidden></audio><div data-actions></div></dialog><div id="chat-hdr">
           <div id="chat-hdr-av" aria-hidden="true">👤</div>
           <div>
             <div id="chat-hdr-nm" translate="no" lang="und">—</div>
@@ -1312,7 +1313,7 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
           <span id="meetings-status" style="font-size:11px;color:var(--muted)" aria-live="polite"></span>
           <div class="tb-spacer"></div>
           <button id="btn-meeting-new" class="btn btn-p btn-xs">＋ Schedule</button>
-          <button id="btn-meeting-precheck" class="btn btn-s btn-xs">✓ Pre-join check</button>
+          <dialog id="member-media-preview" class="member-dialog"><h2>Camera and microphone preview</h2><video muted playsinline autoplay style="max-width:100%"></video><select aria-label="Preview camera"><option value="">Default camera</option><option value="audio">Audio only</option></select><label>Microphone level <meter min="0" max="100" value="0"></meter></label><output aria-live="polite"></output><button>Close preview</button></dialog><button id="member-preview-open" class="btn btn-s btn-xs">Test camera and mic</button><button id="btn-meeting-precheck" class="btn btn-s btn-xs">✓ Pre-join check</button>
           <button id="btn-meeting-rejoin" class="btn btn-s btn-xs">↻ Rejoin</button>
         </div>
         <form id="meeting-editor" class="panel" style="margin:12px;" hidden>
@@ -1381,7 +1382,7 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
             </div>
           </div>
           <div id="presentation-wrap">
-            <video id="presenter-video" autoplay muted playsinline aria-label="Screen share"></video>
+            <button id="member-present-handover" class="btn btn-s btn-xs">Invite selected member to present</button><video id="presenter-video" autoplay muted playsinline aria-label="Screen share"></video>
             <canvas id="doc-canvas" style="display:none;max-width:100%;"></canvas>
             <div id="presenter-controls">
               <div id="doc-controls" style="display:none;gap:8px;align-items:center;">
@@ -1495,7 +1496,7 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
           <button id="btn-gc-leave" class="btn btn-d btn-xs">Leave</button>
           <button id="btn-gc-pin" class="btn btn-s btn-xs" style="display:none;">📌 Pin</button>
         </div>
-        <details><summary>Room tools</summary><div id="gc-tools"></div></details><dialog id="room-document" class="member-dialog"><h2>Shared room notes</h2><textarea maxlength="16000" aria-label="Room notes"></textarea><output aria-live="polite"></output><button data-save>Save revision</button><button data-load>Load latest</button><button data-close>Close</button></dialog><div id="gc-roster" role="status"></div><div id="gc-pin-text"></div><button id="gc-older" class="btn btn-xs btn-s">Load earlier messages</button><div id="gc-results"></div><div id="gc-members" aria-label="Room members"></div>
+        <details><summary>Room tools</summary><div id="gc-tools"></div></details><dialog class="member-dialog" id="room-asset"><h2>Room workspace</h2><section></section><output aria-live="polite"></output><footer></footer></dialog><dialog id="room-document" class="member-dialog"><h2>Shared room notes</h2><textarea maxlength="16000" aria-label="Room notes"></textarea><output aria-live="polite"></output><button data-save>Save revision</button><button data-load>Load latest</button><button data-close>Close</button></dialog><div id="gc-roster" role="status"></div><div id="gc-pin-text"></div><select id="gc-mention" aria-label="Mention a member"><option value="">Mention member</option></select><button id="gc-older" class="btn btn-xs btn-s">Load earlier messages</button><div id="gc-results"></div><div id="gc-members" aria-label="Room members"></div>
         <div class="chat-top-acts" style="flex-shrink:0;">
           <button id="btn-gc-search" class="btn btn-xs btn-s">🔍 Search</button>
           <button id="btn-gc-reactions" class="btn btn-xs btn-s">😊 Reactions</button>
@@ -1713,7 +1714,7 @@ html[dir="rtl"] #sidebar{border-right:none;border-left:1px solid var(--border,#2
             <div class="panel-section-title">Export &amp; Backup</div>
             <div class="set-sub" style="margin-bottom:8px">Export your chat, tasks, vault (encrypted), peers &amp; settings as JSON.</div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-              <button id="member-secure-export" class="btn btn-s btn-xs">Encrypted backup</button><button id="member-storage" class="btn btn-s btn-xs">Storage usage</button><button id="member-diagnostics" class="btn btn-s btn-xs">Export connection diagnostics</button><output id="member-storage-info"></output><button id="btn-export-backup" class="btn btn-s btn-xs">💾 Export Backup</button>
+              <button id="member-secure-export" class="btn btn-s btn-xs">Encrypted backup</button><button id="member-offline-copy" class="btn btn-s btn-xs">Download offline HTML</button><button id="member-quiet" class="btn btn-s btn-xs">Quiet hours</button><button id="member-storage" class="btn btn-s btn-xs">Storage usage</button><button id="member-diagnostics" class="btn btn-s btn-xs">Export connection diagnostics</button><output id="member-storage-info"></output><button id="btn-export-backup" class="btn btn-s btn-xs">💾 Export Backup</button>
               <label class="btn btn-s btn-xs" style="cursor:pointer" title="Import backup JSON">📁 Import Backup<input id="inp-import-backup" type="file" accept=".json" style="display:none" aria-label="Import backup file"></label>
             </div>
           </div>
@@ -14200,7 +14201,7 @@ function assertInterface(obj,shape,name){
    CONFIG
 ══════════════════════════════════════════════════════════ */
 const CFG={
-  VERSION:'61.4.0',
+  VERSION:'62.0.0',
   CALL_RING_TIMEOUT:30000,
   MAX_CONF_PARTICIPANTS:12,
   DB_NAME:'devhub-member-v1',DB_VERSION:7,
@@ -14402,12 +14403,49 @@ const MsgRenderCache=new LRUCache(200);
 /* ══════════════════════════════════════════════════════════
    SAFE STORAGE
 ══════════════════════════════════════════════════════════ */
+/* IndexedDB extends the local message archive beyond the Web Storage quota.
+   Existing small histories remain readable by older versions of the single file. */
+const MemberArchive={
+ db:null,large:new Map(),pending:new Map(),failures:new Set(),
+ accepts(key){return key==='member-rooms-v1'||(key.startsWith('dh-msgs-')&&key!=='dh-msgs-v1');},
+ keys(){return [...new Set([...Object.keys(localStorage),...this.large.keys()])];},
+ async init(){
+  try{
+   this.db=await new Promise((resolve,reject)=>{
+    const req=indexedDB.open('member-history-archive',2);
+    req.onupgradeneeded=()=>{for(const [name,keyPath]of [['history','key'],['attachments','id']])if(!req.result.objectStoreNames.contains(name))req.result.createObjectStore(name,{keyPath});};
+    req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);req.onblocked=()=>reject(Error('Archive is busy in another tab.'));
+   });
+   const tx=this.db.transaction('history'),req=tx.objectStore('history').getAll();
+   const rows=await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});
+   for(const row of rows)this.large.set(row.key,row.json);
+  }catch(e){App.toast?.show('Extended history storage unavailable. Device storage will be used.','warning');}
+ },
+ get(key,fallback){const json=this.large.get(key)??localStorage.getItem(key);return json==null?fallback:JSON.parse(json);},
+ put(key,value){
+  const json=JSON.stringify(value);
+  if(!this.large.has(key)&&(!this.db||json.length<65536)){
+   try{localStorage.setItem(key,json);return;}catch(e){if(!this.db)throw e;}
+  }
+  if(!this.db)throw Error('History archive unavailable.');
+  if(this.large.get(key)===json&&!this.failures.has(key))return;
+  this.large.set(key,json);
+  const tx=this.db.transaction('history','readwrite');tx.objectStore('history').put({key,json});
+  const committed=new Promise(resolve=>{
+   tx.oncomplete=()=>{if(this.pending.get(key)===committed){this.pending.delete(key);this.failures.delete(key);localStorage.removeItem(key);}resolve(true);};
+   tx.onabort=()=>{this.failures.add(key);App.toast?.show('History could not be saved. Free storage before closing.','warning');resolve(false);};
+  });
+  this.pending.set(key,committed);
+ },
+ async saved(key){if(this.failures.has(key)&&this.large.has(key))this.put(key,JSON.parse(this.large.get(key)));return await (this.pending.get(key)||Promise.resolve(true));}
+};
+
 const SafeStorage={
   get(k,def=''){try{const v=localStorage.getItem(k);return v===null?def:v;}catch(e){return def;}},
   set(k,v){try{localStorage.setItem(k,String(v));}catch(e){}},
   del(k){try{localStorage.removeItem(k);}catch(e){}},
-  getJSON(k,def=null){try{const v=localStorage.getItem(k);return v===null?def:JSON.parse(v);}catch(e){return def;}},
-  setJSON(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+  getJSON(k,def=null){try{if(MemberArchive.accepts(k))return MemberArchive.get(k,def);const v=localStorage.getItem(k);return v===null?def:JSON.parse(v);}catch(e){return def;}},
+  setJSON(k,v){try{if(MemberArchive.accepts(k)){MemberArchive.put(k,v);return;}localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 };
 
 /* ══════════════════════════════════════════════════════════
@@ -14693,7 +14731,13 @@ class CryptoManager{
     try{
       if(!pubKeyStr)return;
       const k=await crypto.subtle.importKey('jwk',JSON.parse(pubKeyStr),{name:'ECDH',namedCurve:'P-256'},true,[]);
-      this._peerKeys.set(pid,k);
+      const jwk=JSON.parse(pubKeyStr),signature=jwk.x+'.'+jwk.y,key='member-seen-key-'+pid,prior=SafeStorage.get(key);
+      if(prior&&prior!==signature){
+       App.trust?._trusted.delete(pid);App.trust?._save();SafeStorage.del('member-device-link-'+pid);
+       App.notifCenter?.add('Device identity changed',App.peer.peerName(pid)+' needs verification again.','🔑');
+       App.toast?.show('Device identity changed. Compare safety phrases with '+App.peer.peerName(pid)+'.','warning');
+      }
+      SafeStorage.set(key,signature);this._peerKeys.set(pid,k);
       /* B3: invalidate any stale cached secret */
       this._secrets.delete(pid);
       Bus.emit('e2e:status',{pid,state:'pending'});
@@ -15326,7 +15370,7 @@ class PresenceManager{
   }
   broadcast(){
     if(!App.peer?.dconns?.size)return;
-    App.peer.broadcast({type:'presence',status:this._local});
+    for(const pid of App.peer.dconns.keys())if(App.perms.check(pid,'canViewPresence'))App.peer.send(pid,{type:'presence',status:this._local});
   }
   setLocal(status){this._local=status;this.broadcast();}
   onRemotePresence(pid,status){this._remote.set(pid,status);}
@@ -16464,7 +16508,7 @@ class PeerManager{
       App.ui?.removePeer?.(pid);
     });
   }
-  _onData(pid,raw){
+  async _onData(pid,raw){
     let msg;
     try{msg=typeof raw==='string'?JSON.parse(raw):raw;}catch(e){return;}
     if(!msg||typeof msg!=='object')return;
@@ -16483,14 +16527,15 @@ class PeerManager{
       const duplicate=stored.some(row=>row.id===msg.id&&!row.self);
       if(!duplicate&&!App.ui?.onRemoteMsg?.(pid,msg))return;
       if(!SafeStorage.getJSON('dh-msgs-'+pid,[]).some(row=>row.id===msg.id&&!row.self))return;
+      if(!await MemberArchive.saved('dh-msgs-'+pid))return;
       if(duplicate){this.send(pid,{type:'msg-delivered',id:msg.id});return;}
-      if(!Conversations.option(pid).muted)App.sounds?.msgReceived?.();
+      if(!Conversations.muted(pid))App.sounds?.msgReceived?.();
       Bus.emit('msg:received',{pid,msg});
       if(msg.id){try{this.conn(pid)?.send(JSON.stringify({type:'msg-delivered',id:msg.id,ts:Date.now()}));}catch(e){}}
       if(App.ui.activePeer===pid&&document.getElementById('tabn-chat')?.getAttribute('aria-selected')==='true')Conversations.read(pid);
-      if(Conversations.option(pid).muted)return;
+      if(Conversations.muted(pid))return;
       App.notifCenter?.add?.('Message from '+esc(this.peerName(pid)),msg.text.substring(0,60),'💬');
-      if(document.hidden){try{if(Notification.permission==='granted'){const n=new Notification(this.peerName(pid),{body:Conversations.option(pid).privatePreview?'New message':msg.text.substring(0,100)});n.onclick=()=>{window.focus();App.ui.selectPeer(pid);n.close();};}}catch(e){}}
+      if(document.hidden){try{if(Notification.permission==='granted'){const n=new Notification(this.peerName(pid),{body:Conversations.option(pid).privatePreview?'New message':msg.text.substring(0,100)});n.onclick=()=>{window.focus();App.ui.selectPeer(pid);Conversations.jump(pid,msg.id);n.close();};}}catch(e){}}
     }else if(type==='typing'){App.ui?.showTyping?.(pid,msg.typing);
     }else if(type==='uclip'){App.uclip?.receive?.(pid,msg.text,msg.hash);
     }else if(type==='file-meta'||type==='file-chunk'||type==='file-ack'||type==='file-cancel'){App.files?.onData?.(pid,msg);
@@ -18131,7 +18176,7 @@ class ExportBackupManager{
     return data;
   }
   _collect(){
-    const chat={};try{for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(key?.startsWith('dh-msgs-')&&key!=='dh-msgs-v1'){const rows=SafeStorage.getJSON(key,[]);if(Array.isArray(rows))chat[key.slice(8)]=Conversations.rows(key.slice(8));}}}catch(_){}
+    const chat={};try{for(const key of MemberArchive.keys()){if(key?.startsWith('dh-msgs-')&&key!=='dh-msgs-v1'){const rows=SafeStorage.getJSON(key,[]);if(Array.isArray(rows))chat[key.slice(8)]=Conversations.rows(key.slice(8));}}}catch(_){}
     return{
       version:CFG.VERSION,
       ts:Date.now(),
@@ -18557,6 +18602,7 @@ class UIManager{
     const view=document.getElementById('tab-'+tabId);if(view)view.classList.add('on');
     if(btn){btn.classList.add('on');btn.setAttribute('aria-selected','true');}
     else{const navBtn=document.querySelector(`.tn[data-tab="${tabId}"]`);if(navBtn){navBtn.classList.add('on');navBtn.setAttribute('aria-selected','true');}}
+    if(tabId==='chat'&&this.activePeer)Conversations.read(this.activePeer);
     if(tabId==='whiteboard')safeModule('Whiteboard',()=>App.board?.initOnce?.());
     if(tabId==='code')safeModule('CodeEditor',()=>App.code?.initOnce?.());
     if(tabId==='group-video')safeModule('GroupVideo',()=>App.groupVideo?.initOnce?.());
@@ -18578,6 +18624,7 @@ class UIManager{
     this._msgBuffer=stored;
     Conversations.read(pid);this._renderMsgs();
     this._unread.delete(pid);this._updateUnreadBadge(pid,0);
+    const scroll=SafeStorage.get('member-scroll-'+pid,'');if(scroll!=='')requestAnimationFrame(()=>{if(this.activePeer===pid)document.getElementById('msgs').scrollTop=Number(scroll);});
     this.setTab('chat');
     App.e2eBadge?.onPeerSelect?.(pid);
     setEl('tx-info','Sending to: '+(fp.name||pid));this._clearReply();this._pinnedMsg=null;document.getElementById('pinned-msg-bar')?.classList.remove('on');
@@ -18676,6 +18723,7 @@ class UIManager{
       const history=SafeStorage.getJSON('dh-msgs-'+pid,[])||[];
       if(history.some(m=>m.id===msgObj.id))return;
       history.push(msgObj);SafeStorage.setJSON('dh-msgs-'+pid,history);
+      if(!Conversations.option(pid).unread)SafeStorage.set('member-first-unread-'+pid,msgObj.id);Conversations.set(pid,{unread:true});
       const cur=(this._unread.get(pid)||0)+1;this._unread.set(pid,cur);this._updateUnreadBadge(pid,cur);
     }
     setEl('msg-live',App.peer?.peerName?.(pid)+': '+msg.text.substring(0,80));return true;
@@ -18724,7 +18772,7 @@ class UIManager{
       if(!App.offlineQ.push({type:'change',pid,id:crypto.randomUUID(),target:msgObj.id,action,value}))return;void App.offlineQ.flush();
       Conversations.update(pid,msgObj.id,row=>{row.text=action==='delete'?'Message deleted':value;row.deleted=action==='delete';row.edited=action==='edit';});menu.remove();
     };
-    if(msgObj.self&&!msgObj.deleted){
+    if(msgObj.self&&!msgObj.deleted&&!msgObj.copied){
       memberButton(menu,'Edit',()=>{const v=prompt('Edit message',msgObj.text);if(v?.trim()&&v.length<=CFG.MSG_SIZE_LIMIT)change('edit',v.trim());});
       memberButton(menu,'Delete for everyone',()=>change('delete',''));
     }
@@ -18773,7 +18821,7 @@ class UIManager{
   _sendMsg(){
     const mi=document.getElementById('mi');const text=(mi?.value||'').trim();if(!text)return;
     if(!this.activePeer){App.toast?.show('Select a peer first','warning');return;}
-    const id=uid(8);
+    const id=crypto.randomUUID();
     const ttl=Number(SafeStorage.get('member-ttl-'+this.activePeer,0));
     const msgObj={id,text,expiresAt:ttl?Date.now()+ttl:0,self:true,ts:Date.now(),peer:this.activePeer,replyTo:this._replyTo?.id||null};
     const sent=App.peer?.sendMsg?.(this.activePeer,text,id,msgObj.replyTo);
@@ -19058,6 +19106,7 @@ function createMemberTransport(deps){
    let id;try{id=parseInvite(value,this.options.baseUrl);if(id===this.id)throw Error('This is your device. Use another browser profile or device.');if(!this.ready||this.peer?.disconnected)throw Error('Your connection is not ready. Retry first.');if(this.options.blocked?.(id))throw Error('This member is blocked.');}catch(e){return Promise.reject(e);}
    if(this.connections.get(id)?.open)return Promise.resolve(this.connections.get(id));if(this.pending.has(id))return this.pending.get(id).promise;
    if(this.connections.size+this.pending.size>=MAX)return Promise.reject(Error('Too many connections.'));
+   this.options.onProgress?.('Finding member and establishing the WebRTC channel…');
    const link=resuming?this.resumeLink(id):null;if(resuming&&!link)return Promise.reject(Error('Approved session expired. Connect again.'));
    const bytes=new Uint8Array(32);(deps.crypto||crypto).getRandomValues(bytes);const token=link?.token||Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
    return this.attach(this.peer.connect(id,{reliable:true,serialization:'json',metadata:{kind:PROTOCOL,identity:this.identity,resuming,token}}),true);
@@ -19074,10 +19123,10 @@ function createMemberTransport(deps){
    let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});promise.catch(()=>{});
    const entry={conn:c,promise,token:c.metadata?.token,resuming:c.metadata?.resuming===true,phase:outgoing?'request':'incoming',remote,done:false};this.pending.set(c.peer,entry);
    const fail=e=>{if(entry.done)return;entry.done=true;cancel(entry.timer);if(this.pending.get(c.peer)===entry)this.pending.delete(c.peer);this.options.onRequestClosed?.(c);reject(e);c.close();};entry.fail=fail;
-   entry.timer=later(()=>fail(Error(entry.resuming?'Approved session reconnect timed out.':'Connection approval timed out.')),entry.resuming?6000:90000);
+   entry.timer=later(()=>fail(Error(entry.resuming?'Approved session reconnect timed out.':c.open?'The recipient did not answer the connection request.':'The WebRTC channel did not open. Check the relay settings on both devices.')),entry.resuming?6000:90000);
    const wire=(type,rest={})=>{try{if(!c.open||entry.done)return;c.send({p:PROTOCOL,type,...rest});}catch(e){fail(e);}};
    const approve=()=>{if(entry.done||!c.open||this.closed||this.pending.get(c.peer)!==entry)return;entry.done=true;cancel(entry.timer);this.pending.delete(c.peer);this.connections.set(c.peer,c);cancel(this.resumeTimers.get(c.peer));this.resumeTimers.delete(c.peer);this.resumeAttempts.delete(c.peer);this.remember(c.peer,entry.remote,entry.token);c.metadata={...c.metadata,...entry.remote};this.options.onConnected?.(c,entry.remote,outgoing?'outgoing':'incoming');resolve(c);};
-   c.on('open',()=>{if(entry.done||!c.open)return;if(this.closed){fail(Error('Application closed.'));return;}if(outgoing)wire('request',{identity:this.identity});});
+   c.on('open',()=>{if(entry.done||!c.open)return;if(this.closed){fail(Error('Application closed.'));return;}if(outgoing){this.options.onProgress?.('Channel open. Waiting for the other member to approve.');wire('request',{identity:this.identity});}});
    c.on('data',raw=>{
     if(this.connections.get(c.peer)===c){if(raw&&typeof raw==='object'&&raw.p===PROTOCOL){if(raw.type==='disconnect'){this.forget(c.peer);c.close();}return;}if(typeof raw==='string'&&raw.length>512*1024){c.close();return;}this.options.onData?.(c.peer,raw);return;}
     if(entry.done||!raw||raw.p!==PROTOCOL||JSON.stringify(raw).length>2048){fail(Error('Data arrived before approval.'));return;}
@@ -19203,7 +19252,7 @@ class MemberPeerManager extends PeerManager {
     blocked:id=>App.room?.isBlocked?.(id)||App.trust?.isBlocked?.(id),
     onReady:id=>{this.peer=this.transport.peer;this.myId=id;this._startPing();this.updateInvite();Bus.emit('peer:open',{id,pid:id});if(!this._inviteHandled){this._inviteHandled=true;const u=new URL(location.href),invite=new URLSearchParams(u.hash.slice(1)).get('peer')||u.searchParams.get('peer');if(invite)void this.connectTo(invite);}},
     onState:(state,detail)=>{this.peer=this.transport?.peer||null;App.ui?.setStatus(state==='ready'?'ONLINE':state==='connecting'||state==='reconnecting'?'RECONNECTING':'OFFLINE');setEl('member-main-status',detail||state);this.renderOnline();},
-    onError:msg=>App.toast?.show(msg,'warning'),
+    onProgress:detail=>setEl('member-main-status',detail),onError:msg=>App.toast?.show(msg,'warning'),
     onRequest:(identity,conn)=>Conversations.option(conn.peer).blocked?false:this.requestApproval(identity,conn),
     onRequestClosed:conn=>this.closeApproval(conn),
     onConnected:(conn,fp,dir)=>this.connected(conn,fp,dir),
@@ -19211,12 +19260,17 @@ class MemberPeerManager extends PeerManager {
     onData:(pid,raw)=>{
      let m=raw;try{if(typeof m==='string')m=JSON.parse(m);}catch{return;}
      if(Conversations.option(pid).blocked||!memberMessageAllowed(pid,m))return;
+     if(m.type==='presentation-handover'){
+      if(App.perms.check(pid,'canCall')&&App.presentation._incoming?.peer===pid)void MemberQuestion.ask('Take over presentation?',Conversations.label(pid)+' invited you to share your screen.','Take over').then(ok=>{if(ok){App.ui.setTab('presentation');App.toast.show('Select Share screen to choose what to present.','info');}});
+      return;
+     }
+     if(m.type==='member-device'){void MemberDevices.receive(pid,m).catch(e=>App.toast.show(e.message,'warning'));return;}
      if(m.type==='change-ack'){const item=SafeStorage.getJSON(App.offlineQ.key(pid,m.id));if(item?.type==='change')App.offlineQ.ack(pid,m.id);return;}
      if(m.type==='chat-change'){if(Conversations.change(pid,m)&&typeof m.eventId==='string')this.send(pid,{type:'change-ack',id:m.eventId});return;}
      if(m?.type==='meeting'){App.meetings?.onMessage(pid,m);return;}if(m?.type==='group-room'){void App.group.onRoom(pid,m);return;}if(m?.type==='gc-reaction'||m?.type==='gc-typing'){App.group.onGroupEvent(pid,m);return;}
      if(m?.type==='member-transfer-cancel'){App.files?.cancelRemote(m.id,pid);return;}
      if(m?.type?.startsWith('file-'))return; // File payload uses separately approved version-3 channels.
-     super._onData(pid,m);Bus.emit('peer:data',{id:pid,pid,data:m});
+     void super._onData(pid,m).catch(e=>App.log?.warn('Message processing failed: '+e.message));Bus.emit('peer:data',{id:pid,pid,data:m});
     },
     onCall:call=>this.handleMemberCall(call),
     onFileChannel:conn=>App.files?.incoming(conn),
@@ -19255,7 +19309,7 @@ class MemberPeerManager extends PeerManager {
  async connectTo(value){try{if(!this.transport?.ready)throw Error('Wait for your connection to become ready, or select Retry.');const conn=await this.transport.connect(value);if(conn)App.ui?.selectPeer?.(conn.peer);return conn;}catch(e){App.toast?.show(e.message,'warning');return null;}}
  connected(conn,identity,dir){
   if(Conversations.option(conn.peer).blocked){conn.close();return;}
-  const pid=conn.peer,fp={...identity,version:CFG.VERSION};
+  const pid=conn.peer,fp={...identity,version:CFG.VERSION};setEl('member-main-status','Connected to '+identity.name);
   this.peerMap.set(pid,{fp,status:'ONLINE'});App.connReg?.register?.(pid,conn);App.hist?.saw?.(pid,fp);App.ui?.renderPeer?.(pid,fp,'ONLINE');
   conn.send(JSON.stringify({type:'hello',name:SafeStorage.get('dh-name','Member'),av:SafeStorage.get('dh-avatar','👤'),pubKey:App.crypto?.getMyPubKey?.(),version:CFG.VERSION}));
   App.msgQ?.flush?.(pid,conn);Bus.emit('peer:connected',{id:pid,pid,conn,fp,dir});this.renderOnline();App.toast?.show('Connection accepted: '+identity.name,'success');
@@ -19772,7 +19826,7 @@ return {BlockTransfer,manifestFor,records,BlockStorage,storageAvailability};})()
 class MemberFileTransfer extends FileTransfer {
  constructor(){super();this.active=new Map();this.queues=new Map();this.offers=[];this.cancelled=new Set();this.downloads=new Map();this.receiveShowing=null;}
  sendFiles(files,pid){
-  if(!App.peer?.conn(pid)?.open||!App.perms?.check(pid,'canSendFiles')){App.toast?.show('Connect and accept the member first.','warning');return;}
+  if(!App.peer?.conn(pid)?.open){void MemberAttachments.stage(pid,Array.from(files)).catch(e=>App.toast.show(e.message,'warning'));return;}if(!App.perms?.check(pid,'canSendFiles')){App.toast.show('Sending files to this member is disabled.','warning');return;}
   try{
    const batches=[];let batch=[];
    for(const file of Array.from(files)){const checked=SafeFileValidator.validate(file.name,file.type);if(!checked.ok)throw Error(checked.reason);FileProtocol.manifestFor([file]);try{FileProtocol.manifestFor([...batch,file]);}catch{batches.push(batch);batch=[];}batch.push(file);}
@@ -19810,6 +19864,7 @@ class MemberFileTransfer extends FileTransfer {
    onUpdate:u=>{
     this._updateTransferUI(id,u.total?Math.min(100,u.bytes/u.total*100):u.state==='complete'?100:0,u.state+(u.detail?' — '+u.detail:''),u.state==='complete');
     if(['complete','failed','declined','cancelled'].includes(u.state)){
+     if(files)void MemberAttachments.settle(id,u.state).catch(e=>App.log.warn(e.message));
      this.active.delete(id);this.offers=this.offers.filter(x=>x!==t);if(this.receiveShowing===t){document.getElementById('member-file-offer').close();this.receiveShowing=null;}
      if(u.state==='cancelled'){this.cancelled.add(id);if(this.cancelled.size>100)this.cancelled.delete(this.cancelled.values().next().value);this.queues.delete(pid);}
      if(u.state==='complete'&&files){void FileProtocol.records.remove('send:'+id);setTimeout(()=>this.next(pid),0);}
@@ -19846,6 +19901,12 @@ class MemberFileTransfer extends FileTransfer {
  download(file,id){
   if(file.savedName){const row=document.createElement('div');row.textContent='Saved to chosen folder: '+file.savedName;document.getElementById('member-downloads')?.append(row);return;}if(!file.blob)return;const key=id+':'+file.name;this.downloads.get(key)?.revoke();
   const url=URL.createObjectURL(file.blob),row=document.createElement('div'),link=document.createElement('a');link.href=url;link.download=file.name;link.textContent='Download '+file.name;row.append(link);
+  if(/^(image\/(png|jpeg|gif|webp)|audio\/|video\/)/.test(file.blob.type)){
+   const tag=file.blob.type.startsWith('image/')?'img':file.blob.type.startsWith('audio/')?'audio':'video',preview=document.createElement(tag);preview.src=url;preview.style.maxWidth='min(100%,320px)';
+   if(tag==='img'){preview.alt=file.name;preview.loading='lazy';}else{preview.controls=true;preview.preload='metadata';}
+   row.append(preview);
+   if(tag==='audio')for(const speed of [1,1.5,2])memberButton(row,speed+'×',()=>{preview.playbackRate=speed;});
+  }
   document.getElementById('member-downloads')?.append(row);this.downloads.set(key,{revoke:()=>{URL.revokeObjectURL(url);row.remove();}});
   if(navigator.canShare&&navigator.share){const share=document.createElement('button');share.className='btn btn-s btn-xs';share.textContent='Save / share';share.onclick=async()=>{try{const item=new File([file.blob],file.name,{type:file.blob.type||'application/octet-stream'});if(navigator.canShare({files:[item]}))await navigator.share({files:[item]});else link.click();}catch(e){if(e.name!=='AbortError')App.toast?.show('Use the download link to save this file.','info');}};row.append(share);}link.click();
  }
@@ -19914,19 +19975,106 @@ function memberButton(parent,label,action){
  button.onclick=async()=>{try{await action();}catch(error){App.toast.show(error.message,'warning');}};
  parent.append(button);return button;
 }
+const MemberAttachments={
+ async operation(mode,fn){
+  if(!MemberArchive.db?.objectStoreNames.contains('attachments'))throw Error('Device attachment storage is unavailable.');
+  return new Promise((resolve,reject)=>{const tx=MemberArchive.db.transaction('attachments',mode),req=fn(tx.objectStore('attachments'));
+   tx.oncomplete=()=>resolve(req.result);tx.onabort=()=>reject(tx.error||Error('Attachment storage unavailable.'));
+  });
+ },
+ async stage(pid,files){
+  if(!pid||!App.perms.check(pid,'canSendFiles')||Conversations.option(pid).blocked)throw Error('Choose a permitted recipient.');
+  const manifest=FileProtocol.manifestFor(files);for(const f of files){const result=SafeFileValidator.validate(f.name,f.type);if(!result.ok)throw Error(result.reason);}
+  const space=await FileProtocol.storageAvailability(files.reduce((sum,f)=>sum+f.size,0));if(!space.enough)throw Error('Insufficient storage for this attachment.');
+  const id=crypto.randomUUID();await this.operation('readwrite',store=>store.put({id,pid,files:[...files],manifest,at:Date.now(),state:'queued'}));
+  App.toast.show('Attachment saved for the next connection.','success');void this.flush(pid);
+ },
+ async flush(pid){
+  if(!App.peer.conn(pid)?.open||!App.perms.check(pid,'canSendFiles')||Conversations.option(pid).blocked)return;
+  const rows=await this.operation('readonly',store=>store.getAll());for(const row of rows.filter(r=>r.pid===pid&&r.state==='queued')){
+   if(App.files.active.has(row.id))continue;
+   App.files.start(row.files,pid,null,{transferId:row.id});
+  }
+ },
+ async settle(id,state){
+  const row=await this.operation('readonly',store=>store.get(id));if(!row)return;
+  if(state==='complete'||state==='cancelled'||state==='declined')await this.operation('readwrite',store=>store.delete(id));
+  else{row.state='failed';await this.operation('readwrite',store=>store.put(row));}
+ },
+ async controls(box){
+  const rows=await this.operation('readonly',store=>store.getAll());
+  for(const r of rows){
+   const line=document.createElement('p');line.textContent=r.files.map(f=>f.name).join(', ')+' → '+Conversations.label(r.pid)+' · '+r.state;box.append(line);
+   memberButton(line,'Retry attachment',async()=>{r.state='queued';await this.operation('readwrite',s=>s.put(r));await this.flush(r.pid);});
+   memberButton(line,'Cancel attachment',async()=>{App.files.active.get(r.id)?.t.cancel();await this.operation('readwrite',s=>s.delete(r.id));line.remove();});
+  }
+ }
+};
+
+const MemberDevices={
+ linked(pid){return !!SafeStorage.getJSON('member-device-link-'+pid);},
+ pending:new Map(),
+ mark(pid){SafeStorage.setJSON('member-device-link-'+pid,{name:Conversations.label(pid),linkedAt:Date.now()});},
+ revoke(pid){
+  SafeStorage.del('member-device-link-'+pid);this.pending.delete(pid);App.peer.send(pid,{type:'member-device',action:'unlink'});
+ },
+ request(pid){
+  if(!App.peer.conn(pid)?.open)throw Error('Connect both devices first.');
+  const code=String(crypto.getRandomValues(new Uint32Array(1))[0]%1000000).padStart(6,'0');
+  this.pending.set(pid,{code,until:Date.now()+90000});
+  if(!App.peer.send(pid,{type:'member-device',action:'link',code}))throw Error('Device disconnected.');
+  App.toast.show('Compare this code on your other device: '+code,'info',30000);
+ },
+ async receive(pid,m){
+  if(m.action==='unlink'){SafeStorage.del('member-device-link-'+pid);this.pending.delete(pid);return;}
+  if(m.action==='link'&&typeof m.code==='string'&&/^\d{6}$/.test(m.code)){
+   if(!await MemberQuestion.ask('Link your own device?',Conversations.label(pid)+' shows code '+m.code+'. Confirm only if this is your own device. Linked devices can send selected conversation history.','Link my device')||!App.peer.conn(pid)?.open)return;
+   this.mark(pid);App.peer.send(pid,{type:'member-device',action:'accept',code:m.code});return;
+  }
+  if(m.action==='accept'){
+   const item=this.pending.get(pid);if(!item||item.until<Date.now()||item.code!==m.code)return;
+   this.pending.delete(pid);this.mark(pid);App.toast.show('Device linked.','success');return;
+  }
+  if(!this.linked(pid)||m.action!=='copy'||!CFG.PEER_ID_RE.test(m.contact||'')||!Array.isArray(m.rows)||m.rows.length>5)return;
+  if(!m.rows.every(r=>r&&typeof r.id==='string'&&/^[a-zA-Z0-9_-]{1,128}$/.test(r.id)&&typeof r.text==='string'&&r.text.length<=CFG.MSG_SIZE_LIMIT&&typeof r.self==='boolean'&&Number.isFinite(r.ts)))return;
+  const key='dh-msgs-'+m.contact,rows=Conversations.rows(m.contact),ids=new Set(rows.map(r=>r.id));
+  for(const r of m.rows)if(!ids.has(r.id)&&(!r.expiresAt||r.expiresAt>Date.now())){
+   rows.push({id:r.id,self:r.self,peer:m.contact,ts:r.ts,text:r.text,replyTo:typeof r.replyTo==='string'?r.replyTo:null,expiresAt:Number.isFinite(r.expiresAt)?r.expiresAt:0,status:'Copied',readSent:true,copied:true});ids.add(r.id);
+  }
+  rows.sort((a,b)=>a.ts-b.ts||a.id.localeCompare(b.id));MemberArchive.put(key,rows);
+  if(App.ui.activePeer===m.contact){App.ui._msgBuffer=rows;App.ui._renderMsgs();}
+ },
+ async copy(contact){
+  const links=[...App.peer.dconns.keys()].filter(pid=>this.linked(pid));
+  if(!links.length)throw Error('Connect a linked device first.');
+  const target=links.length===1?links[0]:prompt('Destination device code: '+links.join(', '));if(!links.includes(target))return;
+  const rows=Conversations.rows(contact);if(!confirm('Copy '+rows.length+' messages to '+Conversations.label(target)+'?'))return;
+  for(let i=0;i<rows.length;i+=2){
+   if(!this.linked(target)||!App.peer.send(target,{type:'member-device',action:'copy',contact,rows:rows.slice(i,i+2)}))throw Error('Copy interrupted. Reconnect and repeat to fill missing messages.');
+   await new Promise(resolve=>setTimeout(resolve,60));
+  }
+  App.toast.show('Conversation copy sent to linked device.','success');
+ }
+};
+
 const Conversations={
+ muted(pid){
+  const o=this.option(pid),hours=SafeStorage.getJSON('member-quiet-hours',null),h=new Date().getHours();
+  const quiet=hours&&(hours.start<hours.end?h>=hours.start&&h<hours.end:h>=hours.start||h<hours.end);
+  return o.muted||o.muteUntil>Date.now()||quiet;
+ },
  option(pid){return {...SafeStorage.getJSON('member-options-'+pid,{}),blocked:!!App.trust?.isBlocked(pid)};},
  set(pid,change){SafeStorage.setJSON('member-options-'+pid,{...this.option(pid),...change});},
  label(pid){return this.option(pid).alias||App.hist?.getAll().find(p=>p.id===pid)?.name||App.peer.peerName(pid);},
  rows(pid){
   const key='dh-msgs-'+pid,rows=SafeStorage.getJSON(key,[])||[];
   const live=rows.filter(m=>!m.expiresAt||m.expiresAt>Date.now());
-  if(live.length!==rows.length)localStorage.setItem(key,JSON.stringify(live));
+  if(live.length!==rows.length)MemberArchive.put(key,live);
   return live;
  },
  update(pid,id,apply){
   const rows=this.rows(pid),row=rows.find(m=>m.id===id);if(!row||apply(row)===false)return false;
-  localStorage.setItem('dh-msgs-'+pid,JSON.stringify(rows));
+  MemberArchive.put('dh-msgs-'+pid,rows);
   if(App.ui.activePeer===pid){App.ui._msgBuffer=rows;App.ui._renderMsgs();}
   return true;
  },
@@ -19944,23 +20092,26 @@ const Conversations={
   const rows=this.rows(pid),ids=rows.filter(r=>!r.self&&!r.readSent).map(r=>r.id);
   if(!ids.length)return;
   for(const id of ids)if(App.peer.send(pid,{type:'msg-read',id})){const r=rows.find(m=>m.id===id);r.readSent=true;}
-  localStorage.setItem('dh-msgs-'+pid,JSON.stringify(rows));if(App.ui.activePeer===pid)App.ui._msgBuffer=rows;
+  MemberArchive.put('dh-msgs-'+pid,rows);if(App.ui.activePeer===pid)App.ui._msgBuffer=rows;
  },
  init(){
   document.addEventListener('visibilitychange',()=>{if(document.getElementById('tabn-chat')?.getAttribute('aria-selected')==='true')this.read(App.ui.activePeer);});
+  Bus.on('peer:connected',({pid})=>void MemberAttachments.flush(pid).catch(e=>App.log.warn(e.message)));
   document.getElementById('member-inbox-open').onclick=()=>this.open();
+  const log=document.getElementById('msgs');log?.addEventListener('scroll',debounce(()=>{if(App.ui.activePeer)SafeStorage.set('member-scroll-'+App.ui.activePeer,log.scrollTop);},250));
+  document.getElementById('member-unread-jump').onclick=()=>{const pid=App.ui.activePeer,id=pid&&SafeStorage.get('member-first-unread-'+pid);if(id)this.jump(pid,id);};
   const d=document.getElementById('member-inbox');
   d.querySelector('[data-close]').onclick=()=>d.close();
   d.querySelector('input').oninput=()=>this.render();d.querySelector('select').onchange=()=>this.render();
   Timers.interval('member-expiry',()=>{
-   for(const k of Object.keys(localStorage).filter(k=>k.startsWith('dh-msgs-')&&k!=='dh-msgs-v1'))this.rows(k.slice(8));
+   for(const k of MemberArchive.keys().filter(k=>k.startsWith('dh-msgs-')&&k!=='dh-msgs-v1'))this.rows(k.slice(8));
    if(App.ui._msgBuffer.some(m=>m.expiresAt&&m.expiresAt<=Date.now())){App.ui._msgBuffer=this.rows(App.ui.activePeer);App.ui._renderMsgs();}
   },15000);
  },
  open(){const d=document.getElementById('member-inbox');BrowserSupport.dialog(d);if(!d.open)d.showModal();this.render();},
  render(){
   const d=document.getElementById('member-inbox'),box=d.querySelector('[data-list]'),q=d.querySelector('input').value.toLowerCase(),mode=d.querySelector('select').value;
-  box.replaceChildren();const ids=new Set([...(App.hist?.getAll()||[]).map(p=>p.id),...App.peer.dconns.keys(),...Object.keys(localStorage).filter(k=>k.startsWith('dh-msgs-')&&k!=='dh-msgs-v1').map(k=>k.slice(8))]);
+  box.replaceChildren();const ids=new Set([...(App.hist?.getAll()||[]).map(p=>p.id),...App.peer.dconns.keys(),...MemberArchive.keys().filter(k=>k.startsWith('dh-msgs-')&&k!=='dh-msgs-v1').map(k=>k.slice(8))]);
   for(const pid of [...ids].sort((a,b)=>Number(!!this.option(b).favorite)-Number(!!this.option(a).favorite))){
    const o=this.option(pid),rows=this.rows(pid),matches=q?rows.filter(r=>r.text.toLowerCase().includes(q)):[];
    if(mode==='archived'?!o.archived:o.archived)continue;
@@ -19973,28 +20124,57 @@ const Conversations={
    section.append(head,preview);box.append(section);
    memberButton(section,'Open',()=>{d.close();App.ui.selectPeer(pid);this.set(pid,{unread:false});});
    memberButton(section,'Nickname',()=>{const alias=prompt('Private nickname',o.alias||'');if(alias!==null)this.set(pid,{alias:alias.slice(0,80)});this.render();});
-   for(const [key,on,off] of [['favorite','Unfavorite','Favorite'],['archived','Unarchive','Archive'],['unread','Mark read','Mark unread'],['muted','Unmute','Mute alerts'],['privatePreview','Show notification text','Hide notification text'],['blocked','Unblock','Block']]){
+   for(const [key,on,off] of [['favorite','Unfavorite','Favorite'],['archived','Unarchive','Archive'],['unread','Mark read','Mark unread'],['muted','Unmute','Mute alerts'],['privatePreview','Show notification text','Hide notification text'],['noInvites','Allow room invites','Silence room invites'],['blocked','Unblock','Block']]){
     memberButton(section,o[key]?on:off,()=>{this.set(pid,{[key]:!o[key]});if(key==='blocked'&&o.blocked)App.trust.unblock(pid);if(key==='blocked'&&!o.blocked){App.trust.block(pid);App.peer.conn(pid)?.close();for(const c of App.peer.transport.media)if(c.peer===pid)c.close();}this.render();});
    }
+   memberButton(section,MemberDevices.linked(pid)?'Unlink device':'Link my device',()=>{if(MemberDevices.linked(pid))MemberDevices.revoke(pid);else MemberDevices.request(pid);this.render();});
+   memberButton(section,'Copy conversation to linked device',()=>MemberDevices.copy(pid));
+   memberButton(section,'Snooze alerts',()=>{const mins=Number(prompt('Mute alerts for how many minutes?','60'));if(Number.isFinite(mins)&&mins>0)this.set(pid,{muteUntil:Date.now()+mins*60000});});
+   memberButton(section,'Reconnect',()=>App.peer.connectTo(pid));
+   memberButton(section,'Files and links',()=>this.gallery(pid));
    memberButton(section,'Export chat',()=>downloadMemberFile('conversation.json',JSON.stringify(rows,null,2)));
+   memberButton(section,'Clear local conversation',async()=>{
+    if(!confirm('Clear this conversation history from this device? Pending sends remain in the outbox.'))return;
+    MemberArchive.put('dh-msgs-'+pid,[]);if(!await MemberArchive.saved('dh-msgs-'+pid))throw Error('Could not clear history.');
+    if(App.ui.activePeer===pid){App.ui._msgBuffer=[];App.ui._renderMsgs();}SafeStorage.del('member-draft-'+pid);this.render();
+   });
    memberButton(section,'Message expiry',()=>{const minutes=prompt('Expire new messages after how many minutes? Enter 0 to keep them.','0');if(minutes!==null&&Number.isFinite(+minutes)&&+minutes>=0&&+minutes<=525600)SafeStorage.set('member-ttl-'+pid,Math.round(+minutes*60000));});
    for(const row of (mode==='bookmarks'?rows.filter(m=>m.star):matches).slice(-40)){memberButton(section,row.text.slice(0,80),()=>{d.close();App.ui.selectPeer(pid);const list=document.getElementById('msgs');list.scrollTop=Math.max(0,rows.indexOf(row)*VS_ITEM_H);App.ui._vsRender(list);list.querySelector('[data-msg-id="'+CSS.escape(row.id)+'"]')?.scrollIntoView({block:'center'});});}
   }
-  if(!box.children.length)box.textContent='No matching conversations.';
+  if(!box.children.length)box.textContent='No matching conversations.';const attachments=document.createElement('section');box.append(attachments);void MemberAttachments.controls(attachments).catch(e=>App.log.warn(e.message));
   const pending=App.offlineQ.items();
   for(const m of pending){const section=document.createElement('div');section.textContent='Queued for '+this.label(m.pid)+': '+(m.text||m.action||'').slice(0,60)+' ';box.append(section);
    memberButton(section,'Retry',()=>{App.offlineQ.attempts.delete(App.offlineQ.key(m.pid,m.id));return App.offlineQ.flush();});
    memberButton(section,'Cancel queued send',()=>{App.offlineQ.ack(m.pid,m.id);this.update(m.pid,m.id,row=>{row.status='Cancelled';});this.render();});}
  },
+ jump(pid,id){
+  if(App.ui.activePeer!==pid)App.ui.selectPeer(pid);
+  const list=document.getElementById('msgs'),index=App.ui._msgBuffer.findIndex(m=>m.id===id);
+  if(index<0){App.toast.show('Message is no longer in local history.','info');return;}
+  if(App.ui._msgBuffer.length>80){list.scrollTop=index*VS_ITEM_H;App.ui._vsRender(list);}
+  list.querySelector('[data-msg-id="'+CSS.escape(id)+'"]')?.scrollIntoView({block:'center'});
+ },
+ async gallery(pid){
+  const d=document.getElementById('member-gallery'),box=d.querySelector('section');box.replaceChildren();
+  const records=await FileProtocol.records.list();
+  for(const record of records.filter(r=>'dh-main-'+(r.direction==='receive'?r.senderId:r.receiverId)===pid)){
+   const line=document.createElement('p');line.textContent=record.manifest.map(f=>f.name+' ('+fmtSize(f.size)+')').join(', ')+' · '+record.state;box.append(line);
+   if(record.direction==='receive'&&record.files.some(f=>f.complete))memberButton(line,'Open saved files',async()=>{const storage=await FileProtocol.BlockStorage.open(record);for(let i=0;i<record.files.length;i++)if(record.files[i].complete)App.files.download({...record.manifest[i],...await storage.completedFile(i)},record.transferId);d.close();App.ui.setTab('files');});
+  }
+  const links=new Set(this.rows(pid).flatMap(r=>r.text.match(/https?:\/\/[^\s<>]+/g)||[]));
+  for(const url of links){const p=document.createElement('p'),a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener noreferrer';a.textContent=url;p.append(a);box.append(p);}
+  if(!box.children.length)box.textContent='No saved files or shared links.';
+  d.querySelector('button').onclick=()=>d.close();BrowserSupport.dialog(d);d.showModal();
+ },
  async record(pid){
-  if(!pid||!App.peer.conn(pid)?.open)throw Error('Select a connected recipient.');
+  if(!pid||Conversations.option(pid).blocked)throw Error('Select a permitted recipient.');
   const stream=await navigator.mediaDevices.getUserMedia({audio:true}),dialog=document.getElementById('member-recording'),actions=dialog.querySelector('[data-actions]'),player=dialog.querySelector('audio');
   let recorder;try{recorder=new MediaRecorder(stream);}catch(e){stream.getTracks().forEach(t=>t.stop());throw e;}
   const chunks=[];let url='',file,timer;actions.replaceChildren();player.removeAttribute('src');player.hidden=true;
   const stop=()=>{clearTimeout(timer);if(recorder.state!=='inactive')recorder.stop();stream.getTracks().forEach(t=>t.stop());};
   const close=()=>dialog.close();dialog.onclose=()=>{stop();if(url)URL.revokeObjectURL(url);};
   recorder.ondataavailable=e=>chunks.push(e.data);
-  recorder.onstop=()=>{if(!dialog.open)return;const mime=recorder.mimeType,fileExt=mime.includes('mp4')?'m4a':mime.includes('ogg')?'ogg':'webm';file=new File(chunks,['voice-',Date.now(),'.',fileExt].join(''),{type:mime});url=URL.createObjectURL(file);player.src=url;player.hidden=false;actions.replaceChildren();memberButton(actions,'Send to '+this.label(pid),()=>{App.files.sendFiles([file],pid);close();});memberButton(actions,'Discard',close);};
+  recorder.onstop=()=>{if(!dialog.open)return;const mime=recorder.mimeType,fileExt=mime.includes('mp4')?'m4a':mime.includes('ogg')?'ogg':'webm';file=new File(chunks,['voice-',Date.now(),'.',fileExt].join(''),{type:mime});url=URL.createObjectURL(file);player.src=url;player.hidden=false;actions.replaceChildren();memberButton(actions,'Send to '+this.label(pid),async()=>{if(App.peer.conn(pid)?.open)App.files.sendFiles([file],pid);else await MemberAttachments.stage(pid,[file]);close();});memberButton(actions,'Discard',close);};
   BrowserSupport.dialog(dialog);dialog.showModal();memberButton(actions,'Stop and preview',stop);memberButton(actions,'Discard',close);
   recorder.start();timer=setTimeout(stop,180000);
  }
@@ -20002,8 +20182,11 @@ const Conversations={
 
 function configureMemberUI(){
  Conversations.init();
+ document.getElementById('member-present-handover').onclick=()=>{const pid=App.ui.activePeer;if(!App.presentation._published||!App.peer.send(pid,{type:'presentation-handover'})){App.toast.show('Choose a connected viewer while presenting.','info');return;}App.toast.show('Presentation invitation sent.','info');};
  document.getElementById('member-secure-export').onclick=()=>App.exportMgr.protectedBackup().catch(e=>App.toast.show(e.message,'warning'));
- document.getElementById('member-storage').onclick=async()=>{const estimate=await navigator.storage?.estimate?.()||{};const sizes={chat:0,rooms:0,outbox:0,vault:0,other:0};for(const key of Object.keys(localStorage)){const category=key.startsWith('dh-msgs-')?'chat':key==='member-rooms-v1'?'rooms':key.startsWith('member-outbox:')?'outbox':key.includes('vault')?'vault':'other';sizes[category]+=new Blob([localStorage.getItem(key)]).size;}setEl('member-storage-info',Object.entries(sizes).map(([k,v])=>k+' '+fmtSize(v)).join(' · ')+' · Origin usage '+fmtSize(estimate.usage||0));};
+ document.getElementById('member-offline-copy').onclick=async()=>{try{const response=await fetch(location.pathname);if(!response.ok)throw Error('Cannot download the application');downloadMemberFile('member-communication.html',await response.blob(),'text/html');}catch(e){App.toast.show(e.message,'warning');}};
+ document.getElementById('member-quiet').onclick=()=>{const v=prompt('Quiet hours in local time, for example 22-7. Leave empty to turn off.');if(v===null)return;if(!v.trim()){SafeStorage.del('member-quiet-hours');return;}const a=v.split('-').map(Number);if(a.length===2&&a.every(n=>Number.isInteger(n)&&n>=0&&n<=23)&&a[0]!==a[1])SafeStorage.setJSON('member-quiet-hours',{start:a[0],end:a[1]});else App.toast.show('Enter two different hours from 0 to 23.','warning');};
+ document.getElementById('member-storage').onclick=async()=>{const estimate=await navigator.storage?.estimate?.()||{};const sizes={chat:0,rooms:0,outbox:0,vault:0,other:0};for(const key of MemberArchive.keys()){const category=key.startsWith('dh-msgs-')?'chat':key==='member-rooms-v1'?'rooms':key.startsWith('member-outbox:')?'outbox':key.includes('vault')?'vault':'other';sizes[category]+=new Blob([MemberArchive.large.get(key)??localStorage.getItem(key)]).size;}setEl('member-storage-info',Object.entries(sizes).map(([k,v])=>k+' '+fmtSize(v)).join(' · ')+' · Origin usage '+fmtSize(estimate.usage||0));};
  document.getElementById('member-diagnostics').onclick=()=>downloadMemberFile('connection-diagnostics.json',JSON.stringify({version:CFG.VERSION,time:new Date().toISOString(),online:navigator.onLine,signaling:App.peer.transport?.state||'starting',connections:App.peer.dconns.size,pending:App.peer.transport?.pending.size,relayConfigured:!!SafeStorage.getJSON('devhub-turn',{}).url,outbox:App.offlineQ.size(),webrtc:!!window.RTCPeerConnection},null,2));document.getElementById('member-voice-note').onclick=()=>Conversations.record(App.ui.activePeer).catch(e=>App.toast.show(e.message,'warning'));
  BrowserSupport.init();
  window.CFG=CFG;window.Bus=Bus;window.SafeStorage=SafeStorage;window.PeerMod=App.peer;
@@ -20036,7 +20219,7 @@ function configureMemberUI(){
  window.addEventListener('pagehide',()=>{App.files.destroy();App.media._cleanupCall('Page closed');App.groupVideo._stop();App.groupVoice._leave();App.conference._leave();App.meetings?.destroy?.();App.presentation.stop();App.qr.stopScan();App.code._runnerCleanup?.();p.destroy();});
  window.addEventListener('beforeunload',e=>{if(App.files.active.size){e.preventDefault();e.returnValue='';}});
  window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
- setEl('member-version','61.4.0');
+ setEl('member-version',CFG.VERSION);
 }
 
 
@@ -20068,9 +20251,9 @@ class MemberMediaManager extends MediaManager {
   }catch(e){App.directCall?.cancel?.('Call failed');this._cleanupCall('Could not start call: '+e.message);}finally{this._acquiring=false;}
  }
  handleIncoming(call){
-  if(this._call||this._pendingCall||this._acquiring||this._isCleaningUp){call.close();return;}
+  if(this._call||this._pendingCall||this._acquiring||this._isCleaningUp){App.peer.send(call.peer,{type:'direct-call-signal',action:'busy'});call.close();return;}
   super.handleIncoming(call);
-  const timer=setTimeout(()=>{if(this._pendingCall===call)this._rejectIncoming();},CFG.CALL_RING_TIMEOUT);
+  const timer=setTimeout(()=>{if(this._pendingCall===call){App.notifCenter?.add('Missed call',Conversations.label(call.peer),'📞');this._rejectIncoming();}},CFG.CALL_RING_TIMEOUT);
   call.on('close',()=>{clearTimeout(timer);if(this._pendingCall===call){this._mediaEpoch++;this._pendingCall=null;Modal.hide('incoming-call-modal');}});
  }
  async _acceptIncoming(){
@@ -20131,10 +20314,20 @@ class MemberMeetingsModule{
  saveFromForm(){
   const meeting=this._validate(this._newFromForm());if(!meeting){App.toast?.show('Enter a valid title, start time, duration and timezone.','warning');return false;}
   const prior=this.meetings.get(meeting.id);if(prior&&!this._canManage(meeting.id))return false;if(prior)Object.assign(meeting,{attendees:prior.attendees,roles:prior.roles,responses:prior.responses,lobby:prior.lobby,locked:prior.locked,status:prior.status,recordingConsent:prior.recordingConsent});
+  if(prior){meeting.series=prior.series||prior.id;meeting.seriesDay=prior.seriesDay;meeting.poll=prior.poll;meeting.conferenceId=prior.conferenceId;
+   if(prior.repeat!=='none'&&confirm('Apply these changes to future scheduled occurrences in this series?')){
+    const delta=meeting.startMs-prior.startMs;for(const item of this.meetings.values())if(item.id!==prior.id&&item.series===meeting.series&&item.startMs>prior.startMs&&item.status==='scheduled'){
+     Object.assign(item,{title:meeting.title,description:meeting.description,startMs:item.startMs+delta,timeZone:meeting.timeZone,durationMin:meeting.durationMin,repeat:meeting.repeat,repeatUntil:meeting.repeatUntil});this._scheduleReminder(item);this._broadcast(item,'update');
+    }
+   }
+  }
   this.meetings.set(meeting.id,meeting);this.editing=null;this._broadcast(meeting,'update');this._save();this._scheduleReminder(meeting);this._hideEditor();this._render();return true;
  }
  edit(id){const m=this.meetings.get(id);if(!m||!this._canManage(id)||m.status==='cancelled')return false;this.editing=id;for(const [key,val]of Object.entries({title:m.title,description:m.description,duration:m.durationMin,repeat:m.repeat,guests:m.guests.join(', ')})){const el=document.getElementById('meeting-'+key);if(el)el.value=val;}const start=document.getElementById('meeting-start');if(start){const p=new Intl.DateTimeFormat('en-CA',{timeZone:m.timeZone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(m.startMs)).replace(', ','T');start.value=p.slice(0,16);}const zone=document.getElementById('meeting-timezone');if(zone)zone.value=m.timeZone;document.getElementById('meeting-editor').hidden=false;return true;}
- cancel(id){const m=this.meetings.get(id);if(!m||!this._canManage(id)||m.status==='cancelled')return false;m.status='cancelled';this._scheduleReminder(m);this._broadcast(m,'cancel');this._save();this._render();return true;}
+ cancel(id){const m=this.meetings.get(id);if(!m||!this._canManage(id)||m.status==='cancelled')return false;if(m.repeat!=='none'&&confirm('Cancel future occurrences too?')){
+   for(const future of this.meetings.values())if((future.series||future.id)===(m.series||m.id)&&future.startMs>=m.startMs){future.status='cancelled';future.repeat='none';this._scheduleReminder(future);this._broadcast(future,'cancel');}
+  }else if(m.repeat!=='none')this._nextOccurrence(m);
+  m.status='cancelled';this._scheduleReminder(m);this._broadcast(m,'cancel');this._save();this._render();return true;}
  reschedule(id,startValue,zone=this.meetings.get(id)?.timeZone||this._timezone()){const m=this.meetings.get(id),start=this._parseStart(startValue,zone);if(!m||!this._canManage(id)||!Number.isFinite(start))return false;m.startMs=start;m.timeZone=zone;m.status='scheduled';this._broadcast(m,'update');this._save();this._scheduleReminder(m);this._render();return true;}
  _broadcast(m,action,extra={}){for(const pid of m.attendees||[])if(pid!==App.peer?.myId)App.peer?.send?.(pid,{type:'meeting',action,meeting:m,...extra});}
  invite(id,pid){const m=this.meetings.get(id);if(!m||m.status==='cancelled'||!pid||m.hostId!==App.peer?.myId)return false;if(!m.attendees.includes(pid))m.attendees.push(pid);m.roles[pid]='participant';this._broadcast(m,'invite',{to:pid});this._save();this._render();return true;}
@@ -20151,6 +20344,29 @@ class MemberMeetingsModule{
  rejoin(){const id=this.current?.id||SafeStorage.get('member-last-meeting');return this.join(id);}
  _canManage(id){const m=this.meetings.get(id),role=m?.roles?.[App.peer?.myId||'local'];return role==='host'||role==='cohost';}
  _attendance(id,event,pid){const m=this.meetings.get(id);if(m&&pid!==m.hostId)App.peer.send(m.hostId,{type:'meeting',action:'attendance',meeting:m,payload:{event}});this.history.push({id,pid,event,at:Date.now()});this.history=this.history.slice(-200);this._save();}
+ async previewDevices(){
+  const dialog=document.getElementById('member-media-preview'),video=dialog.querySelector('video'),meter=dialog.querySelector('meter'),status=dialog.querySelector('output');
+  if(dialog.open)return;BrowserSupport.dialog(dialog);dialog.showModal();status.textContent='Waiting for permission…';
+  let stream,context,frame,epoch=0;
+  const release=()=>{cancelAnimationFrame(frame);stream?.getTracks().forEach(t=>t.stop());if(context&&context.state!=='closed')void context.close();context=null;video.srcObject=null;};
+  dialog.onclose=()=>{epoch++;release();};dialog.querySelector('button').onclick=()=>dialog.close();
+  const select=dialog.querySelector('select');
+  const start=async()=>{
+   const attempt=++epoch;release();
+   try{
+    const next=await navigator.mediaDevices.getUserMedia({audio:true,video:select.value==='audio'?false:select.value?{deviceId:{exact:select.value}}:true});
+    if(!dialog.open||attempt!==epoch){next.getTracks().forEach(t=>t.stop());return;}
+    stream=next;video.srcObject=stream;video.play().catch(()=>{});context=new AudioContext();await context.resume();
+    if(attempt!==epoch)return;
+    const analyser=context.createAnalyser(),samples=new Uint8Array(analyser.fftSize);context.createMediaStreamSource(stream).connect(analyser);
+    const tick=()=>{analyser.getByteTimeDomainData(samples);let sum=0;for(const n of samples)sum+=(n-128)**2;meter.value=Math.sqrt(sum/samples.length);frame=requestAnimationFrame(tick);};tick();
+    const selected=select.value;select.replaceChildren(new Option('Default camera',''),new Option('Audio only','audio'));
+    for(const d of await navigator.mediaDevices.enumerateDevices())if(d.kind==='videoinput')select.add(new Option(d.label||'Camera',d.deviceId));select.value=selected;status.textContent='Preview active on this device';
+   }catch(e){if(attempt===epoch){release();status.textContent=e.name==='NotAllowedError'?'Permission denied. Allow the microphone or camera in browser settings.':e.message;}}
+  };
+  select.onchange=start;await start();
+ }
+
  async precheck(){
   const checks={network:navigator.onLine!==false,signaling:!!App.peer?.transport?.ready||!!App.peer?.myId,media:!!navigator.mediaDevices,devices:false};
   try{if(navigator.mediaDevices?.enumerateDevices)checks.devices=(await navigator.mediaDevices.enumerateDevices()).length>0;}catch{}
@@ -20185,6 +20401,10 @@ class MemberMeetingsModule{
   if(['chat','hand','reaction','record-consent'].includes(msg.action)&&!existing.attendees.includes(pid))return false;
   if(['response','lobby'].includes(msg.action)&&msg.from!==pid)return false;
 
+  if(msg.action==='handover'){
+   if(!existing||pid!==existing.hostId||!existing.attendees.includes(incoming.hostId)||incoming.roles[incoming.hostId]!=='host')return false;
+   this.meetings.set(incoming.id,incoming);if(this.current?.id===incoming.id)this.current.role=incoming.roles[App.peer.myId]||'participant';this._save();this._render();return true;
+  }
   if(msg.action==='poll'){
    const p=existing?.poll,v=msg.payload?.choice;
    if(existing.hostId!==App.peer.myId||!existing.attendees.includes(pid)||!p||p.closed||msg.payload.pollId!==p.id||!Number.isInteger(v)||v<0||v>=p.options.length)return false;
@@ -20222,7 +20442,7 @@ class MemberMeetingsModule{
  }
  _pollPanel(){
   const box=document.getElementById('meeting-poll'),m=this.current&&this.meetings.get(this.current.id);if(!box)return;box.replaceChildren();if(!m||this.current.state!=='joined')return;
-  const host=m.hostId===App.peer.myId,poll=m.poll;
+  const host=m.hostId===App.peer.myId,poll=m.poll;const consent=document.createElement('p');consent.textContent='Recording consent: '+m.attendees.filter(id=>m.recordingConsent?.includes(id)).length+' of '+m.attendees.length+' invited attendees';box.append(consent);
   const publish=()=>{this._broadcast(m,'update');this._save();this._render();};
   if(host&&(!poll||poll.closed))memberButton(box,'Create poll',()=>{
    const question=prompt('Poll question')?.trim(),options=prompt('Options separated by a comma')?.split(',').map(x=>x.trim()).filter(Boolean);
@@ -20239,9 +20459,19 @@ class MemberMeetingsModule{
   memberButton(box,'Calendar event',()=>{
    const date=ms=>new Date(ms).toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
    const title=m.title.replace(/[\r\n]/g,' ').replace(/[,;]/g,' ');
-   downloadMemberFile('meeting.ics',['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Member Communication//EN','BEGIN:VEVENT','UID:'+m.id,'DTSTAMP:'+date(Date.now()),'DTSTART:'+date(m.startMs),'DTEND:'+date(m.startMs+m.durationMin*60000),'SUMMARY:'+title,'END:VEVENT','END:VCALENDAR'].join('\r\n'),'text/calendar');
+   downloadMemberFile('meeting.ics',['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Member Communication//EN','BEGIN:VEVENT','UID:'+m.id,'DTSTAMP:'+date(Date.now()),'DTSTART:'+date(m.startMs),'DTEND:'+date(m.startMs+m.durationMin*60000),'SUMMARY:'+title,...(m.repeat!=='none'?['RRULE:FREQ='+m.repeat.toUpperCase()+(m.repeatUntil?';UNTIL='+date(m.repeatUntil):'')]:[]),'END:VEVENT','END:VCALENDAR'].join('\r\n'),'text/calendar');
   });
   if(host){
+   const attendee=document.createElement('select');attendee.setAttribute('aria-label','Meeting participant');
+   for(const id of m.attendees.filter(id=>id!==m.hostId))attendee.add(new Option(Conversations.label(id),id));box.append(attendee);
+   memberButton(box,'Make cohost',()=>{if(attendee.value)this.setRole(m.id,attendee.value,'cohost');});
+   memberButton(box,'Remove participant',()=>{if(attendee.value)this.remove(m.id,attendee.value);});
+   memberButton(box,'Hand over meeting',()=>{
+    const next=attendee.value;if(!next||!m.attendees.every(id=>id===m.hostId||App.peer.conn(id)?.open))throw Error('All attendees must be connected for handover.');
+    if(m.conferenceId)throw Error('End the active video conference before changing hosts.');
+    if(!confirm('Make '+Conversations.label(next)+' the meeting host?'))return;
+    m.roles[m.hostId]='participant';m.hostId=next;m.roles[next]='host';this.current.role='participant';this._broadcast(m,'handover');this._save();this._render();
+   });
    memberButton(box,'Export attendance',()=>downloadMemberFile('attendance.json',JSON.stringify(this.history.filter(r=>r.id===m.id),null,2)));
    memberButton(box,'End for everyone',()=>{this._nextOccurrence(m);m.status='ended';this._broadcast(m,'update');this._scheduleReminder(m);this.leave();});
   }
@@ -20265,6 +20495,7 @@ class MemberMeetingsModule{
   document.getElementById('btn-meeting-new')?.addEventListener('click',()=>{this.editing=null;document.getElementById('meeting-editor').hidden=false;});
   document.getElementById('btn-meeting-cancel-edit')?.addEventListener('click',()=>this._hideEditor());
   document.getElementById('meeting-editor')?.addEventListener('submit',e=>{e.preventDefault();this.saveFromForm();});
+  document.getElementById('member-preview-open').onclick=()=>this.previewDevices();
   document.getElementById('btn-meeting-precheck')?.addEventListener('click',()=>this.precheck());
   document.getElementById('btn-meeting-join')?.addEventListener('click',()=>this.current&&this.join(this.current.id));
   document.getElementById('btn-meeting-leave')?.addEventListener('click',()=>this.leave());
@@ -20319,6 +20550,7 @@ class MemberGroupChatManager extends GroupChatManager {
   document.getElementById('gc-invite').onclick=()=>this.invite(select.value);
   select.onfocus=()=>{const value=select.value;select.replaceChildren();for(const pid of App.peer.dconns.keys())select.add(new Option(Conversations.label(pid),pid));if([...select.options].some(o=>o.value===value))select.value=value;};
   Bus.on('peer:connected',()=>select.onfocus());Bus.on('peer:disconnected',()=>select.onfocus());
+  document.getElementById('gc-mention').onchange=e=>{if(!e.target.value)return;const field=document.getElementById('gc-inp');field.value+=' @['+Conversations.label(e.target.value).replace(/[\]\r\n]/g,'')+']('+e.target.value+') ';field.focus();e.target.value='';};
   document.getElementById('gc-inp').onblur=()=>this._sendTyping(false);
   Bus.on('peer:connected',({pid})=>{
    for(const room of this._rooms.values())if(room.host===App.peer.myId){
@@ -20330,7 +20562,7 @@ class MemberGroupChatManager extends GroupChatManager {
   Bus.on('peer:disconnected',()=>this._render());
  }
  save(){
-  try{localStorage.setItem('member-rooms-v1',JSON.stringify([...this._rooms.values()].map(r=>({...r,reactions:[...r.reactions]}))));}
+  try{MemberArchive.put('member-rooms-v1',[...this._rooms.values()].map(r=>({...r,reactions:[...r.reactions]})));}
   catch{App.toast.show('Room history storage is full. Export a backup.','warning');}
  }
  _create(){
@@ -20341,16 +20573,65 @@ class MemberGroupChatManager extends GroupChatManager {
  invite(pid){
   const room=this._room;
   if(!room||room.host!==App.peer.myId||!App.peer.conn(pid)?.open){App.toast.show('Select a connected contact and a room you host.','info');return;}
-  if(room.members.includes(pid))return;
+  if(room.members.includes(pid))return;if(room.locked){App.toast.show('Unlock the room to invite members.','info');return;}
+  room.inviteTimes=room.inviteTimes||{};room.inviteTimes[pid]=Date.now();
   room.excluded=(room.excluded||[]).filter(x=>x!==pid);room.pending=[...new Set([...(room.pending||[]),pid])];this.save();
   App.peer.send(pid,{type:'group-room',action:'invite',room:room.id,name:room.name,host:room.host});
  }
+ validAsset(kind,value){
+  if(kind==='code')return typeof value==='string'&&value.length<=16000;
+  if(kind==='tasks')return Array.isArray(value)&&value.length<=200&&value.every(t=>t&&typeof t.title==='string'&&t.title.length<=250&&typeof t.done==='boolean'&&typeof t.owner==='string'&&t.owner.length<=80);
+  return kind==='board'&&Array.isArray(value)&&value.length<=100&&value.every(line=>Array.isArray(line)&&line.length<=160&&line.every(p=>Array.isArray(p)&&p.length===2&&p.every(n=>Number.isInteger(n)&&n>=0&&n<=1000)))&&JSON.stringify(value).length<=45000;
+ }
+ assetMessage(room,kind){
+  return {type:'group-room',action:'asset',room:room.id,kind,record:room.assets[kind]};
+ }
+ commitAsset(room,kind,value){
+  if(!this.validAsset(kind,value))throw Error('Room item exceeds the supported size.');
+  room.assets=room.assets||{};const prev=room.assets[kind];room.versions=room.versions||{};
+  if(prev)room.versions[kind]=[...(room.versions[kind]||[]),prev].slice(-5);
+  room.assets[kind]={revision:(prev?.revision||0)+1,value};this.save();this.fanout(this.assetMessage(room,kind),undefined,room);
+ }
+ openAsset(room,kind){
+  const d=document.getElementById('room-asset'),box=d.querySelector('section'),status=d.querySelector('output'),tools=d.querySelector('footer'),title=d.querySelector('h2');
+  title.textContent=room.name+' · '+kind;let base,read;
+  const edit=value=>{
+   box.replaceChildren();
+   if(kind==='code'){const area=document.createElement('textarea');area.setAttribute('aria-label','Room code');area.maxLength=16000;area.value=value||'';box.append(area);read=()=>area.value;}
+   if(kind==='tasks'){
+    const rows=structuredClone(value||[]);read=()=>rows;
+    const draw=()=>{box.replaceChildren();for(const t of rows){const line=document.createElement('p'),check=document.createElement('input');check.type='checkbox';check.checked=t.done;check.setAttribute('aria-label',t.title);check.onchange=()=>t.done=check.checked;line.append(check,document.createTextNode(t.title+' · '+(t.owner?Conversations.label(t.owner):'Unassigned')));memberButton(line,'Remove',()=>{rows.splice(rows.indexOf(t),1);draw();});box.append(line);}
+     const input=document.createElement('input');input.placeholder='Task title';input.maxLength=250;const owner=document.createElement('select');owner.add(new Option('Unassigned',''));for(const id of room.members)owner.add(new Option(Conversations.label(id),id));box.append(input,owner);
+     memberButton(box,'Add task',()=>{if(input.value.trim()&&rows.length<200){rows.push({title:input.value.trim(),owner:owner.value,done:false});draw();}});};draw();
+   }
+   if(kind==='board'){
+    const strokes=structuredClone(value||[]),canvas=document.createElement('canvas');canvas.width=600;canvas.height=400;canvas.style.cssText='width:100%;background:white;touch-action:none';canvas.setAttribute('aria-label','Shared drawing canvas');box.append(canvas);read=()=>strokes;const ctx=canvas.getContext('2d');
+    const draw=()=>{ctx.clearRect(0,0,600,400);ctx.lineWidth=3;for(const line of strokes){ctx.beginPath();line.forEach(([x,y],i)=>ctx[i?'lineTo':'moveTo'](x*.6,y*.4));ctx.stroke();}};
+    let line=null;const point=e=>{const r=canvas.getBoundingClientRect();return [(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height].map(v=>Math.round(Math.max(0,Math.min(1,v))*1000));};
+    canvas.onpointerdown=e=>{if(strokes.length>=100)return;canvas.setPointerCapture(e.pointerId);line=[point(e)];strokes.push(line);};
+    canvas.onpointermove=e=>{if(line&&line.length<160){line.push(point(e));draw();}};canvas.onpointerup=canvas.onpointercancel=()=>line=null;memberButton(box,'Undo stroke',()=>{strokes.pop();draw();});draw();
+   }
+  };
+  const load=()=>{const r=room.assets?.[kind];base=r?.revision||0;edit(r?.value);status.textContent='Revision '+base;};load();tools.replaceChildren();
+  memberButton(tools,'Save',()=>{
+   if((room.assets?.[kind]?.revision||0)!==base)throw Error('A newer revision arrived. Export your draft or load the latest revision.');
+   const value=read();if(!this.validAsset(kind,value))throw Error('This item is too large.');
+   if(room.host===App.peer.myId){this.commitAsset(room,kind,value);load();}
+   else if(App.peer.send(room.host,{type:'group-room',action:'asset-edit',room:room.id,kind,base,value}))status.textContent='Sent for revision check. Load latest to continue.';else throw Error('Host offline. Export your draft.');
+  });
+  memberButton(tools,'Load latest',load);memberButton(tools,'Export draft',()=>downloadMemberFile('room-'+kind+'.json',JSON.stringify(read())));
+  if(room.host===App.peer.myId)memberButton(tools,'Restore previous revision',()=>{const previous=room.versions?.[kind]?.at(-1);if(previous){this.commitAsset(room,kind,previous.value);load();}});
+  memberButton(tools,'Close',()=>d.close());BrowserSupport.dialog(d);d.showModal();
+ }
+
  roomControls(){
   const box=document.getElementById('gc-tools'),room=this._room;if(!box)return;box.replaceChildren();if(!room)return;
   const host=room.host===App.peer.myId;
   if(host){
+   memberButton(box,room.locked?'Unlock room':'Lock room',()=>{room.locked=!room.locked;this.roster(room);});
    const choice=document.createElement('select');choice.setAttribute('aria-label','Room member');
    for(const id of room.members.filter(x=>x!==room.host))choice.add(new Option(Conversations.label(id),id));box.append(choice);
+   memberButton(box,'Toggle moderator',()=>{const id=choice.value;if(!id)return;room.moderators=room.moderators||[];room.moderators=room.moderators.includes(id)?room.moderators.filter(p=>p!==id):[...room.moderators,id];this.roster(room);});
    memberButton(box,'Remove member',()=>{
     const id=choice.value;if(!id)return;
     room.excluded=[...new Set([...(room.excluded||[]),id])];room.members=room.members.filter(p=>p!==id);
@@ -20365,6 +20646,12 @@ class MemberGroupChatManager extends GroupChatManager {
     room.host=next;room.pending=[];this._render();
    });
   }
+  if(!host&&room.moderators?.includes(App.peer.myId)){
+   const choice=document.createElement('select');choice.setAttribute('aria-label','Moderation target');for(const id of room.members.filter(id=>id!==room.host&&id!==App.peer.myId&&!room.moderators.includes(id)))choice.add(new Option(Conversations.label(id),id));box.append(choice);
+   memberButton(box,'Remove selected member',()=>{if(choice.value)App.peer.send(room.host,{type:'group-room',action:'moderate-remove',room:room.id,id:choice.value});});
+  }
+  memberButton(box,'Membership history',()=>{const target=document.getElementById('gc-results');target.textContent=(room.events||[]).slice(-30).map(e=>new Date(e.at).toLocaleString()+' '+e.text).join(' · ')||'No membership changes recorded.';});
+  for(const kind of ['code','tasks','board'])memberButton(box,'Room '+kind,()=>this.openAsset(room,kind));
   memberButton(box,'Shared room notes',()=>{
    const d=document.getElementById('room-document'),area=d.querySelector('textarea'),status=d.querySelector('output'),save=d.querySelector('[data-save]');
    const current=room.document||{revision:0,text:''};let base=current.revision;area.value=current.text;status.textContent='Revision '+base;
@@ -20396,13 +20683,25 @@ class MemberGroupChatManager extends GroupChatManager {
  async onRoom(pid,m){
   if(typeof m.room!=='string'||m.room.length>64)return;
   if(m.action==='invite'){
+   if(Conversations.option(pid).noInvites)return;
    if(m.host!==pid||typeof m.name!=='string'||m.name.length>100||this._rooms.has(m.room)||this._inviting.has(m.room))return;
    this._inviting.add(m.room);const yes=await MemberQuestion.ask('Join group room?',App.peer.peerName(pid)+' invited you to '+m.name+'.','Join room');this._inviting.delete(m.room);
    if(!yes||!App.peer.conn(pid)?.open)return;
    const room={id:m.room,name:m.name,host:pid,members:[pid,App.peer.myId],messages:[]};this._rememberRoom(room);this._msgs=room.messages;this._reactions.clear();this._render();App.peer.send(pid,{type:'group-room',action:'join',room:m.room});App.ui.setTab('group');return;
   }
   const room=this._rooms.get(m.room);if(!room)return;
+  if(m.action==='moderate-remove'&&room.host===App.peer.myId&&room.members.includes(pid)&&room.moderators?.includes(pid)&&room.members.includes(m.id)&&m.id!==room.host&&!room.moderators.includes(m.id)){
+   room.members=room.members.filter(id=>id!==m.id);room.excluded=[...new Set([...(room.excluded||[]),m.id])];App.peer.send(m.id,{type:'group-room',action:'closed',room:room.id});this.roster(room);return;
+  }
   if(m.action==='pin'&&pid===room.host&&room.messages.some(x=>x.id===m.id)){room.pin=m.id;this._render();return;}
+  if(['asset','asset-edit'].includes(m.action)){
+   const kind=m.kind;if(!['code','tasks','board'].includes(kind)||!App.perms.check(pid,kind==='board'?'canWhiteboard':'canCollaborate'))return;
+   if(m.action==='asset-edit'&&room.host===App.peer.myId&&room.members.includes(pid)){
+    if((room.assets?.[kind]?.revision||0)===m.base&&this.validAsset(kind,m.value))this.commitAsset(room,kind,m.value);
+    else if(room.assets?.[kind])App.peer.send(pid,this.assetMessage(room,kind));
+   }else if(m.action==='asset'&&pid===room.host&&Number.isSafeInteger(m.record?.revision)&&m.record.revision>(room.assets?.[kind]?.revision||0)&&this.validAsset(kind,m.record.value)){room.assets=room.assets||{};room.assets[kind]=m.record;this.save();}
+   return;
+  }
   if(m.action==='handover'&&pid===room.host&&room.members.includes(m.next)){
    room.host=m.next;room.pending=[];this._render();return;
   }
@@ -20423,27 +20722,52 @@ class MemberGroupChatManager extends GroupChatManager {
    room.lastHostMessage=x.id;if(this._room===room)this._msgs=room.messages;this.save();this._render();
    App.peer.send(pid,{type:'group-room',room:room.id,action:'catchup',after:x.id});return;
   }
-  if(m.action==='join'&&room.host===App.peer.myId){if(!room.pending?.includes(pid))return;if(room.members.length>=32){App.peer.send(pid,{type:'group-room',room:room.id,action:'full'});return;}room.pending=room.pending.filter(x=>x!==pid);room.members.push(pid);this.roster(room);}
-  else if(m.action==='members'&&pid===room.host&&Array.isArray(m.members)&&m.members.length<=32&&m.members.every(x=>typeof x==='string'&&CFG.PEER_ID_RE.test(x))){room.members=[...new Set(m.members)];this.save();App.peer.send(pid,{type:'group-room',room:room.id,action:'catchup',after:room.lastHostMessage||''});if(this._room?.id===room.id)this._render();}
+  if(m.action==='join'&&room.host===App.peer.myId){if(!room.pending?.includes(pid)||Date.now()-(room.inviteTimes?.[pid]||0)>600000){App.peer.send(pid,{type:'group-room',room:room.id,action:'closed'});return;}if(room.locked){App.peer.send(pid,{type:'group-room',room:room.id,action:'closed'});return;}if(room.members.length>=32){App.peer.send(pid,{type:'group-room',room:room.id,action:'full'});return;}room.pending=room.pending.filter(x=>x!==pid);room.members.push(pid);this.roster(room);}
+  else if(m.action==='members'&&pid===room.host&&Array.isArray(m.members)&&m.members.length<=32&&m.members.every(x=>typeof x==='string'&&CFG.PEER_ID_RE.test(x))){room.members=[...new Set(m.members)];room.moderators=Array.isArray(m.mods)?m.mods.filter(x=>room.members.includes(x)):[];room.locked=m.locked===true;if(Array.isArray(m.events))room.events=m.events.slice(-100).filter(e=>Number.isFinite(e?.at)&&typeof e.text==='string'&&e.text.length<200);this.save();App.peer.send(pid,{type:'group-room',room:room.id,action:'catchup',after:room.lastHostMessage||''});if(this._room?.id===room.id)this._render();}
   else if(m.action==='leave'&&room.host===App.peer.myId){room.members=room.members.filter(x=>x!==pid);this.roster(room);}
   else if(m.action==='closed'&&pid===room.host){this._rooms.delete(room.id);if(this._room?.id===room.id)this._leave(false);else this.save();}
  }
- roster(room=this._room){if(!room)return;this.fanout({type:'group-room',action:'members',room:room.id,members:room.members},undefined,room);this._render();}
+ roster(room=this._room){if(!room)return;const old=room.lastRoster||[];room.events=room.events||[];
+  for(const id of room.members.filter(id=>!old.includes(id)))room.events.push({at:Date.now(),text:Conversations.label(id)+' joined'});
+  for(const id of old.filter(id=>!room.members.includes(id)))room.events.push({at:Date.now(),text:Conversations.label(id)+' left'});
+  room.lastRoster=[...room.members];room.events=room.events.slice(-100);room.moderators=(room.moderators||[]).filter(id=>room.members.includes(id));
+  for(const kind of Object.keys(room.assets||{}))this.fanout(this.assetMessage(room,kind),undefined,room);this.fanout({type:'group-room',action:'members',room:room.id,members:room.members,mods:room.moderators,locked:!!room.locked,events:room.events},undefined,room);this._render();}
  fanout(m,except,room=this._rooms.get(m.room)||this._room){for(const pid of room?.members||[])if(pid!==App.peer.myId&&pid!==except)App.peer.send(pid,m);}
  sendRoom(m){if(!this._room)return;if(this._room.host===App.peer.myId)this.fanout(m);else App.peer.send(this._room.host,m);}
- _send(){const text=(document.getElementById('gc-inp')?.value||'').trim();if(!this._room||!text)return;if(this._room.host!==App.peer.myId&&!App.peer.conn(this._room.host)?.open){App.toast.show('The room host is offline. Your draft is still here.','warning');return;}if(text.length>CFG.MSG_SIZE_LIMIT){App.toast.show('Group message is too long.','warning');return;}const m={type:'group-msg',id:uid(16),from:App.peer.myId,name:SafeStorage.get('dh-name','Member'),av:SafeStorage.get('dh-avatar','👤'),text,ts:Date.now(),room:this._room.id};this._msgs.push(m);this._room.messages=this._msgs;this.save();this._sendTyping(false);document.getElementById('gc-inp').value='';this._renderMsgs();this.sendRoom(m);}
+ _send(){const text=(document.getElementById('gc-inp')?.value||'').trim();if(!this._room||!text)return;if(this._room.host!==App.peer.myId&&!App.peer.conn(this._room.host)?.open){App.toast.show('The room host is offline. Your draft is still here.','warning');return;}if(text.length>CFG.MSG_SIZE_LIMIT){App.toast.show('Group message is too long.','warning');return;}const m={type:'group-msg',id:crypto.randomUUID(),from:App.peer.myId,name:SafeStorage.get('dh-name','Member'),av:SafeStorage.get('dh-avatar','👤'),text,ts:Date.now(),room:this._room.id};this._msgs.push(m);this._room.messages=this._msgs;this.save();this._sendTyping(false);document.getElementById('gc-inp').value='';this._renderMsgs();this.sendRoom(m);}
  route(pid,m){const room=this._rooms.get(m.room);if(!room)return false;if(room.host===App.peer.myId){if(!room.members.includes(pid))return false;m.from=pid;m.name=App.peer.peerName(pid);this.fanout(m,pid,room);return true;}return pid===room.host&&room.members.includes(m.from);}
- _onMsg(pid,m){const room=this._rooms.get(m.room);if(!room||typeof m.text!=='string'||m.text.length>CFG.MSG_SIZE_LIMIT||typeof m.id!=='string'||m.id.length>64||(room.messages||[]).some(x=>x.id===m.id)||!this.route(pid,m))return;room.messages=[...(room.messages||[]),m];this.save();if(this._room?.id===room.id){this._msgs=room.messages;this._renderMsgs();}else{room.unread=(room.unread||0)+1;this._render();}}
+ _onMsg(pid,m){const room=this._rooms.get(m.room);if(!room||typeof m.text!=='string'||m.text.length>CFG.MSG_SIZE_LIMIT||typeof m.id!=='string'||!/^[a-zA-Z0-9_-]{1,64}$/.test(m.id)||['__proto__','constructor','prototype'].includes(m.id)||(room.messages||[]).some(x=>x.id===m.id)||!this.route(pid,m))return;room.messages=[...(room.messages||[]),m];if(m.text.includes(']('+App.peer.myId+')')&&!Conversations.muted(pid))App.notifCenter?.add('Mention in '+room.name,m.name+' mentioned you','@');this.save();if(this._room?.id===room.id){this._msgs=room.messages;this._renderMsgs();}else{room.unread=(room.unread||0)+1;this._render();}}
  _sendTyping(typing){clearTimeout(this._typingTimer);if(typing)this._typingTimer=setTimeout(()=>this._sendTyping(false),1800);if(this._room)this.sendRoom({type:'gc-typing',typing:!!typing,from:App.peer.myId,room:this._room.id});}
  _onTyping(pid,typing){/* Room typing uses onGroupEvent to retain its room and sender. */}
- onGroupEvent(pid,m){const room=this._rooms.get(m.room);if(!room)return;if(m.type==='gc-reaction'){if(typeof m.emoji!=='string'||m.emoji.length>16||!(room.messages||[]).some(x=>x.id===m.msgId)||!this.route(pid,m))return;const reactions=room.reactions||(room.reactions=new Map()),r=reactions.get(m.msgId)||{};r[m.emoji]=(r[m.emoji]||0)+1;reactions.set(m.msgId,r);if(this._room?.id===room.id){this._reactions=reactions;this._renderMsgs();}}else if(this.route(pid,m)&&this._room?.id===room.id)super._onTyping(m.from,!!m.typing);}
- _addReaction(emoji,msgId){if(!this._room||!this._msgs.some(x=>x.id===msgId))return;const m={type:'gc-reaction',emoji,msgId,room:this._room.id,from:App.peer.myId};super._onReaction(App.peer.myId,m);this.sendRoom(m);}
+ reaction(room,m){
+  const votes=room.votes||(room.votes=Object.create(null));if(!Object.hasOwn(votes,m.msgId))votes[m.msgId]=Object.create(null);const byMember=votes[m.msgId];
+  if(m.enabled===false)delete byMember[m.from];else byMember[m.from]=m.emoji;
+  const counts={};for(const emoji of Object.values(byMember))counts[emoji]=(counts[emoji]||0)+1;
+  room.reactions.set(m.msgId,counts);this.save();if(this._room===room)this._renderMsgs();
+ }
+ onGroupEvent(pid,m){
+  const room=this._rooms.get(m.room);if(!room)return;
+  if(m.type==='gc-reaction'){
+   if(!['👍','❤️','🎉','😂','🔥','👎'].includes(m.emoji)||!room.messages.some(x=>x.id===m.msgId)||!this.route(pid,m))return;
+   this.reaction(room,m);
+  }else if(this.route(pid,m)&&this._room===room){
+   super._onTyping(m.from,!!m.typing);const sender=m.from;
+   this.expiries=this.expiries||new Map();clearTimeout(this.expiries.get(sender));this.expiries.delete(sender);
+   if(m.typing)this.expiries.set(sender,setTimeout(()=>{if(this._room===room)super._onTyping(sender,false);this.expiries.delete(sender);},3500));
+  }
+ }
+ _addReaction(emoji,msgId){
+  const room=this._room;if(!room?.messages.some(x=>x.id===msgId))return;
+  const m={type:'gc-reaction',emoji,msgId,room:room.id,from:App.peer.myId,enabled:room.votes?.[msgId]?.[App.peer.myId]!==emoji};
+  this.reaction(room,m);this.sendRoom(m);
+ }
  _leave(notify=true){if(this._room&&notify){const m={type:'group-room',action:this._room.host===App.peer.myId?'closed':'leave',room:this._room.id};this.sendRoom(m);}if(this._room)this._rooms.delete(this._room.id);clearTimeout(this._typingTimer);super._leave();document.getElementById('gc-msgs')?.replaceChildren();}
  _render(){
   super._render();if(!this._rooms)return;
   const room=this._room;
-  this.roomControls();setEl('gc-pin-text',room?.messages?.find(m=>m.id===room.pin)?.text||'');
-  setEl('gc-roster',room?room.members.map(pid=>(pid===App.peer.myId?'You':App.peer.peerName(pid))+(pid===room.host?' (host)':'')+(pid!==App.peer.myId&&!App.peer.conn(pid)?.open?' · offline':'')).join(', '):'');
+  this.roomControls();const mentions=document.getElementById('gc-mention');if(mentions){mentions.replaceChildren(new Option('Mention member',''));for(const id of room?.members||[])if(id!==App.peer.myId)mentions.add(new Option(Conversations.label(id),id));}
+  setEl('gc-pin-text',room?.messages?.find(m=>m.id===room.pin)?.text||'');
+  setEl('gc-roster',room?room.members.map(pid=>(pid===App.peer.myId?'You':App.peer.peerName(pid))+(pid===room.host?' (host)':room.moderators?.includes(pid)?' (moderator)':'')+(pid!==App.peer.myId&&!App.peer.conn(pid)?.open?' · offline':'')).join(', '):'');
   this.save();const box=document.getElementById('gc-members');if(!box)return;if(!this._rooms.size){box.textContent='';return;}box.innerHTML=[...this._rooms.values()].map(room=>`<button class="gc-pill" data-room-select="${esc(room.id)}" aria-pressed="${room.id===this._room?.id}">#${esc(room.name)} · ${room.members.length}${room.unread?' · '+room.unread+' new':''}</button>`).join('');}
 }
 class MemberPresentationManager extends PresentationManager {
@@ -20506,7 +20830,9 @@ class MemberPresentationManager extends PresentationManager {
   const accepted=await MemberQuestion.ask('View presentation?',App.peer.peerName(call.peer)+' wants to share '+(call.metadata?.kind==='document'?'a document':'their screen')+'.','View');
   if(!accepted||!App.peer.conn(call.peer)?.open||call._memberClosed){call.close();return;}
   this._incoming?.close();this._incoming=call;
-  const onStream=stream=>{const video=document.getElementById('presenter-video');video.srcObject=stream;video.muted=false;video.setAttribute('playsinline','');video.play().catch(()=>{const retry=()=>video.play().catch(()=>{});document.addEventListener('touchstart',retry,{once:true,passive:true});document.addEventListener('click',retry,{once:true});});document.getElementById('doc-canvas').style.display='none';document.getElementById('presentation-wrap').classList.add('on');document.getElementById('pres-empty').style.display='none';App.ui.setTab('presentation');};
+  const onStream=stream=>{const video=document.getElementById('presenter-video');setEl('pres-status','Presenting: '+Conversations.label(call.peer));
+   for(const t of stream.getVideoTracks()){t.onmute=()=>setEl('pres-status','Presenter video paused');t.onunmute=()=>setEl('pres-status','Presenting: '+Conversations.label(call.peer));}
+   video.srcObject=stream;video.muted=false;video.setAttribute('playsinline','');video.play().catch(()=>{const retry=()=>video.play().catch(()=>{});document.addEventListener('touchstart',retry,{once:true,passive:true});document.addEventListener('click',retry,{once:true});});document.getElementById('doc-canvas').style.display='none';document.getElementById('presentation-wrap').classList.add('on');document.getElementById('pres-empty').style.display='none';App.ui.setTab('presentation');};
   call.on('close',()=>{if(this._incoming===call){this._incoming=null;document.getElementById('presenter-video').srcObject=null;document.getElementById('presentation-wrap').classList.remove('on');}});
   SharedRemoteMedia.bind(call,{onStream});
   call.answer();
@@ -20610,7 +20936,7 @@ function memberMessageAllowed(pid,m){
  if(!m||typeof m!=='object'||typeof m.type!=='string'||m.type.length>64)return false;
  const t=m.type;
  if(t==='meeting'){
-  const actions=['invite','update','cancel','response','admit','lock','lobby','remove','role','chat','record-consent','hand','reaction','poll','attendance'];
+  const actions=['invite','update','cancel','response','admit','lock','lobby','remove','role','chat','record-consent','hand','reaction','poll','attendance','handover'];
   return actions.includes(m.action)&&m.meeting&&typeof m.meeting==='object'&&typeof m.meeting.id==='string'&&/^mtg-[a-f0-9-]{8,80}$/i.test(m.meeting.id)&&typeof m.meeting.title==='string'&&m.meeting.title.length<=120&&Number.isFinite(m.meeting.startMs)&&Array.isArray(m.meeting.attendees)&&m.meeting.attendees.length<=32&&(!m.payload||typeof m.payload==='object'&&JSON.stringify(m.payload).length<=8192);
  }
  if(t==='meeting-chat')return typeof m.meetingId==='string'&&/^mtg-[a-f0-9-]{8,80}$/i.test(m.meetingId)&&typeof m.text==='string'&&m.text.length<=2000;
@@ -20632,7 +20958,7 @@ function memberMessageAllowed(pid,m){
 
 function showMemberPermissions(pid){
  const box=document.getElementById('perms-content');if(!box)return;box.replaceChildren();
- for(const [key,label]of Object.entries({canChat:'Chat',canCall:'Calls and presentations',canSendFiles:'Send files',canReceiveFiles:'Receive files',canWhiteboard:'Shared whiteboard',canCollaborate:'Code, tasks, notes and clipboard'})){
+ for(const [key,label]of Object.entries({canViewPresence:'Share my presence',canChat:'Chat',canCall:'Calls and presentations',canSendFiles:'Send files',canReceiveFiles:'Receive files',canWhiteboard:'Shared whiteboard',canCollaborate:'Code, tasks, notes and clipboard'})){
   const row=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.checked=App.perms.check(pid,key);input.onchange=()=>{App.perms.set(pid,key,input.checked);if(key==='canCall'&&!input.checked)for(const call of App.peer.transport.media)if(call.peer===pid)call.close();};row.style.cssText='display:flex;gap:10px;margin:12px';row.append(input,document.createTextNode(label));box.append(row);
  }document.getElementById('perms-panel').style.display='block';
 }
@@ -20662,7 +20988,7 @@ async function bootApp(){
     if(fill){fill.style.width=pct+'%';fill.closest('[role="progressbar"]')?.setAttribute('aria-valuenow',pct);}
   };
 
-  _runBootAssert();
+  _runBootAssert();await MemberArchive.init();
   setBootMsg('Booting…',5);
   if(window.__dhDbg)window.__dhDbg('bootApp running');
   try{App.bootRec=new BootRecoveryManager();App.bootRec.markBootStart();App.bootRec.checkBootFailure();}catch(_e){console.warn('[DH]bootRec',_e.message);}
@@ -21132,12 +21458,10 @@ if(SafeStorage.get('dh-devmode','')==='1'){
       t('OfflineQueue.flush returns promise',function(){const r=App.offlineQ.flush();if(!r||typeof r.then!=='function')throw new Error('flush() should return Promise');});
       t('OfflineQueue.size is function',function(){if(typeof App.offlineQ.size!=='function')throw new Error('size() missing');});
       t('offlineQueue drain order preserved',function(){
-        const q=new OfflineQueue();q.init();
-        const orig=q._q.slice();
-        q._q=[{type:'msg',pid:'p1',text:'a',id:'1',ts:1},{type:'msg',pid:'p1',text:'b',id:'2',ts:2}];
-        const items=[...q._q];
-        if(items[0].text!=='a'||items[1].text!=='b')throw new Error('Order not preserved');
-        q._q=orig;q._save();
+        const q=new OfflineQueue();q.prefix='member-outbox-test:'+crypto.randomUUID()+':';
+        try{q.push({pid:'p1',id:'2',text:'b',ts:2});q.push({pid:'p1',id:'1',text:'a',ts:1});
+         if(q.items().map(m=>m.id).join(',')!=='1,2')throw Error('Order not preserved');
+        }finally{q.ack('p1','1');q.ack('p1','2');}
       });
       t('CryptoManager.deriveSharedSecret is function',function(){if(!App.crypto||typeof App.crypto.deriveSharedSecret!=='function')throw new Error('deriveSharedSecret missing');});
       t('CryptoManager.getFingerprint is function',function(){if(typeof App.crypto?.getFingerprint!=='function')throw new Error('getFingerprint missing');});
@@ -21266,7 +21590,7 @@ if(SafeStorage.get('dh-devmode','')==='1'){
       tests.forEach(({name,fn})=>t(name,fn));
     }else{
       /* built-in headless-safe subset (no DOM, no App dependency) */
-      t('CFG.VERSION is 12.x',()=>{if(!CFG.VERSION.startsWith('12.'))throw new Error('expected 12.x, got '+CFG.VERSION);});
+      t('CFG.VERSION is semantic',()=>{if(!/^\d+\.\d+\.\d+$/.test(CFG.VERSION))throw Error('Invalid version');});
       t('CFG.DB_VERSION is 7',()=>{if(CFG.DB_VERSION!==7)throw new Error('expected 7, got '+CFG.DB_VERSION);});
       t('CFG is frozen',()=>{let threw=false;try{CFG.__hl='x';}catch(e){threw=true;}if(!threw&&CFG.__hl)throw new Error('CFG not frozen');});
       t('DB_MIGRATIONS length ≥6',()=>{if(!Array.isArray(DB_MIGRATIONS)||DB_MIGRATIONS.length<6)throw new Error('expected ≥6');});
